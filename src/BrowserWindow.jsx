@@ -1656,27 +1656,42 @@ const DonatePage = () => (
           Every dollar makes a difference!
         </p>
         
-        <div 
-          style={{ 
-            display: "flex", 
-            justifyContent: "center", 
-            marginBottom: "15px",
-            width: "100%"
-          }}
-          dangerouslySetInnerHTML={{
-            __html: `
-              <script async
-                src="https://js.stripe.com/v3/buy-button.js">
-              </script>
-
-              <stripe-buy-button
-                buy-button-id="buy_btn_1PHGCvJNcAHZMYxIrLkgpSRj"
-                publishable-key="pk_live_51O5yj1JNcAHZMYxIXiYKFO5fZbC29wl8bDBF6vdg69hkaNaNiQMXTyG8Wv0mAZi1U79SdPuILLqC1lzB0HNRU7n400KtLqKdkF"
-              >
-              </stripe-buy-button>
-            `
-          }}
-        ></div>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "15px" }}>
+          <button 
+            onClick={() => window.open("https://buy.stripe.com/8wMaEW0mqaYB1jOaEH", "_blank")} 
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "12px",
+              padding: "16px 24px",
+              background: "linear-gradient(135deg, #635BFF, #8A84FF)",
+              border: "none",
+              borderRadius: "8px",
+              color: "white",
+              fontWeight: "bold",
+              fontSize: "18px",
+              cursor: "pointer",
+              transition: "all 0.3s ease",
+              boxShadow: "0 4px 12px rgba(99, 91, 255, 0.3)"
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = "linear-gradient(135deg, #5851E1, #7B75F0)";
+              e.currentTarget.style.transform = "translateY(-3px)";
+              e.currentTarget.style.boxShadow = "0 6px 15px rgba(99, 91, 255, 0.4)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = "linear-gradient(135deg, #635BFF, #8A84FF)";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 4px 12px rgba(99, 91, 255, 0.3)";
+            }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 0C5.376 0 0 5.376 0 12C0 18.624 5.376 24 12 24C18.624 24 24 18.624 24 12C24 5.376 18.624 0 12 0ZM5.04 14.832C4.464 14.832 3.96 14.328 3.96 13.728C3.96 13.128 4.464 12.624 5.04 12.624H9.72C10.32 12.624 10.8 13.128 10.8 13.728C10.8 14.328 10.32 14.832 9.72 14.832H5.04ZM19.2 10.08C19.2 10.68 18.72 11.16 18.12 11.16H4.08C3.48 11.16 3 10.68 3 10.08C3 9.48 3.48 9 4.08 9H18.12C18.72 9 19.2 9.48 19.2 10.08ZM19.68 7.44C19.68 8.04 19.2 8.52 18.6 8.52H7.92C7.32 8.52 6.84 8.04 6.84 7.44C6.84 6.84 7.32 6.36 7.92 6.36H18.6C19.2 6.36 19.68 6.84 19.68 7.44Z" fill="white"/>
+            </svg>
+            Donate via Stripe
+          </button>
+        </div>
         
         <p style={{ fontSize: "12px", color: "#666", marginTop: "20px", textAlign: "center" }}>
           All transactions are processed through our fiscal sponsor, BootSector, a registered 501(c)3 non-profit (EIN: 85-4082950)

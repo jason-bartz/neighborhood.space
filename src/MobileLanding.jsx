@@ -1430,7 +1430,7 @@ export default function MobileLanding({ initialBootDone = false }) {
               
               <div style={{ display: "flex", justifyContent: "center" }}>
                 <a 
-                  href="https://buy.stripe.com/8wMaEW0mqaYB1jOaEH"
+                  href="https://buy.stripe.com/dR68wO3yCgiVaUo6oq"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{
@@ -1454,7 +1454,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 0C5.376 0 0 5.376 0 12C0 18.624 5.376 24 12 24C18.624 24 24 18.624 24 12C24 5.376 18.624 0 12 0ZM5.04 14.832C4.464 14.832 3.96 14.328 3.96 13.728C3.96 13.128 4.464 12.624 5.04 12.624H9.72C10.32 12.624 10.8 13.128 10.8 13.728C10.8 14.328 10.32 14.832 9.72 14.832H5.04ZM19.2 10.08C19.2 10.68 18.72 11.16 18.12 11.16H4.08C3.48 11.16 3 10.68 3 10.08C3 9.48 3.48 9 4.08 9H18.12C18.72 9 19.2 9.48 19.2 10.08ZM19.68 7.44C19.68 8.04 19.2 8.52 18.6 8.52H7.92C7.32 8.52 6.84 8.04 6.84 7.44C6.84 6.84 7.32 6.36 7.92 6.36H18.6C19.2 6.36 19.68 6.84 19.68 7.44Z" fill="white"/>
                   </svg>
-                  Join GNF Club
+                  Join the Club Today
                 </a>
               </div>
             </div>

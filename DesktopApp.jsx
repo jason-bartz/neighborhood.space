@@ -1,20 +1,43 @@
-// DesktopApp.jsx (Updated for Music Player)
-import React, { useEffect, useState } from "react";
+// DesktopApp.jsx (Updated for BlockParty integration and re-added FounderMap and NeighborhoodResources)
+import React, { useEffect, useState, lazy, Suspense } from "react";
 import BootScreen from "./BootScreen";
 import DesktopIcon from "./DesktopIcon";
 import RetroWindow from "./RetroWindow";
 import StandalonePitchForm from "./StandalonePitchForm";
-import MusicPlayer from "./MusicPlayer"; // Keep MusicPlayer
+import MusicPlayer from "./MusicPlayer"; 
 import LPPortal from "./LPPortal";
 import BrowserWindow from "./BrowserWindow";
-// Removed auth/db imports - handled inside LPPortal
+import FounderMap from "./src/components/FounderMap";
+import NeighborhoodResources from "./src/components/NeighborhoodResources";
 import "./App.css";
+
+// Lazy load BlockPartyApp to improve initial load time
+const BlockPartyApp = lazy(() => import('./src/BlockPartyApp'));
 
 export default function DesktopApp() {
   const [booted, setBooted] = useState(false);
   const [openApp, setOpenApp] = useState("website"); // Tracks primary focused app window
   const [currentTime, setCurrentTime] = useState("");
   const [showMusic, setShowMusic] = useState(true); // Music player visibility controlled separately
+  const [showFounderMap, setShowFounderMap] = useState(false);
+  const [showNeighborhoodMap, setShowNeighborhoodMap] = useState(false);
+  
+  // Window z-index management
+  const [windowZIndexes, setWindowZIndexes] = useState({
+    founderMap: 1000,
+    neighborhoodMap: 1000
+  });
+
+  // Function to bring windows to front
+  const bringWindowToFront = (windowId) => {
+    setWindowZIndexes(prev => {
+      const highestZ = Math.max(...Object.values(prev));
+      return {
+        ...prev,
+        [windowId]: highestZ + 1
+      };
+    });
+  };
 
   // Boot screen timer
   useEffect(() => { const timer = setTimeout(() => setBooted(true), 8800); return () => clearTimeout(timer); }, []);
@@ -37,7 +60,7 @@ export default function DesktopApp() {
       <audio id="click-sound" src="/sounds/click.mp3" preload="auto" />
 
       {/* Taskbar */}
-      <div className="taskbar"> {/* ... (no changes) ... */}
+      <div className="taskbar">
         <div className="taskbar-left"> <img src="/favicon.png" alt="GNF icon" className="taskbar-icon" /> <span>NeighborhoodOS</span> </div>
         <div className="taskbar-right"> <span className="retro-clock">{currentTime}</span> </div>
       </div>
@@ -48,6 +71,26 @@ export default function DesktopApp() {
         <div className="icon-left">
           <DesktopIcon icon="/assets/icon-submit.png" label="Submit Pitch" onClick={() => handleAppOpen("submit")} />
           <DesktopIcon icon="/assets/icon-review.png" label="LP Portal" onClick={() => handleAppOpen("lpPortal")} />
+          {/* New BlockParty Icon */}
+          <DesktopIcon icon="/assets/icon-blockparty.png" label="BlockParty" onClick={() => handleAppOpen("blockparty")} />
+          {/* Re-added FounderMap Icon */}
+          <DesktopIcon
+            icon="/assets/FounderMap-icon.webp"
+            label="Awardee Map"
+            onClick={() => {
+              setShowFounderMap(true);
+              bringWindowToFront("founderMap");
+            }}
+          />
+          {/* Re-added NeighborhoodResources Icon */}
+          <DesktopIcon
+            icon="/assets/icon-map.webp"
+            label="Neighborhood Resources"
+            onClick={() => {
+              setShowNeighborhoodMap(true);
+              bringWindowToFront("neighborhoodMap");
+            }}
+          />
         </div>
          {/* Right Side Icons */}
         <div className="icon-right">
@@ -72,9 +115,66 @@ export default function DesktopApp() {
       {openApp === "submit" && ( <StandalonePitchForm onClose={() => setOpenApp(null)} /> )}
       {openApp === "lpPortal" && ( <RetroWindow title="LP Portal" onClose={() => setOpenApp(null)}> <LPPortal onOpenGNFWebsite={() => handleAppOpen("website")} /> </RetroWindow> )}
       {openApp === "website" && ( <BrowserWindow onClose={() => setOpenApp(null)} /> )}
+      
+      {/* BlockParty App */}
+      {openApp === "blockparty" && (
+        <Suspense fallback={
+          <div className="loading-blockparty">
+            <div className="loading-dots">
+              <div className="dot"></div>
+              <div className="dot"></div>
+              <div className="dot"></div>
+            </div>
+            <p>Loading BlockParty.exe...</p>
+          </div>
+        }>
+          <BlockPartyApp onClose={() => setOpenApp(null)} />
+        </Suspense>
+      )}
+
+      {/* FounderMap Window */}
+      {showFounderMap && (
+        <RetroWindow
+          title="🗺️ Awardee Map (based on founder zipcode)"
+          onClose={() => setShowFounderMap(false)}
+          width={900}
+          height={600}
+          center
+          windowId="founderMap"
+          zIndex={windowZIndexes.founderMap}
+          bringToFront={bringWindowToFront}
+        >
+          <FounderMap 
+            onClose={() => setShowFounderMap(false)} 
+            windowId="founderMap"
+            bringToFront={bringWindowToFront}
+            isEmbedded={true}
+          />
+        </RetroWindow>
+      )}
+
+      {/* NeighborhoodResources Window */}
+      {showNeighborhoodMap && (
+        <RetroWindow
+          title="📖 Neighborhood Resources - Western New York Edition"
+          onClose={() => setShowNeighborhoodMap(false)}
+          width={1000}
+          height={700}
+          center
+          windowId="neighborhoodMap"
+          zIndex={windowZIndexes.neighborhoodMap}
+          bringToFront={bringWindowToFront}
+        >
+          <NeighborhoodResources 
+            onClose={() => setShowNeighborhoodMap(false)} 
+            windowId="neighborhoodMap"
+            bringToFront={bringWindowToFront}
+            isEmbedded={true}
+          />
+        </RetroWindow>
+      )}
 
       {/* Music Player (Rendered independently based on showMusic state) */}
-      {/* --- CHANGE: Removed openApp === 'music' condition --- */}
       {showMusic && (
         <MusicPlayer
           onClose={() => {
@@ -82,7 +182,6 @@ export default function DesktopApp() {
           }}
         />
       )}
-      {/* --- End Change --- */}
 
     </div>
   );

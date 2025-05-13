@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Important pages for SEO
+Allow: /chapters
+Allow: /wny
+Allow: /denver
+Allow: /donate
+
+# Sitemap
+Sitemap: https://www.neighborhoods.space/sitemap.xml

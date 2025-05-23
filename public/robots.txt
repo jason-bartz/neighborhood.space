@@ -3,9 +3,14 @@ Allow: /
 
 # Important pages for SEO
 Allow: /chapters
-Allow: /wny
+Allow: /wny  
 Allow: /denver
 Allow: /donate
+Allow: /awardees
+Allow: /pitch
+
+# Crawl delay to be respectful
+Crawl-delay: 1
 
 # Sitemap
 Sitemap: https://www.neighborhoods.space/sitemap.xml

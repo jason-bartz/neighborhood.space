@@ -1136,13 +1136,13 @@ if (!user) {
       {/* Footer Link (Optional) */}
       <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #888', fontSize: '0.9em', color: '#444', lineHeight: '1.4' }}>
         <p>
-          This tool is for GNF Limited Partner use and requires an Admin invite. 
+          This tool is for internal GNF Limited Partner use and requires an Admin invite. 
         </p>
         <p style={{marginTop:'15px'}}>
           <p>
           Interested in becoming a Limited Partner? <br />
           </p>
-          <a href="https://docs.google.com/forms/d/e/1FAIpQLScKxNP8Kf1bSzl1uay3G1ewyOgRUKpLRDkiGMuSyJns_cBksQ/viewform" target="_blank" rel="noopener noreferrer" style={{ color: "#0000EE", textDecoration: 'underline', fontWeight: 'bold' }} >
+          <a href="https://airtable.com/app38xfYxu9HY6yT3/pagy7R4p6BCdXBpzF/form" target="_blank" rel="noopener noreferrer" style={{ color: "#0000EE", textDecoration: 'underline', fontWeight: 'bold' }} >
             Apply Here
           </a>
         </p>

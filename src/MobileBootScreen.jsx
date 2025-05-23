@@ -90,7 +90,7 @@ export default function MobileBootScreen({ onFinish }) {
           fontSize: '20px',
           margin: '0 0 10px 0',
           fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif'
-        }}>NeighborhoodOS v1.1</h1>
+        }}>NeighborhoodOS v1.4</h1>
         <p className="boot-loading-text" style={{
           fontSize: '14px',
           margin: '0 0 15px 0',

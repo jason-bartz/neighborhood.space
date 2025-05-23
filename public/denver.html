@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Good Neighbor Fund Denver - $1,000 Micro-Grants for Colorado Startups</title>
+  <meta name="description" content="Get $1,000 startup grants in Denver and Colorado. No equity, no pitch deck required. Supporting entrepreneurs in the Mile High City with belief capital.">
+  <meta name="keywords" content="denver startup grants, colorado small business funding, denver entrepreneur grants, denver co business grants, 303 startup funding, denver county business grants, colorado micro grants">
+  <link rel="canonical" href="https://www.neighborhoods.space/denver">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.neighborhoods.space/denver">
+  <meta property="og:title" content="Good Neighbor Fund Denver - $1,000 Startup Grants for Colorado Entrepreneurs">
+  <meta property="og:description" content="Get $1,000 for your Denver business idea. Supporting entrepreneurs across the Mile High City with belief capital.">
+  <meta property="og:image" content="https://www.neighborhoods.space/assets/kiln-2.webp">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://www.neighborhoods.space/denver">
+  <meta property="twitter:title" content="Good Neighbor Fund Denver - Colorado Startup Grants">
+  <meta property="twitter:description" content="$1,000 grants for Denver entrepreneurs. No equity required.">
+  <meta property="twitter:image" content="https://www.neighborhoods.space/assets/kiln-2.webp">
+  
+  <!-- Fonts -->
+  <link rel="stylesheet" href="/assets/fonts/fonts.css" />
+  
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "GrantsProgram",
+    "name": "Good Neighbor Fund Denver",
+    "alternateName": "GNF Denver",
+    "url": "https://www.neighborhoods.space/denver",
+    "description": "$1,000 micro-grants for entrepreneurs in Denver and Colorado. No equity, no pitch deck required.",
+    "provider": {
+      "@type": "NonprofitOrganization",
+      "name": "Good Neighbor Fund",
+      "url": "https://www.neighborhoods.space"
+    },
+    "areaServed": [
+      {
+        "@type": "City",
+        "name": "Denver",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "Colorado"
+        }
+      },
+      {
+        "@type": "AdministrativeArea",
+        "name": "Denver County",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "Colorado"
+        }
+      },
+      {
+        "@type": "AdministrativeArea",
+        "name": "Jefferson County",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "Colorado"
+        }
+      },
+      {
+        "@type": "AdministrativeArea",
+        "name": "Arapahoe County",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "Colorado"
+        }
+      }
+    ],
+    "offers": {
+      "@type": "Offer",
+      "name": "Micro-Grant",
+      "price": "1000",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive;
+      background-color: #fff;
+      color: #222;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    /* Hero Section with gradient background */
+    .hero {
+      background: linear-gradient(135deg, rgba(255, 234, 249, 0.4), rgba(230, 242, 255, 0.4));
+      border-radius: 12px;
+      padding: 0;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .hero-content {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      min-height: 340px;
+    }
+    
+    .hero-left {
+      flex: 1;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    
+    .hero h1 {
+      font-size: 38px;
+      margin-bottom: 20px;
+      background: linear-gradient(to right, #ff00cc, #3333cc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 1px 1px 0px rgba(255,255,255,0.5);
+    }
+    
+    .hero p {
+      font-size: 18px;
+      line-height: 1.5;
+      margin-bottom: 25px;
+    }
+    
+    .cta-button {
+      background: #FFD6EC;
+      border: none;
+      border-radius: 30px;
+      padding: 14px 28px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      align-self: flex-start;
+      font-family: 'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive;
+      color: #222;
+      box-shadow: 0 4px 10px rgba(255,112,176,0.3);
+      position: relative;
+      transition: transform 0.2s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .cta-button:hover {
+      transform: translateY(-3px);
+    }
+    
+    .hero-right {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      border-radius: 0 12px 12px 0;
+      background: #FFD6EC;
+      min-height: 340px;
+    }
+    
+    .hero-right img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+    }
+    
+    .hero-caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 15px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      font-size: 14px;
+    }
+    
+    /* Counties Section */
+    .counties {
+      display: flex;
+      gap: 30px;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+    }
+    
+    .counties-left {
+      flex: 1;
+      min-width: 300px;
+      background: #f9f9f9;
+      border-radius: 10px;
+      padding: 25px;
+      border: 1px solid #eee;
+    }
+    
+    .counties h2 {
+      color: #990099;
+      margin-top: 0;
+      border-bottom: 2px solid #f0d6ff;
+      padding-bottom: 10px;
+    }
+    
+    .counties-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+      justify-content: center;
+    }
+    
+    .county-card {
+      background: #ffffff;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 14px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      border: 1px solid #eee;
+    }
+    
+    /* Stats Section */
+    .stats {
+      flex: 1;
+      min-width: 300px;
+      background: linear-gradient(to bottom right, #f0faff, #eaf5ff);
+      border-radius: 10px;
+      padding: 25px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .stats h2 {
+      color: #0066aa;
+      margin-top: 0;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      text-align: center;
+    }
+    
+    .stat-item {
+      background: #ffffff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    
+    .stat-item h4 {
+      font-size: 36px;
+      font-weight: bold;
+      color: #0082d4;
+      display: block;
+      margin: 0;
+    }
+    
+    .stat-item p {
+      font-size: 15px;
+      color: #555;
+      margin: 5px 0 0 0;
+    }
+    
+    /* LP Section */
+    .lp-section {
+      background: #fff0f5;
+      padding: 25px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      border: 2px dashed #ffb6d9;
+    }
+    
+    .lp-section h2 {
+      text-align: center;
+      color: #cc3366;
+      margin-bottom: 15px;
+    }
+    
+    .lp-section p {
+      font-size: 16px;
+      line-height: 1.6;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .lp-cta {
+      display: inline-block;
+      background: #FF69B4;
+      color: white;
+      padding: 12px 25px;
+      border-radius: 30px;
+      font-size: 16px;
+      font-weight: bold;
+      text-decoration: none;
+      margin-top: 20px;
+      box-shadow: 0 4px 15px rgba(255,105,180,0.3);
+      transition: all 0.2s ease;
+    }
+    
+    .lp-cta:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 18px rgba(255,105,180,0.4);
+    }
+    
+    /* Community Images */
+    .community-images {
+      margin-bottom: 30px;
+      background: #f9f9f9;
+      border-radius: 10px;
+      padding: 25px;
+      overflow: hidden;
+    }
+    
+    .community-images h2 {
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    
+    .images-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 180px);
+      gap: 15px;
+      margin: 0 auto;
+    }
+    
+    .image-container {
+      background: #f0f0f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .image-container img {
+      height: 100%;
+      width: 100%;
+      object-fit: cover;
+    }
+    
+    /* Final CTA Section */
+    .final-cta {
+      background: linear-gradient(135deg, #FFD6EC, #ffeaf0);
+      border-radius: 10px;
+      padding: 30px;
+      text-align: center;
+      box-shadow: 0 3px 15px rgba(0,0,0,0.05);
+      margin-bottom: 30px;
+    }
+    
+    .final-cta h2 {
+      font-size: 28px;
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: #333;
+    }
+    
+    footer {
+      background: #f8f8f8;
+      padding: 20px;
+      text-align: center;
+      color: #666;
+      border-top: 1px solid #ddd;
+    }
+    
+    footer a {
+      color: #0066aa;
+      text-decoration: none;
+      margin: 0 10px;
+    }
+    
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: 24px;
+      }
+      
+      .hero-content {
+        flex-direction: column;
+      }
+      
+      .hero-right {
+        min-height: 200px;
+        border-radius: 0 0 12px 12px;
+      }
+      
+      .counties {
+        flex-direction: column;
+      }
+      
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .images-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(6, 150px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Hero Section -->
+    <div class="hero">
+      <div class="hero-content">
+        <div class="hero-left">
+          <h1>$1,000 Micro-Grants for Denver Business Ideas 🏔️</h1>
+          <p><strong>We back brilliant ideas before they're "ready."</strong> No pitch deck required. No equity taken. Just belief in your vision and potential.</p>
+          <a href="/pitch" class="cta-button">🚀 Submit Your Pitch Today!</a>
+        </div>
+        <div class="hero-right">
+          <img src="/assets/denver-launch.webp" alt="Denver Launch - Good Neighbor Fund Denver chapter event" />
+          <div class="hero-caption">Denver Chapter Launch Event</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Counties and Stats Section -->
+    <div class="counties">
+      <div class="counties-left">
+        <h2>Serving the Mile High City ⛰️</h2>
+        <p style="font-size: 16px; line-height: 1.6;">
+          Good Neighbor Fund Denver supports entrepreneurs across the Denver metro area. 
+          From downtown to the suburbs, we believe in your Mile High dreams.
+        </p>
+        <div class="counties-grid">
+          <div class="county-card">Denver County</div>
+          <div class="county-card">Jefferson County</div>
+          <div class="county-card">Arapahoe County</div>
+          <div class="county-card">Adams County</div>
+          <div class="county-card">Douglas County</div>
+          <div class="county-card">Boulder County</div>
+        </div>
+      </div>
+      
+      <div class="stats">
+        <h2>Our Impact Since 2023</h2>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <h4>$25,000</h4>
+            <p>In Micro-Grants Awarded</p>
+          </div>
+          <div class="stat-item">
+            <h4>80%</h4>
+            <p>Women-Owned</p>
+          </div>
+          <div class="stat-item">
+            <h4>52%</h4>
+            <p>BIPOC-Owned</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- LP Section -->
+    <div class="lp-section">
+      <h2>Powered by People, Not Institutions 🤝</h2>
+      <p>
+        Good Neighbor Fund is a collective giving organization. Our funding comes from Limited Partners (LPs) - 
+        local founders, operators, and community members who pool their own capital each quarter to fund the 
+        boldest new ideas in Denver. No overhead. No bureaucracy. Just neighbors investing in neighbors.
+      </p>
+      <p style="font-size: 15px; font-style: italic; margin-top: 15px;">
+        Want to help select the next wave of Denver founders? Join us as an LP.
+      </p>
+      <div style="text-align: center;">
+        <a href="https://docs.google.com/forms/d/e/1FAIpQLScKxNP8Kf1bSzl1uay3G1ewyOgRUKpLRDkiGMuSyJns_cBksQ/viewform" class="lp-cta">
+          Become a Limited Partner
+        </a>
+      </div>
+    </div>
+    
+    <!-- Community Images -->
+    <div class="community-images">
+      <h2>Building Denver's Startup Community 🌟</h2>
+      <div class="images-grid">
+        <div class="image-container">
+          <img src="/assets/kiln-panel.webp" alt="Startup pitch presentations at Kiln Denver" />
+        </div>
+        <div class="image-container">
+          <img src="/assets/kiln-2.webp" alt="Good Neighbor Fund Denver community event at Kiln" />
+        </div>
+        <div class="image-container">
+          <img src="/assets/sunghee-2.webp" alt="Sunghee - Denver entrepreneur and grant recipient" />
+        </div>
+        <div class="image-container">
+          <img src="/assets/mana-2.webp" alt="Mana - Denver Good Neighbor Fund grant awardee" />
+        </div>
+        <div class="image-container">
+          <img src="/assets/denver-launch.webp" alt="Denver Chapter launch celebration" />
+        </div>
+      </div>
+    </div>
+    
+    <!-- Final CTA -->
+    <div class="final-cta">
+      <h2>Ready to Bring Your Business Idea to Life?</h2>
+      <p style="font-size: 16px; max-width: 600px; margin: 0 auto 25px auto; line-height: 1.6;">
+        We're looking for passionate founders with bold ideas that create positive impact in Denver. 
+        No business plan required—just a 60-second pitch video and your authentic vision.
+      </p>
+      <a href="/pitch" class="cta-button">🚀 Submit Your Pitch Today!</a>
+    </div>
+    
+    <footer>
+      <p>&copy; 2025 Good Neighbor Fund.</p>
+      <div style="margin-top: 10px;">
+        <a href="/">Home</a>
+      </div>
+    </footer>
+  </div>
+</body>
+</html>

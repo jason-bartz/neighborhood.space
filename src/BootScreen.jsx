@@ -59,7 +59,7 @@ export default function BootScreen({ onFinish }) {
             className="boot-logo"
           />
         </div>
-        <h1>NeighborhoodOS v1.1</h1>
+        <h1>NeighborhoodOS v1.4</h1>
         <p className="boot-loading-text">{bootMessages[messageIndex]}</p>
 
         <div className="boot-progress-container">

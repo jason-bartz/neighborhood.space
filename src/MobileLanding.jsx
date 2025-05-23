@@ -322,15 +322,22 @@ export default function MobileLanding({ initialBootDone = false }) {
       linkedin: "https://www.linkedin.com/in/jordan-walbesser/"
     },
     {
-      name: "Najja Boulden",
-      title: "Founder, Phoenix Innovation Group",
-      bio: "Trainer and developer of inclusive innovation ecosystems."
+      name: "Katie Wallingford",
+      title: "Product Manager, Leap Event Technologies",
+      bio: "Early-stage product manager. Buffalo transplant building with heart and human-centered design.",
+      linkedin: "https://www.linkedin.com/in/katie-wallingford/"
     },
     {
-      name: "Shannon McCabe",
-      title: "Market Research Analyst, Moog",
-      bio: "Background in VC and 43North. GenZ VC mentor.",
-      linkedin: "https://www.linkedin.com/in/smccabe04/"
+      name: "Najja Boulden",
+      title: "Founder, Phoenix Innovation Group",
+      bio: "Trainer and developer of inclusive innovation ecosystems.",
+      linkedin: "https://www.linkedin.com/in/najja-a-bouldin-85182a8b/"
+    },
+    {
+      name: "Rachel Good",
+      title: "Media Relations, Javen Construction",
+      bio: "Arts advocate and community builder. Construction pro by day, culture champion by night.",
+      linkedin: "https://www.linkedin.com/in/rachelmariegood/"
     },
     {
       name: "Sonya Tarake",
@@ -458,7 +465,7 @@ export default function MobileLanding({ initialBootDone = false }) {
         <div key={name} style={{ background: "#f8f8ff", padding: "12px", borderRadius: "8px", border: "1px solid #ccc" }}>
           <img
             src={`/assets/lps/${name.toLowerCase().replace(/\s+/g, "-")}.png`}
-            alt={name}
+            alt={`${name} - ${title}, Good Neighbor Fund Limited Partner`}
             style={{
               width: "80px",
               height: "80px",
@@ -507,6 +514,7 @@ export default function MobileLanding({ initialBootDone = false }) {
       case "home":
         return (
           <>
+            <h1 style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", overflow: "hidden" }}>Good Neighbor Fund - $1,000 Micro-Grants for Buffalo and Denver Startups</h1>
             {/* Hero Section */}
             <div style={{ 
               background: "linear-gradient(135deg, #ffeaf9, #e6f2ff)", 
@@ -727,7 +735,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                       {press.logo ? (
                         <img 
                           src={press.logo} 
-                          alt={press.title} 
+                          alt={`${press.title} logo - Good Neighbor Fund press coverage`} 
                           style={{ 
                             height: "100%",
                             maxWidth: "120px",
@@ -759,7 +767,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                       {press.logo ? (
                         <img 
                           src={press.logo} 
-                          alt={press.title} 
+                          alt={`${press.title} logo - Good Neighbor Fund press coverage`} 
                           style={{ 
                             height: "100%",
                             maxWidth: "120px",
@@ -857,10 +865,10 @@ export default function MobileLanding({ initialBootDone = false }) {
                 {/* First set of images */}
                 <div style={{ display: "inline-flex", gap: "20px", padding: "0 10px" }}>
                   {[
-                    { src: "/assets/Ernies2.webp", alt: "Ernie's Pop Shop, Micro-Grant Awardee" },
-                    { src: "/assets/BFR2.webp", alt: "Buffalo Fashion Runway - Micro-Grant Awardee" },
-                    { src: "/assets/Trinas2.webp", alt: "Trina's Speedy Cleaning, Micro-Grant Awardee" },
-                    { src: "/assets/gnf-kamil.webp", alt: "Kamil Social, Micro-Grant Awardee" }
+                    { src: "/assets/Ernies2.webp", alt: "Ernie's Pop Shop - Buffalo small business $1,000 grant winner from Good Neighbor Fund" },
+                    { src: "/assets/BFR2.webp", alt: "Buffalo Fashion Runway - Western New York fashion startup funded by Good Neighbor Fund micro-grant" },
+                    { src: "/assets/Trinas2.webp", alt: "Trina's Speedy Cleaning - Buffalo cleaning service business funded by Good Neighbor Fund $1,000 grant" },
+                    { src: "/assets/gnf-kamil.webp", alt: "Kamil Social - Denver social media startup funded by Good Neighbor Fund micro-grant program" }
                   ].map((img, index) => (
                     <img 
                       key={`awardee-img-${index}`}
@@ -881,10 +889,10 @@ export default function MobileLanding({ initialBootDone = false }) {
                 {/* Duplicate images for seamless scrolling */}
                 <div style={{ display: "inline-flex", gap: "20px", padding: "0 10px", marginLeft: "20px" }}>
                   {[
-                    { src: "/assets/Ernies2.webp", alt: "Ernie's Pop Shop, Micro-Grant Awardee" },
-                    { src: "/assets/BFR2.webp", alt: "Buffalo Fashion Runway - Micro-Grant Awardee" },
-                    { src: "/assets/Trinas2.webp", alt: "Trina's Speedy Cleaning, Micro-Grant Awardee" },
-                    { src: "/assets/gnf-kamil.webp", alt: "Kamil Social, Micro-Grant Awardee" }
+                    { src: "/assets/Ernies2.webp", alt: "Ernie's Pop Shop - Buffalo small business $1,000 grant winner from Good Neighbor Fund" },
+                    { src: "/assets/BFR2.webp", alt: "Buffalo Fashion Runway - Western New York fashion startup funded by Good Neighbor Fund micro-grant" },
+                    { src: "/assets/Trinas2.webp", alt: "Trina's Speedy Cleaning - Buffalo cleaning service business funded by Good Neighbor Fund $1,000 grant" },
+                    { src: "/assets/gnf-kamil.webp", alt: "Kamil Social - Denver social media startup funded by Good Neighbor Fund micro-grant program" }
                   ].map((img, index) => (
                     <img 
                       key={`dup-awardee-img-${index}`}
@@ -1025,7 +1033,10 @@ export default function MobileLanding({ initialBootDone = false }) {
             <div style={{ background: "#fff0f5", padding: "15px", border: "2px groove #cc88aa", borderRadius: "8px", textAlign: "center" }}>
               <h3 style={{ color: "#cc3366", marginTop: 0, fontSize: "15px" }}>Start a Chapter in Your City</h3>
               <p style={{ fontSize: "12px" }}>Interested in launching a GNF chapter in your own community? We're always looking for passionate good neighbors to help spread the belief capital.</p>
-              <button onClick={() => window.location.href = "https://airtable.com/app38xfYxu9HY6yT3/pagYPQAHYvAUxPfuX/form"} style={{ background: "#ffccee", border: "2px outset #ff99cc", borderRadius: "6px", padding: "8px 15px", fontWeight: "bold", fontSize: "12px", cursor: "pointer", marginTop: "10px" }}>✉️ Contact Us to Start a Chapter</button>
+              <div style={{ display: "flex", gap: "8px", flexDirection: "column", alignItems: "center", marginTop: "10px" }}>
+                <button onClick={() => window.location.href = "https://airtable.com/app38xfYxu9HY6yT3/pagYPQAHYvAUxPfuX/form"} style={{ background: "#ffccee", border: "2px outset #ff99cc", borderRadius: "6px", padding: "8px 15px", fontWeight: "bold", fontSize: "12px", cursor: "pointer", width: "90%", maxWidth: "250px" }}>✉️ Contact Us to Start a Chapter</button>
+                <button onClick={() => window.open("https://jasonbartz.notion.site/Good-Neighbor-Fund-Chapter-Handbook-1fc6fdd6d4c680e2a523eb2cbd5cf365", "_blank")} style={{ background: "#ffccee", border: "2px outset #ff99cc", borderRadius: "6px", padding: "8px 15px", fontWeight: "bold", fontSize: "12px", cursor: "pointer", width: "90%", maxWidth: "250px" }}>📖 View our New Chapter Handbook</button>
+              </div>
             </div>
           </div>
         );
@@ -1221,7 +1232,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                       <div style={{ width: "80px", marginBottom: "10px" }}>
                         <img 
                           src={awardee.photoUrl} 
-                          alt={awardee.businessName}
+                          alt={`${awardee.businessName} - ${awardee.chapter} Good Neighbor Fund $1,000 grant recipient`}
                           style={{ 
                             width: "80px", 
                             height: "80px", 
@@ -1312,7 +1323,7 @@ export default function MobileLanding({ initialBootDone = false }) {
               }}>
                 <img 
                   src="/assets/donate.webp" 
-                  alt="Donate Icon" 
+                  alt="Donate to Good Neighbor Fund - Support Buffalo and Denver entrepreneurs" 
                   style={{ width: "30px", height: "30px", objectFit: "contain" }}
                 />
               </div>
@@ -1525,7 +1536,7 @@ export default function MobileLanding({ initialBootDone = false }) {
         boxShadow: "0 2px 4px rgba(0, 0, 0, 0.1)"
       }}>
         <div className="taskbar-left" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <img src="/favicon.png" alt="GNF" style={{ width: "16px", height: "16px" }} />
+          <img src="/favicon.png" alt="Good Neighbor Fund logo" style={{ width: "16px", height: "16px" }} />
           <span style={{ fontWeight: "bold", fontSize: "12px" }}>NeighborhoodOS</span>
         </div>
         <div className="taskbar-right">
@@ -1576,7 +1587,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                 <div style={{ display: "flex", alignItems: "center" }}>
                   <img
                     src="/assets/icon-browser.webp"
-                    alt="Browser Icon"
+                    alt="Neighborhood Navigator browser window"
                     style={{ height: "14px", marginRight: "6px" }}
                   />
                   Neighborhood Navigator

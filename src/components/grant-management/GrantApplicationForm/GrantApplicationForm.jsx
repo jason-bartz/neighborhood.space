@@ -79,7 +79,18 @@ export default function GrantApplicationForm({ onClose }) {
         createdAt: Timestamp.now(),
         isWinner: false
       };
-      await addDoc(collection(db, "pitches"), pitchData);
+      const docRef = await addDoc(collection(db, "pitches"), pitchData);
+      
+      // Also submit to Google Sheets
+      try {
+        const { submitToGoogleSheets } = await import('../../../services/googleSheets');
+        await submitToGoogleSheets({ ...pitchData, id: docRef.id });
+        console.log('Also saved to Google Sheets');
+      } catch (sheetsError) {
+        console.error('Failed to save to Google Sheets:', sheetsError);
+        // Don't fail the submission if Sheets fails
+      }
+      
       setSubmitted(true);
     } catch (error) {
       console.error("Error submitting pitch:", error);

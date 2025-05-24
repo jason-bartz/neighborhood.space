@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Google Apps Script POST Endpoint</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .test-data {
+            background-color: #e0e0e0;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 20px 0;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Google Apps Script POST Endpoint</h1>
+    
+    <p>Click the button below to send a test POST request to:</p>
+    <code>https://script.google.com/macros/s/AKfycbxBtuJI88fJVyCePFlf61Uy55ajF7EOnrYsgfgqpCGUqbuzmdJumeS5kEpRD8LBce5O/exec</code>
+    
+    <h3>Test Data:</h3>
+    <div class="test-data" id="testData"></div>
+    
+    <button onclick="sendTestRequest()">Send Test Request</button>
+    
+    <div id="response"></div>
+
+    <script>
+        // Test data matching the expected format from your Google Apps Script
+        const testData = {
+            timestamp: new Date().toLocaleString(),
+            chapter: "Denver",
+            founderName: "Test Founder",
+            businessName: "Test Business",
+            email: "test@example.com",
+            phone: "555-1234",
+            website: "www.test.com",
+            bio: "Test bio",
+            valueProp: "Test value proposition",
+            problem: "Test problem",
+            solution: "Test solution",
+            businessModel: "Test business model",
+            hasPayingCustomers: "Yes",
+            grantUsePlan: "Test grant use plan",
+            heardAbout: "Test referral",
+            videoUrl: "http://test-video.com",
+            pitchId: "test-pitch-123"
+        };
+
+        // Display test data
+        document.getElementById('testData').textContent = JSON.stringify(testData, null, 2);
+
+        async function sendTestRequest() {
+            const responseDiv = document.getElementById('response');
+            responseDiv.textContent = 'Sending request...';
+
+            try {
+                // Note: Using 'no-cors' mode means we won't be able to read the response
+                const response = await fetch('https://script.google.com/macros/s/AKfycbxBtuJI88fJVyCePFlf61Uy55ajF7EOnrYsgfgqpCGUqbuzmdJumeS5kEpRD8LBce5O/exec', {
+                    method: 'POST',
+                    mode: 'no-cors', // This prevents CORS errors but also prevents reading the response
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+
+                // With 'no-cors' mode, we can't read the response status or body
+                responseDiv.textContent = `Request sent successfully!\n\nNote: Due to CORS restrictions with mode: 'no-cors', we cannot read the actual response from the server. Check your Google Sheet to verify if the data was received.\n\nTimestamp: ${new Date().toLocaleString()}`;
+                
+            } catch (error) {
+                responseDiv.textContent = `Error: ${error.message}\n\nStack: ${error.stack}`;
+            }
+        }
+
+        // Alternative method without 'no-cors' to see actual response (may fail due to CORS)
+        async function sendTestRequestWithCors() {
+            const responseDiv = document.getElementById('response');
+            responseDiv.textContent = 'Sending request (with CORS)...';
+
+            try {
+                const response = await fetch('https://script.google.com/macros/s/AKfycbxBtuJI88fJVyCePFlf61Uy55ajF7EOnrYsgfgqpCGUqbuzmdJumeS5kEpRD8LBce5O/exec', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+
+                const result = await response.text();
+                responseDiv.textContent = `Response Status: ${response.status}\nResponse: ${result}`;
+                
+            } catch (error) {
+                responseDiv.textContent = `CORS Error (expected): ${error.message}\n\nThis is normal if the Google Apps Script doesn't have CORS headers configured.`;
+            }
+        }
+    </script>
+</body>
+</html>

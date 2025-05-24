@@ -5,7 +5,7 @@ const SPREADSHEET_ID = '1D7t661RQ3J0vC8N0g3gQfEcxxmEMa8Bq0KJcjvYceuw';
 const SHEET_NAME = 'Sheet1';
 
 // Google Apps Script Web App URL
-const GOOGLE_SCRIPT_URL = 'https://script.google.com/a/macros/goodneighbor.fund/s/AKfycbxKt9ofrgaTCcoB23h-XlqkCgtUwdL3cfcDMyRGCXsnMIpw_0y1ag8-af2ggJVXUy7N/exec';
+const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxbySnt9vFDgDI8XatKXpZwqNPHYfYNkCcl40pZCYElEOPjHLM2kKdbI_UfaIU3bFbT/exec';
 
 export const submitToGoogleSheets = async (pitchData) => {
   try {
@@ -18,7 +18,7 @@ export const submitToGoogleSheets = async (pitchData) => {
       founderName: pitchData.founderName || '',
       businessName: pitchData.businessName || '',
       email: pitchData.email || '',
-      phone: pitchData.phone || '',
+      phone: '', // Phone field not collected in form
       website: pitchData.website || '',
       bio: pitchData.bio || '',
       valueProp: pitchData.valueProp || '',
@@ -32,6 +32,10 @@ export const submitToGoogleSheets = async (pitchData) => {
       pitchId: pitchData.id || ''
     };
     
+    // Debug logging
+    console.log('Sending to Google Sheets:', formData);
+    console.log('URL:', GOOGLE_SCRIPT_URL);
+    
     // Send to Google Apps Script
     const response = await fetch(GOOGLE_SCRIPT_URL, {
       method: 'POST',
@@ -42,7 +46,7 @@ export const submitToGoogleSheets = async (pitchData) => {
       body: JSON.stringify(formData)
     });
     
-    console.log('Submitted to Google Sheets');
+    console.log('Submitted to Google Sheets - Response:', response);
     return { success: true };
     
   } catch (error) {

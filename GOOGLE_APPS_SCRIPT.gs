@@ -10,15 +10,22 @@
 
 function doPost(e) {
   try {
+    console.log('doPost called');
+    
     // Your spreadsheet ID
     const SPREADSHEET_ID = '1D7t661RQ3J0vC8N0g3gQfEcxxmEMa8Bq0KJcjvYceuw';
     const SHEET_NAME = 'Sheet1';
     
+    // Log the raw request
+    console.log('Raw request:', JSON.stringify(e));
+    
     // Parse the incoming data
     const data = JSON.parse(e.postData.contents);
+    console.log('Parsed data:', JSON.stringify(data));
     
     // Open the spreadsheet
     const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(SHEET_NAME);
+    console.log('Sheet found:', sheet !== null);
     
     // Prepare the row
     const row = [
@@ -41,8 +48,11 @@ function doPost(e) {
       data.pitchId
     ];
     
+    console.log('Row to append:', JSON.stringify(row));
+    
     // Append the row
     sheet.appendRow(row);
+    console.log('Row appended successfully');
     
     // Return success
     return ContentService.createTextOutput(JSON.stringify({
@@ -51,6 +61,7 @@ function doPost(e) {
     })).setMimeType(ContentService.MimeType.JSON);
     
   } catch (error) {
+    console.error('Error in doPost:', error.toString());
     // Return error
     return ContentService.createTextOutput(JSON.stringify({
       status: 'error',

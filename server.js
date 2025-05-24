@@ -2,12 +2,13 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+require('dotenv').config();
 
 const app = express();
 const PORT = 3001;
 
-// API key from api.video
-const API_KEY = '9UoBYurZoFCaJEzr0aRSM40vajjcpKyvNS285437xjX';
+// API key from api.video (loaded from environment)
+const API_KEY = process.env.API_VIDEO_KEY;
 
 // Enable CORS and JSON parsing
 app.use(cors());

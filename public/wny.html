@@ -245,30 +245,36 @@
     
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 20px;
       text-align: center;
     }
     
     .stat-item {
       background: #ffffff;
-      padding: 15px;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      padding: 25px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
     
     .stat-item h4 {
-      font-size: 36px;
+      font-size: 52px;
       font-weight: bold;
-      color: #0082d4;
       display: block;
-      margin: 0;
+      margin: 0 0 10px 0;
+      line-height: 1;
     }
     
     .stat-item p {
-      font-size: 15px;
+      font-size: 16px;
       color: #555;
-      margin: 5px 0 0 0;
+      margin: 0;
+      line-height: 1.3;
+      font-weight: 500;
     }
     
     /* LP Section */
@@ -447,19 +453,23 @@
       </div>
       
       <div class="stats">
-        <h2>GNF's Impact Since 2023</h2>
+        <h2>Our Impact Since 2023</h2>
         <div class="stats-grid">
           <div class="stat-item">
-            <h4>$25,000</h4>
-            <p>In Micro-Grants Awarded</p>
+            <h4 style="color: #0099cc;">25</h4>
+            <p>New Business Ideas<br>Funded</p>
           </div>
           <div class="stat-item">
-            <h4>80%</h4>
-            <p>Women-Owned</p>
+            <h4 style="color: #e6007e;">80%</h4>
+            <p>Women-Owned<br>Businesses</p>
           </div>
           <div class="stat-item">
-            <h4>52%</h4>
-            <p>BIPOC-Owned</p>
+            <h4 style="color: #ff6600;">52%</h4>
+            <p>BIPOC-Owned<br>Businesses</p>
+          </div>
+          <div class="stat-item">
+            <h4 style="color: #6600cc;">$25,000+</h4>
+            <p>In Micro-Grants<br>Awarded</p>
           </div>
         </div>
       </div>

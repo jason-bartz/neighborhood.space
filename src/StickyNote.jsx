@@ -1,6 +1,6 @@
 // StickyNote.jsx
 import React, { useState, useEffect, useRef } from "react";
-import RetroWindow from "./RetroWindow";
+import WindowFrame from "./components/ui/WindowFrame/WindowFrame";
 
 export default function StickyNote({ onClose, zIndex = 1100, windowId, bringToFront }) {
   const messages = [
@@ -47,7 +47,7 @@ export default function StickyNote({ onClose, zIndex = 1100, windowId, bringToFr
   };
 
   return (
-    <RetroWindow
+    <WindowFrame
       title="💡 clampie.app"
       onClose={onClose}
       width={200}
@@ -84,6 +84,6 @@ export default function StickyNote({ onClose, zIndex = 1100, windowId, bringToFr
           }}
         />
       </div>
-    </RetroWindow>
+    </WindowFrame>
   );
 }

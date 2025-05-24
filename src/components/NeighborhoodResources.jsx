@@ -7,7 +7,7 @@ import Papa from "papaparse";
 if (!Papa || !Papa.parse) {
   console.warn('PapaParse library not available - CSV parsing may not work correctly');
 }
-import RetroWindow from "../RetroWindow";
+import WindowFrame from "../components/ui/WindowFrame/WindowFrame";
 
 // Resource emoji mapping
 const resourceEmojis = {
@@ -1644,11 +1644,11 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
     </div>
   );
 
-  // Decide whether to return the content wrapped in a RetroWindow or not
+  // Decide whether to return the content wrapped in a WindowFrame or not
   return isEmbedded ? (
     content
   ) : (
-    <RetroWindow 
+    <WindowFrame 
       title="📖 Neighborhood Resources - Western New York Edition" 
       onClose={onClose} 
       width={1000} 
@@ -1659,6 +1659,6 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
       bringToFront={bringToFront}
     >
       {content}
-    </RetroWindow>
+    </WindowFrame>
   );
 }

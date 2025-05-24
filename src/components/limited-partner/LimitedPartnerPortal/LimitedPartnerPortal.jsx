@@ -1,4 +1,4 @@
-// LPPortal.jsx
+// LimitedPartnerPortal.jsx
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"; 
 import {
   collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc,
@@ -8,7 +8,7 @@ import {
   onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, 
   GoogleAuthProvider, signOut, sendPasswordResetEmail, updatePassword, fetchSignInMethodsForEmail
 } from "firebase/auth";
-import { db, auth, storage } from "./firebaseConfig.js";  
+import { db, auth, storage } from "../../../firebaseConfig.js";  
 import Papa from "papaparse";
 import { saveAs } from "file-saver";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -64,7 +64,7 @@ function RetroButton({ onClick, children, style = {}, primary = false, disabled 
 
 
 // --- Main Component ---
-export default function LPPortal({ onOpenGNFWebsite }) {
+export default function LimitedPartnerPortal({ onOpenGNFWebsite }) {
 
 // --- State Variables ---
 const [user, setUser] = useState(null);

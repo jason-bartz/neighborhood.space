@@ -1,22 +1,22 @@
-// DesktopApp.jsx - Updated to fix double window issue and margin
+// DesktopEnvironment.jsx - Updated to fix double window issue and margin
 import React, { useEffect, useState, useRef } from "react";
-import BootScreen from "./BootScreen";
-import DesktopIcon from "./DesktopIcon";
-import RetroWindow from "./RetroWindow";
-import StandalonePitchForm from "./StandalonePitchForm";
-import MusicPlayer from "./MusicPlayer";
-import LPPortal from "./LPPortal";
-import BrowserWindow from "./BrowserWindow";
-import BuddyMessenger from "./components/BuddyMessenger";
+import BootScreen from "../../../BootScreen";
+import AppIcon from "../../../components/ui/AppIcon/AppIcon";
+import WindowFrame from "../../../components/ui/WindowFrame/WindowFrame";
+import GrantApplicationForm from "../../../components/grant-management/GrantApplicationForm/GrantApplicationForm";
+import MusicPlayer from "../../../MusicPlayer";
+import LimitedPartnerPortal from "../../../components/limited-partner/LimitedPartnerPortal/LimitedPartnerPortal";
+import BrowserWindow from "../../../BrowserWindow";
+import BuddyMessenger from "../../../components/BuddyMessenger";
 // Regular imports for map components
-// import FounderMap from './components/FounderMap'; // Temporarily removed
-import NeighborhoodResources from './components/NeighborhoodResources';
-import MobileLanding from "./MobileLanding";
-import StickyNote from "./StickyNote";
-import "./App.css";
-// import BlockParty from "./BlockParty"; // BlockParty component removed
+// import FounderMap from '../../../components/FounderMap'; // Temporarily removed
+import NeighborhoodResources from '../../../components/NeighborhoodResources';
+import MobileLanding from "../../../MobileLanding";
+import StickyNote from "../../../StickyNote";
+import "../../../App.css";
+// import BlockParty from "../../../BlockParty"; // BlockParty component removed
 
-export default function DesktopApp() {
+export default function DesktopEnvironment() {
   // State management
   const [bootSequence, setBootSequence] = useState("booting");
   const [openApp, setOpenApp] = useState("website");
@@ -183,14 +183,14 @@ export default function DesktopApp() {
           <div style={{ height: 82 }} />
 
           <div ref={submitRef}>
-            <DesktopIcon
+            <AppIcon
               icon="/assets/icon-submit.webp"
               label="Submit Pitch"
               onClick={() => handleAppOpen("submit")}
             />
           </div>
 
-          <DesktopIcon
+          <AppIcon
             icon="/assets/icon-map.webp"
             label="Neighborhood Resources"
             onClick={() => {
@@ -209,19 +209,19 @@ export default function DesktopApp() {
             gap: 20
           }}
         >
-          <DesktopIcon
+          <AppIcon
             icon="/assets/icon-browser.webp"
             label="Neighborhood Navigator"
             onClick={() => handleAppOpen("website")}
           />
 
-          <DesktopIcon
+          <AppIcon
             icon="/assets/icon-review.webp"
             label="LP Portal"
             onClick={() => handleAppOpen("lpPortal")}
           />
 
-          <DesktopIcon
+          <AppIcon
             icon="/assets/radio.png"
             label="GNF Mixtape"
             onClick={() => {
@@ -230,7 +230,7 @@ export default function DesktopApp() {
             }}
           />
 
-          <DesktopIcon
+          <AppIcon
             icon="/assets/BuddyMessenger-icon.webp"
             label="Buddy Messenger"
             onClick={() => {
@@ -247,7 +247,7 @@ export default function DesktopApp() {
           />
 
           {/* BlockParty app removed
-          <DesktopIcon
+          <AppIcon
             icon="/assets/BlockParty.webp"
             label="BlockParty.exe"
             onClick={() => {}}
@@ -256,7 +256,7 @@ export default function DesktopApp() {
 
            
           {/* Awardee Map temporarily removed
-          <DesktopIcon
+          <AppIcon
             icon="/assets/FounderMap-icon.webp"
             label="Awardee Map"
             onClick={() => {
@@ -268,7 +268,7 @@ export default function DesktopApp() {
           
 
           {/* Social Media Icons */}
-          <DesktopIcon
+          <AppIcon
             icon="/assets/linkedin.webp"
             label="LinkedIn"
             onClick={() =>
@@ -279,7 +279,7 @@ export default function DesktopApp() {
             }
           />
 
-          <DesktopIcon
+          <AppIcon
             icon="/assets/instagram.webp"
             label="Instagram"
             onClick={() =>
@@ -290,7 +290,7 @@ export default function DesktopApp() {
             }
           />
 
-          <DesktopIcon
+          <AppIcon
             icon="/assets/newsletter.webp"
             label="Newsletter"
             onClick={() =>
@@ -315,7 +315,7 @@ export default function DesktopApp() {
 
       {/* Application Windows */}
       {openApp === "submit" && (
-        <StandalonePitchForm 
+        <GrantApplicationForm 
           onClose={() => setOpenApp(null)} 
           zIndex={windowZIndexes.submit}
           windowId="submit"
@@ -324,7 +324,7 @@ export default function DesktopApp() {
       )}
 
       {openApp === "website" && (
-        <RetroWindow
+        <WindowFrame
           title={
             <div style={{ display: "flex", alignItems: "center" }}>
               <img
@@ -347,11 +347,11 @@ export default function DesktopApp() {
             onClose={() => setOpenApp(null)}
             onPitchClick={() => handleAppOpen("submit")}
           />
-        </RetroWindow>
+        </WindowFrame>
       )}
 
       {openApp === "lpPortal" && (
-        <RetroWindow
+        <WindowFrame
           title="👥 LP Portal"
           onClose={() => setOpenApp(null)}
           width={700}
@@ -362,12 +362,12 @@ export default function DesktopApp() {
           zIndex={windowZIndexes.lpPortal}
           bringToFront={bringWindowToFront}
         >
-          <LPPortal onOpenGNFWebsite={() => handleAppOpen("website")} />
-        </RetroWindow>
+          <LimitedPartnerPortal onOpenGNFWebsite={() => handleAppOpen("website")} />
+        </WindowFrame>
       )}
 
       {showMessenger && (
-        <RetroWindow
+        <WindowFrame
           title="💬 Chatroom with xxNeighborhoodcrew"
           onClose={() => setShowMessenger(false)}
           width={490}
@@ -378,7 +378,7 @@ export default function DesktopApp() {
           bringToFront={bringWindowToFront}
         >
           <BuddyMessenger onClose={() => setShowMessenger(false)} />
-        </RetroWindow>
+        </WindowFrame>
       )}
 
       {/* BlockParty component removed
@@ -395,7 +395,7 @@ export default function DesktopApp() {
        
       {/* Awardee Map temporarily removed 
       {showFounderMap && (
-        <RetroWindow
+        <WindowFrame
           title="🗺️ Awardee Map (based on founder zipcode)"
           onClose={() => setShowFounderMap(false)}
           width={900}
@@ -411,12 +411,12 @@ export default function DesktopApp() {
             bringToFront={bringWindowToFront}
             isEmbedded={true}
           />
-        </RetroWindow>
+        </WindowFrame>
       )}
       */}
 
       {showNeighborhoodMap && (
-        <RetroWindow
+        <WindowFrame
           title="📖 Neighborhood Resources - Western New York Edition"
           onClose={() => setShowNeighborhoodMap(false)}
           width={900}
@@ -432,7 +432,7 @@ export default function DesktopApp() {
             bringToFront={bringWindowToFront}
             isEmbedded={true}
           />
-        </RetroWindow>
+        </WindowFrame>
       )}
       
 

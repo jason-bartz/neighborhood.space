@@ -1,6 +1,6 @@
 // MobileLPPortal.jsx
 import React from "react";
-import LPPortal from "../LPPortal";
+import LimitedPartnerPortal from "./limited-partner/LimitedPartnerPortal/LimitedPartnerPortal";
 
 // Mobile adaptation of the desktop LPPortal for full functionality
 export default function MobileLPPortal({ onClose }) {
@@ -54,7 +54,7 @@ export default function MobileLPPortal({ onClose }) {
         padding: "10px",
         paddingBottom: "80px" // Add padding at bottom for mobile scrolling
       }}>
-        <LPPortal 
+        <LimitedPartnerPortal 
           /* Pass any necessary props */
           onOpenGNFWebsite={() => window.open("https://goodneighbor.fund", "_blank")}
         />

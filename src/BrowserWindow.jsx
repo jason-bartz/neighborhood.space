@@ -189,10 +189,6 @@ export default function BrowserWindow({ onClose, onPitchClick, windowId, zIndex,
                />;
       case "donate":
         return <DonatePage />;
-      case "wny":
-        return <WnyChapterPage />;
-      case "denver":
-        return <DenverChapterPage />;
       default:
         return <HomePage onPitchClick={onPitchClick} pressLinks={pressLinks} marqueeImages={marqueeImages} currentMarqueeIndex={currentMarqueeIndex} />;
     }
@@ -1263,7 +1259,7 @@ const ChaptersPage = ({ setPage }) => (
         <p><strong>Founded:</strong> 2023</p>
         <p>Where it all started, serving Buffalo and the surrounding 8 counties.</p>
         <div style={{ display: "flex", gap: "10px" }}>
-          <button onClick={() => setPage("wny")} style={chapterBtnStyle}>Meet the LPs</button>
+          <button onClick={() => window.open('/wny', '_blank')} style={chapterBtnStyle}>Visit Chapter Page</button>
           <button onClick={() => window.open('https://airtable.com/app38xfYxu9HY6yT3/pagy7R4p6BCdXBpzF/form', '_blank')} style={chapterBtnStyle}>Join Chapter</button>
         </div>
       </div>
@@ -1272,7 +1268,7 @@ const ChaptersPage = ({ setPage }) => (
         <p><strong>Founded:</strong> 2023</p>
         <p>Serving the greater Denver metropolitan area.</p>
         <div style={{ display: "flex", gap: "10px" }}>
-          <button onClick={() => setPage("denver")} style={chapterBtnStyle}>Meet the LPs</button>
+          <button onClick={() => window.open('/denver', '_blank')} style={chapterBtnStyle}>Visit Chapter Page</button>
           <button onClick={() => window.open('https://airtable.com/app38xfYxu9HY6yT3/pagy7R4p6BCdXBpzF/form', '_blank')} style={chapterBtnStyle}>Join Chapter</button>
         </div>
       </div>
@@ -1321,264 +1317,7 @@ const chapterBtnStyle = {
   fontFamily: "'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive"
 };
 
-// LP Grid
-const LpGrid = ({ lps }) => (
-  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "20px" }}>
-    {lps.map(({ name, title, bio, linkedin }) => (
-      <div key={name} style={{ background: "#f8f8ff", padding: "15px", borderRadius: "8px", border: "1px solid #ccc" }}>
-        <img
-          src={`/assets/lps/${name.toLowerCase().replace(/\s+/g, "-")}.png`}
-          alt={`${name} - ${title} - Good Neighbor Fund Limited Partner`}
-          style={{
-            width: "120px",
-            height: "120px",
-            objectFit: "cover",
-            borderRadius: "50%",
-            border: "2px solid #ccc",
-            display: "block",
-            margin: "0 auto 10px auto"
-          }}
-        />
-        <h3 style={{ marginBottom: "5px" }}>
-          {linkedin ? (
-            <a 
-              href={linkedin} 
-              target="_blank" 
-              rel="noreferrer" 
-              style={{ 
-                color: "#3366cc", 
-                textDecoration: "none" 
-              }}
-            >
-              {name}
-            </a>
-          ) : (
-            name
-          )}
-        </h3>
-        <p style={{ fontWeight: "bold", marginBottom: "6px" }}>{title}</p>
-        <p style={{ fontSize: "14px" }}>{bio}</p>
-        {linkedin && <a href={linkedin} target="_blank" rel="noreferrer" style={{ display: "inline-block", marginTop: "6px", fontSize: "12px", color: "#3366cc" }}>LinkedIn</a>}
-      </div>
-    ))}
-  </div>
-);
 
-// WnyChapterPage
-const WnyChapterPage = () => {
-  const lps = [
-    {
-      name: "Jason Bartz",
-      title: "Co-Founder",
-      bio: "Jason serves as VP of Business Development & Partner Success at Vero Technologies and Co-Founder of Refraction.",
-      linkedin: "https://www.linkedin.com/in/jsnbrtz/"
-    },
-    {
-      name: "Andy Rose",
-      title: "Brand / Creative Strategist",
-      bio: "Andy is a strategist who's led activation for global brands like Alibaba, BMW, and Xerox. Passionate about Buffalo's startup scene.",
-      linkedin: "https://www.linkedin.com/in/itsandyrose/"
-    },
-    {
-      name: "Bobbie Armstrong",
-      title: "Director of Impact Ecosystems",
-      bio: "Focused on clean energy and greentech, with a background in policy making at Uptake Alliance.",
-      linkedin: "https://www.linkedin.com/in/bobbie-thoman/"
-    },
-    {
-      name: "Brian Cleary",
-      title: "Partner, Interlace Digital",
-      bio: "Empowering brands with innovative digital solutions.",
-      linkedin: "https://www.linkedin.com/in/brian-cleary-marketing/"
-    },
-    {
-      name: "Celine Krzan",
-      title: "Professor & Program Director",
-      bio: "Entrepreneurship faculty at UB. Runs M&T Minority and Women Emerging Entrepreneur Program.",
-      linkedin: "https://www.linkedin.com/in/celinekrzan/"
-    },
-    {
-      name: "Cindy Sideris",
-      title: "Director of Operations, UVC",
-      bio: "Connects and empowers Upstate NY founders. Passionate about VC + entertainment creators.",
-      linkedin: "https://www.linkedin.com/in/cindysideris/"
-    },
-    {
-      name: "Danielle Blount",
-      title: "Partner at BOLD Ventures",
-      bio: "Also leads Buffalo's Awesome Foundation. Invests in wild, weird, and wonderful ideas.",
-      linkedin: "https://www.linkedin.com/in/blountdanielle/"
-    },
-    {
-      name: "David Brenner",
-      title: "Startup Community Organizer",
-      bio: "BootSector volunteer and Buffalo Startup Weekend lead.",
-      linkedin: "https://www.linkedin.com/in/davidabrenner/"
-    },
-    {
-      name: "Flossie Hall",
-      title: "CEO, Stella",
-      bio: "Veteran Navy spouse and serial entrepreneur. Featured in Forbes, Inc., and Entrepreneur.",
-      linkedin: "https://www.linkedin.com/in/flossiehall/"
-    },
-    {
-      name: "Jon Pancerman",
-      title: "Sr. Director, ACV Auctions",
-      bio: "Ops leader with a TEDxBuffalo organizing past.",
-      linkedin: "https://www.linkedin.com/in/jpancerman/"
-    },
-    {
-      name: "Jordan Walbesser",
-      title: "Director, Mattel Legal",
-      bio: "Exec Director of BootSector. Building Buffalo's next-gen startup leaders.",
-      linkedin: "https://www.linkedin.com/in/jordan-walbesser/"
-    },
-    {
-      name: "Katie Wallingford",
-      title: "Product Manager, Leap Event Technologies",
-      bio: "Early-stage product manager. Buffalo transplant building with heart and human-centered design.",
-      linkedin: "https://www.linkedin.com/in/katie-wallingford/"
-    },
-    {
-      name: "Najja Boulden",
-      title: "Founder, Phoenix Innovation Group",
-      bio: "Trainer and developer of inclusive innovation ecosystems.",
-      linkedin: "https://www.linkedin.com/in/najja-a-bouldin-85182a8b/"
-    },
-    {
-      name: "Rachel Good",
-      title: "Media Relations, Javen Construction",
-      bio: "Arts advocate and community builder. Construction pro by day, culture champion by night.",
-      linkedin: "https://www.linkedin.com/in/rachelmariegood/"
-    },
-    {
-      name: "Sonya Tarake",
-      title: "COO, Team Real Talk",
-      bio: "Facilitator for Kauffman FastTrac and EiR at UB's Inclusive Launch Foundry.",
-      linkedin: "https://www.linkedin.com/in/stareke/"
-    }
-  ];
-
-  return (
-    <div className="force-comic-font" style={{ fontFamily: "'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive", color: "#222" }}>
-      <h1>Western New York Chapter LPs</h1>
-      
-      {/* LP CTA */}
-      <div style={{ 
-        background: "#fff8e1", 
-        padding: "20px", 
-        borderRadius: "8px", 
-        marginBottom: "25px",
-        border: "2px solid #ffd54f",
-        textAlign: "center"
-      }}>
-        <h2 style={{ color: "#FF8F00", margin: "0 0 10px 0" }}>Become a Limited Partner</h2>
-        <p>
-          Join our community of LPs and help select the next wave of entrepreneurs to receive micro-grants.
-          As an LP, you'll contribute resources, knowledge, and mentorship to early-stage founders.
-        </p>
-        <a 
-          href="https://airtable.com/app38xfYxu9HY6yT3/pagy7R4p6BCdXBpzF/form"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "inline-block",
-            background: "#FFB74D",
-            color: "white",
-            padding: "10px 20px",
-            borderRadius: "6px",
-            fontWeight: "bold",
-            textDecoration: "none",
-            marginTop: "10px",
-            boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
-          }}
-        >
-          Apply to Join as an LP
-        </a>
-      </div>
-      
-      <LpGrid lps={lps} />
-    </div>
-  );
-};
-
-// DenverChapterPage
-const DenverChapterPage = () => {
-  const lps = [
-    {
-      name: "Susan O'Rourke",
-      title: "Co-Founder",
-      bio: "VP of Sales at Plug. Former early employee at ACV Auctions."
-    },
-    {
-      name: "Allie Reitz",
-      title: "Founder, Meep",
-      bio: "UX designer, founder coach, and no-code studio builder for impact startups."
-    },
-    {
-      name: "Jared McHenry",
-      title: "Launch Lead, SkySquad",
-      bio: "Scaling ops + sales teams with startup DNA from ACV Auctions."
-    },
-    {
-      name: "Jeff Dougherty",
-      title: "Director, QuidelOrtho",
-      bio: "Ops wizard with experience integrating complex orgs post-merger."
-    },
-    {
-      name: "Nicole Hunter",
-      title: "Professor of Finance, UB",
-      bio: "Spreads intercultural awareness through business education."
-    },
-    {
-      name: "Scott Romano",
-      title: "Interim CEO, Energize Colorado",
-      bio: "Top 25 Colorado innovator. Brings tech to public-interest causes."
-    }
-  ];
-
-  return (
-    <div className="force-comic-font" style={{ fontFamily: "'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive", color: "#222" }}>
-      <h1>Denver Chapter LPs</h1>
-      
-      {/* Added Become an LP CTA */}
-      <div style={{ 
-        background: "#fff8e1", 
-        padding: "20px", 
-        borderRadius: "8px", 
-        marginBottom: "25px",
-        border: "2px solid #ffd54f",
-        textAlign: "center"
-      }}>
-        <h2 style={{ color: "#FF8F00", margin: "0 0 10px 0" }}>Become a Limited Partner</h2>
-        <p>
-          Join our community of LPs and help select the next wave of entrepreneurs to receive micro-grants.
-          As an LP, you'll contribute resources, knowledge, and mentorship to early-stage founders.
-        </p>
-        <a 
-          href="https://docs.google.com/forms/d/e/1FAIpQLScKxNP8Kf1bSzl1uay3G1ewyOgRUKpLRDkiGMuSyJns_cBksQ/viewform"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "inline-block",
-            background: "#FFB74D",
-            color: "white",
-            padding: "10px 20px",
-            borderRadius: "6px",
-            fontWeight: "bold",
-            textDecoration: "none",
-            marginTop: "10px",
-            boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
-          }}
-        >
-          Apply to Join as an LP
-        </a>
-      </div>
-      
-      <LpGrid lps={lps} />
-    </div>
-  );
-};
 
 // -- DonatePage --
 const DonatePage = () => (

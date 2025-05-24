@@ -1,12 +1,12 @@
-// StandalonePitchForm.jsx
+// GrantApplicationForm.jsx
 import React, { useState, useRef, useEffect } from "react";
-import { db } from "./firebaseConfig";
+import { db } from "../../../firebaseConfig";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 import Draggable from "react-draggable";
-import VideoUploader from "./VideoUploader";
+import VideoUploader from "../../../VideoUploader";
 import Confetti from "react-confetti";
 
-export default function StandalonePitchForm({ onClose }) {
+export default function GrantApplicationForm({ onClose }) {
   const [form, setForm] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);

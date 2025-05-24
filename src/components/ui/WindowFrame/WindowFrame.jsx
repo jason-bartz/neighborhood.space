@@ -1,8 +1,8 @@
-// RetroWindow.jsx
+// WindowFrame.jsx
 import React, { useEffect, useState, useRef } from "react";
 import Draggable from "react-draggable";
 
-export default function RetroWindow({
+export default function WindowFrame({
   title,
   children,
   onClose,

@@ -1,8 +1,8 @@
-// DesktopIcon.jsx
+// AppIcon.jsx
 import React from "react";
-import "./App.css";
+import "../../../App.css";
 
-export default function DesktopIcon({ label, icon, onClick }) {
+export default function AppIcon({ label, icon, onClick }) {
   return (
     <div className="desktop-icon" onClick={onClick}>
       <img src={icon} alt={label} />

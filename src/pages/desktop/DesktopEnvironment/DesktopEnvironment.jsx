@@ -165,7 +165,15 @@ export default function DesktopEnvironment() {
         bringWindowToFront('founderMap');
         break;
       case 'lpPortal':
-        handleAppOpen('lpPortal');
+        // Check if user is already authenticated
+        const isAuthenticated = sessionStorage.getItem('lpPortalAuthenticated');
+        if (isAuthenticated === 'true') {
+          // User is logged in, go straight to portal
+          window.location.href = '/portal';
+        } else {
+          // User needs to log in first
+          handleAppOpen('lpPortal');
+        }
         break;
       default:
         break;
@@ -346,8 +354,8 @@ export default function DesktopEnvironment() {
             setOpenApp(null);
             setOpenApps(openApps.filter(app => app !== 'lpPortal'));
           }}
-          width={700}
-          height={900}
+          width={500}
+          height={600}
           center
           isLPPortal
           windowId="lpPortal"

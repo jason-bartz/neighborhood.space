@@ -6,6 +6,7 @@ import DesktopEnvironment from "./pages/desktop/DesktopEnvironment/DesktopEnviro
 import StandalonePitchPage from "./StandalonePitchPage"; 
 import NotFoundPage from "./NotFoundPage"; 
 import MobileFieldGuide from "./MobileFieldGuide";
+import StandaloneLPPortal from "./StandaloneLPPortal";
 import "./mock-fs"; // Import mock filesystem
 import "./App.css";
 
@@ -16,6 +17,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/" element={<DesktopEnvironment />} />
         <Route path="/pitch" element={<StandalonePitchPage />} />
         <Route path="/fieldguide" element={<MobileFieldGuide />} />
+        <Route path="/portal" element={<StandaloneLPPortal />} />
         <Route path="*" element={<NotFoundPage />} /> 
       </Routes>
     </BrowserRouter>

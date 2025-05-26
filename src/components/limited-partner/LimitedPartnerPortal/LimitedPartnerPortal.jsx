@@ -64,7 +64,7 @@ function RetroButton({ onClick, children, style = {}, primary = false, disabled 
 
 
 // --- Main Component ---
-export default function LimitedPartnerPortal({ onOpenGNFWebsite }) {
+export default function LimitedPartnerPortal({ onOpenGNFWebsite, isStandalone = false }) {
 
 // --- State Variables ---
 const [user, setUser] = useState(null);
@@ -150,6 +150,12 @@ useEffect(() => {
             console.log("LPPortal: User document found, role valid.", userData.role);
             setUser({ uid: authUserData.uid, email: authUserData.email, ...userData });
             setAuthError("");
+            
+            // If not in standalone mode and user just logged in, redirect to portal
+            if (!isStandalone && !sessionStorage.getItem('lpPortalRedirected')) {
+              sessionStorage.setItem('lpPortalRedirected', 'true');
+              window.location.href = '/portal';
+            }
             
           } else {
             console.warn("LPPortal: User document found but role invalid or missing:", userData.role);
@@ -569,6 +575,13 @@ const handleSignOut = async () => {
     console.log("LPPortal: Attempting sign out...");
     await signOut(auth);
     console.log("LPPortal: Sign out successful.");
+    // Clear session storage flags
+    sessionStorage.removeItem('lpPortalRedirected');
+    sessionStorage.removeItem('lpPortalAuthenticated');
+    // If in standalone mode, redirect to home
+    if (isStandalone) {
+      window.location.href = '/';
+    }
     // State clearing handled by onAuthStateChanged
   } catch (error) {
     console.error("LPPortal: Sign out Error:", error);
@@ -1094,8 +1107,9 @@ if (isLoadingAuth) {
 // --- Login/Register Screen ---
 if (!user) {
   return (
-    <div style={{ maxWidth: "450px", margin: "40px auto", padding: "20px 30px", border: "2px outset #ccc", boxShadow: 'inset 1px 1px 0px #fff, inset -1px -1px 0px #888', textAlign: "center", background: '#E0E0E0', fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif', flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-      <h2 style={{ borderBottom: '2px solid #888', paddingBottom: '10px', marginBottom: '20px', color: '#222' }}>LP Portal</h2>
+    <div style={{ width: "100%", height: "100%", display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+      <div style={{ width: "100%", maxWidth: "450px", padding: "15px 25px", textAlign: "center", background: '#f5f5f5', fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif' }}>
+        <h2 style={{ borderBottom: '2px solid #888', paddingBottom: '8px', marginBottom: '15px', color: '#222', fontSize: '1.5em' }}>LP Portal</h2>
 
       {/* Auth Mode Tabs REMOVED */}
 
@@ -1107,45 +1121,40 @@ if (!user) {
       )}
 
       {/* Email Login Form Area */}
-      <div style={{ paddingTop: '10px' /* Reduced top padding */ }}>
-        <div style={{ marginBottom: "15px", color: '#333', fontWeight: 'bold' }}>
+      <div style={{ paddingTop: '5px' }}>
+        <div style={{ marginBottom: "12px", color: '#333', fontWeight: 'bold' }}>
           Login with Email:
         </div>
         <>
             <AuthInput type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <AuthInput type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            <RetroButton onClick={handleEmailLogin} primary style={{ margin: "20px auto 5px auto", display: 'block', width: "calc(100% - 20px)"}}>Sign In</RetroButton>
+            <RetroButton onClick={handleEmailLogin} primary style={{ margin: "15px auto 5px auto", display: 'block', width: "calc(100% - 20px)"}}>Sign In</RetroButton>
             {/* Add Forgot Password Link? */}
             {/* <button onClick={() => handleForgotPassword(email)} style={{background:'none', border:'none', color:'blue', textDecoration:'underline', cursor:'pointer', fontSize:'0.9em', marginTop:'10px'}}>Forgot Password?</button> */}
         </>
       </div>
 
-      {/* Google Login Separator & Button */}
-      <div style={{ margin: "25px 0", paddingTop: '20px', borderTop: '1px solid #888' }}>
-        <div style={{ marginBottom: "15px", color: '#333', fontWeight: 'bold' }}>Login with Google:</div>
-        <button onClick={handleGoogleLogin} title="Login with Google" style={{ background: "transparent", border: "none", cursor: "pointer", padding: "0", display: 'inline-block' }}>
-          {/* Ensure this path is correct relative to your public folder */}
-          <img src="/assets/Google.webp" alt="Google logo" style={{ height: "60px", width: "auto", verticalAlign: 'middle' }} />
-        </button>
-      </div>
+        {/* Google Login Separator & Button */}
+        <div style={{ margin: "20px 0 15px 0", paddingTop: '15px', borderTop: '1px solid #888' }}>
+          <div style={{ marginBottom: "12px", color: '#333', fontWeight: 'bold' }}>Login with Google:</div>
+          <button onClick={handleGoogleLogin} title="Login with Google" style={{ background: "transparent", border: "none", cursor: "pointer", padding: "0", display: 'inline-block' }}>
+            {/* Ensure this path is correct relative to your public folder */}
+            <img src="/assets/Google.webp" alt="Google logo" style={{ height: "50px", width: "auto", verticalAlign: 'middle' }} />
+          </button>
+        </div>
 
-
-      {/* Registration Form REMOVED */}
-
-
-      {/* Footer Link (Optional) */}
-      <div style={{ marginTop: '30px', paddingTop: '20px', borderTop: '1px solid #888', fontSize: '0.9em', color: '#444', lineHeight: '1.4' }}>
-        <p>
-          This tool is for internal GNF Limited Partner use and requires an Admin invite. 
-        </p>
-        <p style={{marginTop:'15px'}}>
-          <p>
-          Interested in becoming a Limited Partner? <br />
+        {/* Footer Link (Optional) */}
+        <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #888', fontSize: '0.85em', color: '#444', lineHeight: '1.3' }}>
+          <p style={{ margin: '0 0 10px 0' }}>
+            This tool is for internal GNF Limited Partner use and requires an Admin invite. 
           </p>
-          <a href="https://airtable.com/app38xfYxu9HY6yT3/pagy7R4p6BCdXBpzF/form" target="_blank" rel="noopener noreferrer" style={{ color: "#0000EE", textDecoration: 'underline', fontWeight: 'bold' }} >
-            Apply Here
-          </a>
-        </p>
+          <p style={{ margin: '0' }}>
+            Interested in becoming a Limited Partner? <br />
+            <a href="https://airtable.com/app38xfYxu9HY6yT3/pagy7R4p6BCdXBpzF/form" target="_blank" rel="noopener noreferrer" style={{ color: "#0000EE", textDecoration: 'underline', fontWeight: 'bold' }} >
+              Apply Here
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );

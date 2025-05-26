@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test New Google Apps Script Deployment</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #response {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .test-data {
+            background-color: #e0e0e0;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 20px 0;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test NEW Google Apps Script Deployment</h1>
+    
+    <p>Testing the NEW deployment URL:</p>
+    <code>https://script.google.com/macros/s/AKfycbxbySnt9vFDgDI8XatKXpZwqNPHYfYNkCcl40pZCYElEOPjHLM2kKdbI_UfaIU3bFbT/exec</code>
+    
+    <h3>Test Data:</h3>
+    <div class="test-data" id="testData"></div>
+    
+    <button onclick="sendTestRequest()">Send Test Request (Same as React App)</button>
+    <button onclick="testDirectPost()">Send Direct POST Test</button>
+    
+    <div id="response"></div>
+
+    <script>
+        // Test data matching EXACTLY what the React app sends
+        const testData = {
+            timestamp: new Date().toLocaleString(),
+            chapter: "Denver",
+            founderName: "Test Founder NEW",
+            businessName: "Test Business NEW",
+            email: "testnew@example.com",
+            phone: "", // Empty like React app
+            website: "www.testnew.com",
+            bio: "Test bio NEW",
+            valueProp: "Test value proposition NEW",
+            problem: "Test problem NEW",
+            solution: "Test solution NEW",
+            businessModel: "Test business model NEW",
+            hasPayingCustomers: "Yes",
+            grantUsePlan: "Test grant use plan NEW",
+            heardAbout: "Test referral NEW",
+            videoUrl: "http://test-video-new.com",
+            pitchId: "test-pitch-new-123"
+        };
+
+        // Display test data
+        document.getElementById('testData').textContent = JSON.stringify(testData, null, 2);
+
+        // This mimics EXACTLY what the React app does
+        async function sendTestRequest() {
+            const responseDiv = document.getElementById('response');
+            responseDiv.textContent = 'Sending request (React app style)...';
+
+            try {
+                const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxbySnt9vFDgDI8XatKXpZwqNPHYfYNkCcl40pZCYElEOPjHLM2kKdbI_UfaIU3bFbT/exec';
+                
+                console.log('Sending to Google Sheets:', testData);
+                console.log('URL:', GOOGLE_SCRIPT_URL);
+                
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(testData)
+                });
+
+                console.log('Submitted to Google Sheets - Response:', response);
+                
+                responseDiv.textContent = `Request sent successfully!\n\nNote: Due to CORS restrictions with mode: 'no-cors', we cannot read the actual response from the server. Check your Google Sheet to verify if the data was received.\n\nTimestamp: ${new Date().toLocaleString()}\n\nCheck the browser console for logs.`;
+                
+            } catch (error) {
+                responseDiv.textContent = `Error: ${error.message}\n\nStack: ${error.stack}`;
+                console.error('Error submitting to Google Sheets:', error);
+            }
+        }
+
+        // Direct POST test
+        async function testDirectPost() {
+            const responseDiv = document.getElementById('response');
+            responseDiv.textContent = 'Sending direct POST...';
+
+            const url = 'https://script.google.com/macros/s/AKfycbxbySnt9vFDgDI8XatKXpZwqNPHYfYNkCcl40pZCYElEOPjHLM2kKdbI_UfaIU3bFbT/exec';
+            
+            // Using XMLHttpRequest as alternative
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4) {
+                    responseDiv.textContent = `XMLHttpRequest completed\nStatus: ${xhr.status}\nResponse: ${xhr.responseText || 'No response due to CORS'}\n\nCheck your Google Sheet!`;
+                }
+            };
+            
+            xhr.send(JSON.stringify(testData));
+        }
+    </script>
+</body>
+</html>

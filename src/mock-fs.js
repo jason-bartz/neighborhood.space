@@ -1,0 +1,82 @@
+// mock-fs.js
+/**
+ * This module provides a filesystem interface mock
+ * that supplies real sample data to NeighborhoodResources.jsx
+ */
+
+// Create a complete CSV data with all Western New York resources
+const sampleCsvData = `Resource,Type,Focus Area,Relocation Required?,Counties Served,URL,Expanded Details,Average Check Size,Business Stage
+43North Accelerator,Incubator/Accelerator,High-growth startups,Yes (1 year in Buffalo),Global,https://43north.org/,"A globally recognized startup competition investing $1M each in 5 companies annually with relocation to Buffalo required. Past winners include ACV Auctions, Squire, Top Seedz.",NA,Growth
+Armory Square Ventures,Venture Capital,Tech Startups,No,Upstate NY,https://armorysv.com/,"Seed-to-Series A venture capital firm investing in scalable tech startups across Upstate NY, emphasizing Buffalo opportunities.",$1M–$5M rounds,Early
+BNMC Innovation Center,Incubator/Accelerator,Health/Medtech,No,Erie,https://bnmc.org/,"Incubator located within Buffalo Niagara Medical Campus offering office space, networking with healthcare institutions, and business development support.",NA,Ideation
+BOLD Ventures,Venture Capital,Underrepresented founders,No,All 8 counties,https://boldventures.vc/,"Early-stage VC fund focused on underrepresented founders across Rust Belt cities, including Buffalo, with human-centered investing approach.",$250K–$1M,Early
+BootSector,Community,Broad startups support,No,All 8 counties,https://joinbootsector.com/#about,"BootSector's mission is to empower, educate, and support the next generation of local entrepreneurs and startup leaders.",NA,Ideation
+Buffalo Angels,Angel Group,Various sectors,No,All 8 counties,https://wnyventure.com/,"Angel investment network tied to the WNY Venture Association, actively funding early-stage startups and syndicating deals in Buffalo.","~$50K–$250K typical syndicate",Early
+Canisius University Women's Business Center,Education,Women Entrepreneurs,No,"Erie, Niagara, Cattaraugus, Chautauqua",https://thewomensbusinesscenter.com/,"SBA-funded center providing business training, counseling, networking, and resources specifically for women entrepreneurs throughout Western NY.",NA,All
+Center for Entrepreneurial Leadership (CEL),Education,Growth programs for small businesses,No,Erie,https://management.buffalo.edu/entrepreneurship.html,"Offers entrepreneurship education programs including the Core program, Minority and Women Entrepreneurs program, and High-Tech CEL for scalable startups.",NA,Early
+Community Foundation for Greater Buffalo,Funding,Nonprofit community projects,No,All 8 counties,https://www.cfgb.org/,"A philanthropic foundation funding nonprofits across the region, with grants aimed at community vitality, youth development, and education.",NA,Early
+East Hill Foundation,Funding,Nonprofit community projects,No,All 8 counties,https://easthillfdn.com/,"Funds nonprofits addressing human needs in Erie and Niagara Counties, offering grants typically up to $50,000.",NA,Early
+Endeavor Western New York,Mentorship,Scaling businesses,No,All 8 counties,https://endeavor.org/,"Supports high-impact entrepreneurs in scaling their companies via mentorship and access to a global network.",NA,Growth
+Excell Partners,Venture Capital,High-tech sectors,No,Upstate NY,https://excellny.com/,"State-supported venture fund backing university spinouts and high-tech startups across Upstate, including Buffalo-area companies.",$250K–$750K,Early
+Foundry Buffalo,Community,Makerspace / Small Business,No,Erie,https://thefoundrybuffalo.org/,"Makerspace and entrepreneur hub supporting small business creation through hands-on skills and access to resources.",NA,Ideation
+Fredonia Technology Incubator,Incubator/Accelerator,All sectors,No,Chautauqua,https://fredonia.edu/incubator,"A SUNY Fredonia initiative providing business incubation, co-working space, and mentorship to entrepreneurs in Chautauqua County.",NA,Ideation
+Good Neighbor Fund,Funding,Micro-grants for under-resourced founders,No,All 8 counties,https://www.neighborhoods.space/,"Nonprofit micro-grant fund awarding $1,000 grants to founders from underrepresented backgrounds, emphasizing community-driven entrepreneurship. No equity taken.",NA,Ideation
+Impellent Ventures,Venture Capital,Tech Startups,No,All 8 counties,https://impellent.vc/,"Early-stage VC firm focused on software, AI, healthtech, and tech-enabled services with Buffalo and Rochester ties.",$100K–$2M,Early
+IncubatorWorks (Alfred),Incubator/Accelerator,All sectors,No,Allegany,https://incubatorworks.org/,"IncubatorWorks focuses on serving rural entrepreneurs with mentoring, coworking space, and startup support programs in Allegany County.",NA,Ideation
+Insyte Consulting,Education,Manufacturing,No,"Erie, Niagara, Allegany, Cattaraugus, Chautauqua",https://insyte-consulting.com/,"Manufacturing Extension Partnership center providing consulting services to manufacturers on growth, operational excellence, and innovation.",NA,Established
+Lakelet Capital,Private Investment Office,Growth-stage businesses,No,Global,https://lakeletcapital.com/,"Buffalo-based family investment office funding growth-stage companies with EBITDA between $1M–$10M across manufacturing, services, and distribution.",Strategic (not disclosed),Growth
+Launch NY,Venture Capital,High-growth startups,No,All 8 counties,https://launchny.org/,"Launch NY offers free mentoring via Entrepreneurs-in-Residence and operates New York State's most active nonprofit seed fund, focused on high-growth, scalable ventures across Upstate NY.",NA,Ideation
+Lorraine Capital,Private Investment Office,Growth-stage businesses,No,Global,https://lorrainecap.com/,"Private investment firm backing mature businesses in Buffalo and Upstate NY through management buyouts and growth capital.",$2M–$10M,Growth
+Moog Venture Initiatives,Corporate Venture,Autonomy / Robotics,No,Global,https://www.moog.com/,"Strategic venture investment arm of Moog, focused on autonomous systems, robotics, and advanced tech startups complementing Moog's aerospace businesses.",Strategic (not disclosed),Established
+New York Ventures (ESD),Government,Technology / Innovation,No,New York State,https://esd.ny.gov/,"State-run venture capital fund supporting commercialization of innovation in NY, including seed and Series A rounds for Buffalo startups.",$500K–$2M,Early
+NextCorps,Incubator/Accelerator,Technology startups,No,"Monroe, Finger Lakes",https://nextcorps.org/,"Startup incubator and accelerator supporting technology-driven companies with mentoring and programming.",NA,Early
+Olean Business Incubator,Incubator/Accelerator,All sectors,No,Cattaraugus,https://sbu.edu/oleanbusinessincubator,"Incubator supporting small businesses and startups in Cattaraugus County, affiliated with St. Bonaventure University.",NA,Early
+Radial Ventures (43North Foundation Studio),Venture Studio,New startups/tech,No,Erie,https://www.radialventures.com/,"Buffalo's first venture studio backed by 43North Foundation, co-founding tech startups and providing operational support and early funding.",NA,Ideation
+Rand Capital,Venture Capital,Growth capital for startups,No,Erie,https://www.randcapital.com/,"Publicly traded BDC investing in growth-stage private companies, often providing expansion capital or venture debt in Buffalo.",$500K–$2M,Established
+Rich Products Ventures,Corporate Venture,Food tech / Sustainability,No,Global,https://www.richproductsventures.com/,"Corporate VC arm of Rich Products, investing in food tech, plant-based innovation, and future of food companies globally.",$500K–$2M,Established
+Rochester Angel Network,Angel Group,Various sectors,No,All 8 counties,https://rochesterangels.com/,"Greater Rochester-area angel group investing in Upstate NY seed-stage companies, often co-investing with Buffalo Angels in deals.","~$50K–$150K",Early
+S2 Venture Partners,Angel Group,Local startups (general),No,Erie,https://s2venturepartners.com/,"Buffalo-based early-stage investment group pooling local executives and investors to back high-potential startups.","~$100K–$500K pooled",Early
+SCORE Buffalo–Niagara Chapter,Mentorship,Free expert business mentoring / workshops and tools for entrepreneurs at all stages,No,"Erie, Niagara",https://www.score.org/buffaloniagara,"SCORE is a national nonprofit (SBA partner) whose Buffalo–Niagara chapter connects entrepreneurs with volunteer mentors and workshop programs. Mentors advise on business planning, marketing, finance and more. Services include free one-on-one advice (in-person or virtual) and educational events. As SBA notes, SCORE is 'the nation's largest network of volunteer, expert business mentors' dedicated to helping small businesses start and grow.",N/A (no funding; advisory only),All
+Small Business Development Centers (SBDCs),Education,Small business counseling,No,All 8 counties,https://nysbdc.org/,"Free 1:1 counseling, business planning assistance, and technical training for entrepreneurs across all industries and stages.",NA,Ideation
+Start-Up NY,Government,Tax incentives for businessesYes - locate near universities,No,New York State,https://esd.ny.gov/startup-ny-program,"Program offering tax-based incentives to businesses that locate or expand near New York State colleges and universities.",NA,Early
+Startup Grind: Rochester,Community,Broad startups support,No,Genesee Valley,https://www.startupgrind.com/rochester/,"Startup Grind is a global startup community, actively educating, inspiring and connecting 3.5 million entrepreneurs in more than 525 cities. Founded in Silicon Valley, we nurture startup ecosystems in 125 countries through local and international events and partnerships with organizations like Google for Startups, AWS and Global Silicon Valley.",NA,Ideation
+Stella Foundation,Funding,Women-led startups,No,National,https://stella.co/,"Stella Foundation is a national nonprofit dedicated to closing the funding gap for women entrepreneurs by providing capital, mentorship, and a robust support network from ideation to exit. Founded in 2012 by Dr. Silvia Mah, Stella has helped over 500 female founders raise more than $100 million, with a strong emphasis on supporting BIPOC, LGBTQ+, veteran, and mompreneur communities.​",NA,All
+Summer Street Capital,Private Investment Office,Growth-stage businesses,No,Global,https://summerstreetcapital.com/,"Buffalo-based private equity firm investing in lower middle-market companies across environmental services, manufacturing, and business services.",$2M–$10M,Growth
+SUNY Jamestown Community College – The Hatch,Accelerator/Incubator,Entrepreneurial incubator space / mentoring / workshops and networking for new and existing businesses,Yes (entrepreneurs work onsite at JCC's Cattaraugus County campus),Cattaraugus,https://www.sunyjcc.edu/workforce/hatch,"The Hatch provides office/incubator space and amenities on JCC's Olean campus. It 'fills a gap' in the local entrepreneurial ecosystem by offering access to mentors, classes and networking in a 'nest' environment for startups. Clients have 24/7 access to a professional setting (classrooms, conference rooms, manufacturing labs, a commercial kitchen, etc.) and attend Hatch-run training on finance, legal, marketing and business operations. Dedicated staff and volunteers advise on business plans and connections.",N/A (no investment; incubator support only),Ideation
+The Exchange at Beverly Gray,Incubator/Accelerator,BIPOC Entrepreneurs,No,Erie,https://www.theexchangeatbeverlygray.org/,"Buffalo East Side hub for BIPOC entrepreneurs, offering coworking, business workshops, and UB partnership support. Named after civic leader Beverly Gray.",NA,Early
+UB Cultivator,Incubator/Accelerator,High-growth startups,No,All 8 counties,https://www.buffalo.edu/partnerships/about/programs/ub-cultivator.html,"Pre-seed program affiliated with UB, offering up to $100K investment and structured mentorship to help early founders validate markets and prepare for funding.",NA,Ideation
+UB Entrepreneurship Law Center,Legal,Startup legal support,No,Erie,https://www.buffalo.edu/partnerships/about/programs/e-law.html,"Provides free legal services to startups and entrepreneurs, particularly UB-affiliated and minority-owned businesses, with help on IP, formation, and contracts.",NA,Early
+UB Incubators (CBLS / Baird / Downtown),Incubator/Accelerator,Tech startups / Life Sciences,No,Erie,https://www.buffalo.edu/partnerships/business/incubators.html,"Affordable incubator space, wet labs, and business support services for startups, with proximity to university talent and facilities.",NA,Early
+UB Startup and Innovation Collaboratory,Education,Student entrepreneurs,No,Erie,https://www.buffalo.edu/entrepreneurship.html,"The CoLab is a campus-based entrepreneurship and innovation center that empowers students to realize solutions for the global and local challenges of our time. Part startup incubator and part idea-sharing center, it connects students to mentors, events, funding and experiences that cultivate the skills and mindset to build successful companies or innovate competitively in careers within any organization.",NA,Ideation
+Varia Ventures,Venture Capital,Healthcare/Life Sciences,No,All 8 counties,https://variaventures.com/,"Online co-investment platform leveraging physician and industry expert networks to fund healthcare and life science startups.",$100K–$500K,Early
+Western New York Impact Investment Fund,Venture Capital,Double Bottom Line (social impact + profits),No,All 8 counties,https://wnyimpact.com/,"Impact-oriented VC fund investing in WNY businesses that generate economic and social returns, with job creation focus.",$250K–$1M,Early
+Western New York Incubator Network (WIN),Incubator/Accelerator,Broad startups support,No,"Erie, Niagara, Allegany, Cattaraugus, Chautauqua",https://wnyincubators.com/,"A consortium of incubators sharing best practices, space, mentoring, and financial resource connections across five counties.",NA,Early
+Westminster Economic Development Initiative (WEDI),Incubator/Accelerator,Underserved Entrepreneurs,No,Erie,https://www.wedibuffalo.org/,"The Westminster Economic Development Initiative (WEDI) is a Buffalo-based nonprofit and certified Community Development Financial Institution (CDFI) that empowers underserved entrepreneurs—including immigrants, refugees, and low-income residents—through a comprehensive suite of services. These include microloans, business education, technical assistance, and incubation opportunities, all designed to foster economic equity and community revitalization.​","$5K–25K (loans)",All
+WNY Prosperity Fellowship,Mentorship,Student entrepreneurs,No,All 8 counties,https://www.buffalo.edu/entrepreneurship/programs/wny-prosperity.html,"Supports UB students creating ventures that contribute to WNY's economy with scholarship, professional development, and internships.",NA,Ideation
+StartFast Ventures,Venture Capital,B2B SaaS,No,Global,https://startfastventures.com/,"StartFast is optimized to address challenges faced by startups outside major VC hubs through: faster investment decision making, access to trusted coinvestors, extensive network of mentors/subject matter experts, and referrals to strategic partners and later stage investors.","$500K-$2MM",Early
+Upstate Venture Connect (UVC),Community,"Networking, mentorship, and strategic referrals for high‑growth startups in Upstate New York",No,Upstate New York,https://uvc.org/,"Since 2010, UVC has connected and empowered Upstate NY founders via its Founder Network (high‑value introductions), Founder Fusion curated events, the UNY50 leadership circle, and the annual Unleashed retreat—generating thousands of mentor/advisor/capital referrals to help companies scale.",NA,All`;
+
+// Create a mock filesystem object with real data
+const mockFs = {
+  readFile: async (filePath, options) => {
+    console.log(`Mock readFile called for: ${filePath}`);
+    
+    // For CSV files, return our sample data
+    if (filePath.endsWith('.csv')) {
+      return sampleCsvData;
+    }
+    
+    throw new Error(`File not found: ${filePath}`);
+  },
+  
+  // Add more methods as needed
+  writeFile: async (filePath, content, options) => {
+    console.log(`Mock writeFile called for: ${filePath}`);
+    return true;
+  }
+};
+
+// Make it globally available
+window.fs = mockFs;
+
+export default mockFs;

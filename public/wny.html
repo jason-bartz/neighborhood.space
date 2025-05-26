@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Good Neighbor Fund WNY - $1,000 Micro-Grants for Buffalo & Western New York Startups</title>
+  <meta name="description" content="Get $1,000 startup grants in Buffalo and Western New York. No equity, no pitch deck required. Supporting entrepreneurs in Erie, Niagara, Cattaraugus, Chautauqua, and more WNY counties.">
+  <meta name="keywords" content="buffalo startup grants, western new york small business funding, wny entrepreneur grants, buffalo ny business grants, 716 startup funding, erie county small business grants, niagara county business funding">
+  <link rel="canonical" href="https://www.neighborhoods.space/wny">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.neighborhoods.space/wny">
+  <meta property="og:title" content="Good Neighbor Fund WNY - $1,000 Startup Grants for Buffalo Entrepreneurs">
+  <meta property="og:description" content="Get $1,000 for your Buffalo or WNY business idea. Supporting entrepreneurs across 8 counties with belief capital.">
+  <meta property="og:image" content="https://www.neighborhoods.space/assets/gnf-ernies.png">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://www.neighborhoods.space/wny">
+  <meta property="twitter:title" content="Good Neighbor Fund WNY - Buffalo Startup Grants">
+  <meta property="twitter:description" content="$1,000 grants for Buffalo & WNY entrepreneurs. No equity required.">
+  <meta property="twitter:image" content="https://www.neighborhoods.space/assets/gnf-ernies.png">
+  
+  <!-- Fonts -->
+  <link rel="stylesheet" href="/assets/fonts/fonts.css" />
+  
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "GrantsProgram",
+    "name": "Good Neighbor Fund Western New York",
+    "alternateName": "GNF WNY",
+    "url": "https://www.neighborhoods.space/wny",
+    "description": "$1,000 micro-grants for entrepreneurs in Buffalo and Western New York. No equity, no pitch deck required.",
+    "provider": {
+      "@type": "NonprofitOrganization",
+      "name": "Good Neighbor Fund",
+      "url": "https://www.neighborhoods.space"
+    },
+    "areaServed": [
+      {
+        "@type": "City",
+        "name": "Buffalo",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "New York"
+        }
+      },
+      {
+        "@type": "AdministrativeArea",
+        "name": "Erie County",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "New York"
+        }
+      },
+      {
+        "@type": "AdministrativeArea",
+        "name": "Niagara County",
+        "containedInPlace": {
+          "@type": "State",
+          "name": "New York"
+        }
+      }
+    ],
+    "offers": {
+      "@type": "Offer",
+      "name": "Micro-Grant",
+      "price": "1000",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive;
+      background-color: #fff;
+      color: #222;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    /* Hero Section with gradient background */
+    .hero {
+      background: linear-gradient(135deg, rgba(255, 234, 249, 0.4), rgba(230, 242, 255, 0.4));
+      border-radius: 12px;
+      padding: 0;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .hero-content {
+      display: flex;
+      flex-direction: row;
+      align-items: stretch;
+      min-height: 340px;
+    }
+    
+    .hero-left {
+      flex: 1;
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    
+    .hero h1 {
+      font-size: 38px;
+      margin-bottom: 20px;
+      background: linear-gradient(to right, #ff00cc, #3333cc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 1px 1px 0px rgba(255,255,255,0.5);
+    }
+    
+    .hero p {
+      font-size: 18px;
+      line-height: 1.5;
+      margin-bottom: 25px;
+    }
+    
+    .cta-button {
+      background: #FFD6EC;
+      border: none;
+      border-radius: 30px;
+      padding: 14px 28px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      align-self: flex-start;
+      font-family: 'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive;
+      color: #222;
+      box-shadow: 0 4px 10px rgba(255,112,176,0.3);
+      position: relative;
+      transition: transform 0.2s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .cta-button:hover {
+      transform: translateY(-3px);
+    }
+    
+    .hero-right {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      border-radius: 0 12px 12px 0;
+      background: #FFD6EC;
+      min-height: 340px;
+    }
+    
+    .hero-right img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+    }
+    
+    .hero-caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 15px;
+      background: rgba(0,0,0,0.6);
+      color: white;
+      font-size: 14px;
+    }
+    
+    /* Counties Section */
+    .counties {
+      display: flex;
+      gap: 30px;
+      marginBottom: 30px;
+      flexWrap: wrap;
+    }
+    
+    .counties-left {
+      flex: 1;
+      min-width: 300px;
+      background: #f9f9f9;
+      border-radius: 10px;
+      padding: 25px;
+      border: 1px solid #eee;
+    }
+    
+    .counties h2 {
+      color: #990099;
+      margin-top: 0;
+      border-bottom: 2px solid #f0d6ff;
+      padding-bottom: 10px;
+    }
+    
+    .counties-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      margin-top: 20px;
+      justify-content: center;
+    }
+    
+    .county-card {
+      background: #ffffff;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 14px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+      border: 1px solid #eee;
+    }
+    
+    /* Stats Section */
+    .stats {
+      flex: 1;
+      min-width: 300px;
+      background: linear-gradient(to bottom right, #f0faff, #eaf5ff);
+      border-radius: 10px;
+      padding: 25px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .stats h2 {
+      color: #0066aa;
+      margin-top: 0;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      text-align: center;
+    }
+    
+    .stat-item {
+      background: #ffffff;
+      padding: 25px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+      min-height: 140px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    
+    .stat-item h4 {
+      font-size: 52px;
+      font-weight: bold;
+      display: block;
+      margin: 0 0 10px 0;
+      line-height: 1;
+    }
+    
+    .stat-item p {
+      font-size: 16px;
+      color: #555;
+      margin: 0;
+      line-height: 1.3;
+      font-weight: 500;
+    }
+    
+    /* LP Section */
+    .lp-section {
+      background: #fff0f5;
+      padding: 25px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      border: 2px dashed #ffb6d9;
+    }
+    
+    .lp-section h2 {
+      text-align: center;
+      color: #cc3366;
+      margin-bottom: 15px;
+    }
+    
+    .lp-section p {
+      font-size: 16px;
+      line-height: 1.6;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    .lp-cta {
+      display: inline-block;
+      background: #FF69B4;
+      color: white;
+      padding: 12px 25px;
+      border-radius: 30px;
+      font-size: 16px;
+      font-weight: bold;
+      text-decoration: none;
+      margin-top: 20px;
+      box-shadow: 0 4px 15px rgba(255,105,180,0.3);
+      transition: all 0.2s ease;
+    }
+    
+    .lp-cta:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 18px rgba(255,105,180,0.4);
+    }
+    
+    /* Community Images */
+    .community-images {
+      margin-bottom: 30px;
+      background: #f9f9f9;
+      border-radius: 10px;
+      padding: 25px;
+      overflow: hidden;
+    }
+    
+    .community-images h2 {
+      text-align: center;
+      margin-top: 0;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    
+    .images-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 180px);
+      gap: 15px;
+      margin: 0 auto;
+    }
+    
+    .image-container {
+      background: #f0f0f0;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .image-container img {
+      height: 100%;
+      width: 100%;
+      object-fit: cover;
+    }
+    
+    /* Final CTA Section */
+    .final-cta {
+      background: linear-gradient(135deg, #FFD6EC, #ffeaf0);
+      border-radius: 10px;
+      padding: 30px;
+      text-align: center;
+      box-shadow: 0 3px 15px rgba(0,0,0,0.05);
+      margin-bottom: 30px;
+    }
+    
+    .final-cta h2 {
+      font-size: 28px;
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: #333;
+    }
+    
+    footer {
+      background: #f8f8f8;
+      padding: 20px;
+      text-align: center;
+      color: #666;
+      border-top: 1px solid #ddd;
+    }
+    
+    footer a {
+      color: #0066aa;
+      text-decoration: none;
+      margin: 0 10px;
+    }
+    
+    /* Taskbar styles - matching desktop version exactly */
+    .taskbar {
+      position: fixed;
+      top: 0;
+      width: 100%;
+      background: #fcd6e2;
+      padding: 6px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: "Courier New", Courier, monospace;
+      font-weight: bold;
+      font-size: 14px;
+      border-bottom: 2px solid #ecacc5;
+      z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    .taskbar-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+    }
+    
+    .taskbar-left:hover {
+      opacity: 0.8;
+    }
+    
+    .taskbar-icon {
+      width: 16px;
+      height: 16px;
+    }
+    
+    .taskbar-right {
+      font-weight: bold;
+      white-space: nowrap;
+      margin-right: 30px;
+    }
+    
+    .retro-clock {
+      font-size: 14px;
+    }
+    
+    /* Add padding to container for taskbar */
+    .container {
+      padding-top: 50px;
+    }
+    
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: 24px;
+      }
+      
+      .hero-content {
+        flex-direction: column;
+      }
+      
+      .hero-right {
+        min-height: 200px;
+        border-radius: 0 0 12px 12px;
+      }
+      
+      .counties {
+        flex-direction: column;
+      }
+      
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .images-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: repeat(6, 150px);
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Taskbar -->
+  <div class="taskbar">
+    <a href="/" class="taskbar-left">
+      <img src="/favicon.png" alt="GNF icon" class="taskbar-icon" />
+      <span>NeighborhoodOS</span>
+    </a>
+    <div class="taskbar-right">
+      <span class="retro-clock" id="taskbar-clock"></span>
+    </div>
+  </div>
+  
+  <div class="container">
+    <!-- Hero Section -->
+    <div class="hero">
+      <div class="hero-content">
+        <div class="hero-left">
+          <h1>$1,000 Micro-Grants for Buffalo Business Ideas 💫</h1>
+          <p><strong>We back brilliant ideas before they're "ready."</strong> No pitch deck required. No equity taken. Just belief in your vision and potential.</p>
+          <a href="/pitch" class="cta-button">🦄 Submit Your Pitch Today!</a>
+        </div>
+        <div class="hero-right">
+          <img src="/assets/gnf-fat-daddys.webp" alt="Fat Daddy's - Good Neighbor Fund $1,000 grant recipient in Buffalo, NY" />
+          <div class="hero-caption">Fat Daddy's - Past Micro-Grant Awardee</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Counties and Stats Section -->
+    <div class="counties">
+      <div class="counties-left">
+        <h2>Serving All of Western New York ✨</h2>
+        <p style="font-size: 16px; line-height: 1.6;">
+          Good Neighbor Fund WNY supports entrepreneurs across 8 counties in Western New York. 
+          Whether you're in the heart of Buffalo or rural Wyoming County, we believe in your potential.
+        </p>
+        <div class="counties-grid">
+          <div class="county-card">Erie County</div>
+          <div class="county-card">Niagara County</div>
+          <div class="county-card">Cattaraugus</div>
+          <div class="county-card">Chautauqua</div>
+          <div class="county-card">Allegany County</div>
+          <div class="county-card">Genesee County</div>
+          <div class="county-card">Wyoming County</div>
+          <div class="county-card">Orleans County</div>
+        </div>
+      </div>
+      
+      <div class="stats">
+        <h2>Our Impact Since 2023</h2>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <h4 style="color: #0099cc;">25</h4>
+            <p>New Business Ideas<br>Funded</p>
+          </div>
+          <div class="stat-item">
+            <h4 style="color: #e6007e;">80%</h4>
+            <p>Women-Owned<br>Businesses</p>
+          </div>
+          <div class="stat-item">
+            <h4 style="color: #ff6600;">52%</h4>
+            <p>BIPOC-Owned<br>Businesses</p>
+          </div>
+          <div class="stat-item">
+            <h4 style="color: #6600cc;">$25,000+</h4>
+            <p>In Micro-Grants<br>Awarded</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- LP Section -->
+    <div class="lp-section">
+      <h2>Powered by People, Not Institutions 🤝</h2>
+      <p>
+        Good Neighbor Fund is a collective giving organization. Our funding comes from Limited Partners (LPs) - 
+        local founders, operators, and community members who pool their own capital each quarter to fund the 
+        boldest new ideas in WNY. No overhead. No bureaucracy. Just neighbors investing in neighbors.
+      </p>
+      <p style="font-size: 15px; font-style: italic; margin-top: 15px;">
+        Want to help select the next wave of Buffalo founders? Join us as an LP.
+      </p>
+      <div style="text-align: center;">
+        <a href="https://airtable.com/app38xfYxu9HY6yT3/pagy7R4p6BCdXBpzF/form" class="lp-cta">
+          Become a Limited Partner
+        </a>
+      </div>
+    </div>
+    
+    <!-- Western New York Chapter LPs -->
+    <div style="margin-bottom: 30px;">
+      <h1 style="text-align: center; margin-bottom: 25px;">Western New York Chapter LPs</h1>
+      
+      <!-- LP Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+        <!-- Jason Bartz -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/jason-bartz.png" alt="Jason Bartz - Co-Founder - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/jsnbrtz/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Jason Bartz</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Co-Founder</p>
+          <p style="font-size: 14px;">Jason serves as VP of Business Development & Partner Success at Vero Technologies and Co-Founder of Refraction.</p>
+          <a href="https://www.linkedin.com/in/jsnbrtz/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Andy Rose -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/andy-rose.png" alt="Andy Rose - Brand / Creative Strategist - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/itsandyrose/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Andy Rose</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Brand / Creative Strategist</p>
+          <p style="font-size: 14px;">Andy is a strategist who's led activation for global brands like Alibaba, BMW, and Xerox. Passionate about Buffalo's startup scene.</p>
+          <a href="https://www.linkedin.com/in/itsandyrose/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Bobbie Armstrong -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/bobbie-armstrong.png" alt="Bobbie Armstrong - Director of Impact Ecosystems - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/bobbie-thoman/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Bobbie Armstrong</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Director of Impact Ecosystems</p>
+          <p style="font-size: 14px;">Focused on clean energy and greentech, with a background in policy making at Uptake Alliance.</p>
+          <a href="https://www.linkedin.com/in/bobbie-thoman/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Brian Cleary -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/brian-cleary.png" alt="Brian Cleary - Partner, Interlace Digital - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/brian-cleary-marketing/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Brian Cleary</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Partner, Interlace Digital</p>
+          <p style="font-size: 14px;">Empowering brands with innovative digital solutions.</p>
+          <a href="https://www.linkedin.com/in/brian-cleary-marketing/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Celine Krzan -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/celine-krzan.png" alt="Celine Krzan - Professor & Program Director - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/celinekrzan/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Celine Krzan</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Professor & Program Director</p>
+          <p style="font-size: 14px;">Entrepreneurship faculty at UB. Runs M&T Minority and Women Emerging Entrepreneur Program.</p>
+          <a href="https://www.linkedin.com/in/celinekrzan/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Cindy Sideris -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/cindy-sideris.png" alt="Cindy Sideris - Director of Operations, UVC - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/cindysideris/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Cindy Sideris</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Director of Operations, UVC</p>
+          <p style="font-size: 14px;">Connects and empowers Upstate NY founders. Passionate about VC + entertainment creators.</p>
+          <a href="https://www.linkedin.com/in/cindysideris/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Danielle Blount -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/danielle-blount.png" alt="Danielle Blount - Partner at BOLD Ventures - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/blountdanielle/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Danielle Blount</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Partner at BOLD Ventures</p>
+          <p style="font-size: 14px;">Also leads Buffalo's Awesome Foundation. Invests in wild, weird, and wonderful ideas.</p>
+          <a href="https://www.linkedin.com/in/blountdanielle/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- David Brenner -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/david-brenner.png" alt="David Brenner - Startup Community Organizer - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/davidabrenner/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">David Brenner</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Startup Community Organizer</p>
+          <p style="font-size: 14px;">BootSector volunteer and Buffalo Startup Weekend lead.</p>
+          <a href="https://www.linkedin.com/in/davidabrenner/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Flossie Hall -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/flossie-hall.png" alt="Flossie Hall - CEO, Stella - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/flossiehall/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Flossie Hall</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">CEO, Stella</p>
+          <p style="font-size: 14px;">Veteran Navy spouse and serial entrepreneur. Featured in Forbes, Inc., and Entrepreneur.</p>
+          <a href="https://www.linkedin.com/in/flossiehall/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Jon Pancerman -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/jon-pancerman.png" alt="Jon Pancerman - Sr. Director, ACV Auctions - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/jpancerman/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Jon Pancerman</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Sr. Director, ACV Auctions</p>
+          <p style="font-size: 14px;">Ops leader with a TEDxBuffalo organizing past.</p>
+          <a href="https://www.linkedin.com/in/jpancerman/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Jordan Walbesser -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/jordan-walbesser.png" alt="Jordan Walbesser - Director, Mattel Legal - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/jordan-walbesser/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Jordan Walbesser</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Director, Mattel Legal</p>
+          <p style="font-size: 14px;">Exec Director of BootSector. Building Buffalo's next-gen startup leaders.</p>
+          <a href="https://www.linkedin.com/in/jordan-walbesser/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Katie Wallingford -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/katie-wallingford.png" alt="Katie Wallingford - Product Manager, Leap Event Technologies - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/katie-wallingford/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Katie Wallingford</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Product Manager, Leap Event Technologies</p>
+          <p style="font-size: 14px;">Early-stage product manager. Buffalo transplant building with heart and human-centered design.</p>
+          <a href="https://www.linkedin.com/in/katie-wallingford/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Najja Boulden -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/najja-boulden.png" alt="Najja Boulden - Founder, Phoenix Innovation Group - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/najja-a-bouldin-85182a8b/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Najja Boulden</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Founder, Phoenix Innovation Group</p>
+          <p style="font-size: 14px;">Trainer and developer of inclusive innovation ecosystems.</p>
+          <a href="https://www.linkedin.com/in/najja-a-bouldin-85182a8b/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Rachel Good -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/rachel-good.png" alt="Rachel Good - Media Relations, Javen Construction - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/rachelmariegood/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Rachel Good</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">Media Relations, Javen Construction</p>
+          <p style="font-size: 14px;">Arts advocate and community builder. Construction pro by day, culture champion by night.</p>
+          <a href="https://www.linkedin.com/in/rachelmariegood/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+        
+        <!-- Sonya Tarake -->
+        <div style="background: #f8f8ff; padding: 15px; border-radius: 8px; border: 1px solid #ccc;">
+          <img src="/assets/lps/sonya-tarake.png" alt="Sonya Tarake - COO, Team Real Talk - Good Neighbor Fund Limited Partner" style="width: 120px; height: 120px; object-fit: cover; border-radius: 50%; border: 2px solid #ccc; display: block; margin: 0 auto 10px auto;" />
+          <h3 style="margin-bottom: 5px;"><a href="https://www.linkedin.com/in/stareke/" target="_blank" rel="noreferrer" style="color: #3366cc; text-decoration: none;">Sonya Tarake</a></h3>
+          <p style="font-weight: bold; margin-bottom: 6px;">COO, Team Real Talk</p>
+          <p style="font-size: 14px;">Facilitator for Kauffman FastTrac and EiR at UB's Inclusive Launch Foundry.</p>
+          <a href="https://www.linkedin.com/in/stareke/" target="_blank" rel="noreferrer" style="display: inline-block; margin-top: 6px; font-size: 12px; color: #3366cc;">LinkedIn</a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Community Images -->
+    <div class="community-images">
+      <h2>Building Buffalo's Entrepreneurial Community 🏘️</h2>
+      <div class="images-grid">
+        <div class="image-container">
+          <img src="/assets/tp-sansi.webp" alt="Sansi Bansal at Twin Petrels startup event in Buffalo" />
+        </div>
+        <div class="image-container">
+          <img src="/assets/tm-group.webp" alt="Good Neighbor Fund Buffalo chapter kickoff event at Thin Man Brewery" />
+        </div>
+        <div class="image-container">
+          <img src="/assets/tp-group.webp" alt="Entrepreneurs networking at Twin Petrels in Buffalo" />
+        </div>
+        <div class="image-container">
+          <img src="/assets/lp-dinner.webp" alt="Western New York Good Neighbor Fund Limited Partners dinner" />
+        </div>
+        <div class="image-container">
+          <img src="/assets/Ernies2.webp" alt="Ernie's Pop Shop - Buffalo small business grant winner" />
+        </div>
+        <div class="image-container">
+          <img src="/assets/tp-panel.webp" alt="Buffalo entrepreneur panel discussion at Twin Petrels" />
+        </div>
+      </div>
+    </div>
+    
+    <!-- Final CTA -->
+    <div class="final-cta">
+      <h2>Ready to Bring Your Business Idea to Life?</h2>
+      <p style="font-size: 16px; max-width: 600px; margin: 0 auto 25px auto; line-height: 1.6;">
+        We're looking for passionate founders with bold ideas that create positive impact in Western New York. 
+        No business plan required—just a 60-second pitch video and your authentic vision.
+      </p>
+      <a href="/pitch" class="cta-button">🦄 Submit Your Pitch Today!</a>
+    </div>
+    
+    <footer>
+      <p>&copy; 2025 Good Neighbor Fund.</p>
+      <div style="margin-top: 10px;">
+        <a href="/">Home</a>
+      </div>
+    </footer>
+  </div>
+  
+  <script>
+    // Clock functionality
+    function updateClock() {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+      const dateStr = now.toLocaleDateString("en-US", {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      });
+      document.getElementById('taskbar-clock').textContent = `${timeStr} ${dateStr} 2002`;
+    }
+    
+    // Update clock immediately and then every minute
+    updateClock();
+    setInterval(updateClock, 60000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,348 @@
+/* NeighborhoodResources.css */
+.neighborhood-resources {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-family: inherit;
+}
+
+/* Toolbar styles */
+.resources-toolbar {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.resources-toolbar input {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  flex-grow: 1;
+  min-width: 150px;
+  font-family: inherit;
+}
+
+.resources-toolbar select {
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  min-width: 120px;
+  font-family: inherit;
+}
+
+/* Content area styles */
+.resources-content {
+  display: flex;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+/* Resource list styles */
+.resources-list {
+  width: 250px;
+  border-right: 1px solid #ddd;
+  overflow-y: auto;
+  background-color: #f9f9f9;
+  display: flex;
+  flex-direction: column;
+}
+
+.resources-list h3 {
+  margin: 0;
+  padding: 10px;
+  font-size: 16px;
+  border-bottom: 1px solid #ddd;
+  background-color: #f0f0f0;
+}
+
+.resources-items {
+  overflow-y: auto;
+  padding: 5px;
+}
+
+.resource-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  margin: 5px 0;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.resource-item:hover {
+  background-color: #f0f0f0;
+}
+
+.resource-emoji {
+  font-size: 27px;
+}
+
+.resource-text {
+  flex-grow: 1;
+}
+
+.resource-name {
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.resource-type {
+  font-size: 12px;
+  color: #666;
+}
+
+/* Map styles */
+.resources-map-container {
+  flex-grow: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.resources-map {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 500px;
+}
+
+.map-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Map element styles */
+.neighborhood {
+  stroke: #fff;
+  stroke-width: 2;
+}
+
+.neighborhood-label {
+  font-size: 24px;
+  font-weight: bold;
+  text-anchor: middle;
+  fill: #333;
+  stroke: #fff;
+  stroke-width: 0.5;
+  paint-order: stroke;
+}
+
+.district-label {
+  font-size: 18px;
+  font-weight: bold;
+  text-anchor: middle;
+  fill: #555;
+}
+
+.street-path {
+  fill: none;
+  stroke: #aaaaaa;
+  stroke-width: 6;
+}
+
+.street-name {
+  font-size: 14px;
+  font-weight: bold;
+  fill: black;
+  stroke: white;
+  stroke-width: 0.5;
+  paint-order: stroke;
+}
+
+.resource-building {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.resource-building:hover .resource-name-tooltip {
+  display: block;
+}
+
+.resource-name-tooltip {
+  position: absolute;
+  background: rgba(0,0,0,0.7);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 14px;
+  display: none;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.resource-bg {
+  fill: white;
+  stroke: #333;
+  stroke-width: 1;
+}
+
+.tree, .car {
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Legend styles */
+.map-legend {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 10px;
+  width: 200px;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  font-size: 12px; /* Increased from 8px */
+}
+
+.map-legend h4 {
+  margin: 0;
+  font-size: 15px; /* Increased from 10px */
+  padding-bottom: 5px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.legend-header {
+  cursor: pointer;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.legend-toggle-button {
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-size: 14px; /* Increased from 10px */
+  cursor: pointer;
+}
+
+.legend-items {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+  font-size: 12px; /* Increased from 8px */
+}
+
+/* Modal styles */
+.resource-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.resource-modal-content {
+  background-color: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 20px;
+  position: relative;
+}
+
+.resource-modal-content h2 {
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #ddd;
+  padding-bottom: 10px;
+}
+
+.resource-details {
+  margin-top: 15px;
+}
+
+.expanded-details {
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  border-left: 3px solid #FFD6EC;
+}
+
+.expanded-details h3 {
+  margin-top: 0;
+  font-size: 16px;
+}
+
+.resource-link {
+  color: #0066cc;
+  text-decoration: none;
+  display: inline-block;
+  margin-top: 10px;
+}
+
+.resource-link:hover {
+  text-decoration: underline;
+}
+
+.close-button {
+  margin-top: 20px;
+  padding: 8px 16px;
+  background-color: #FFD6EC;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.close-button:hover {
+  background-color: #ffc0e0;
+}
+
+/* bring all neighborhood labels above the street layer */
+.neighborhood-label {
+  position: absolute;
+  z-index: 999;               /* above streets */
+  font-weight: bold;
+  pointer-events: none;       /* labels won’t block map drag/zoom */
+  text-shadow:
+    -1px -1px 0 #fff,
+     1px -1px 0 #fff,
+    -1px  1px 0 #fff,
+     1px  1px 0 #fff;         /* white outline */
+}
+
+/* color-code each neighborhood name */
+.neighborhood-label.ideation {
+  color: #e91e63;             /* hot/darker pink */
+}
+.neighborhood-label.early-stage {
+  color: #fbc02d;             /* darker yellow */
+}
+.neighborhood-label.growth {
+  color: #388e3c;             /* darker green */
+}
+.neighborhood-label.established {
+  color: #1e88e5;             /* darker blue */
+}
+
+.resource-emoji {
+  text-anchor: middle;
+  dominant-baseline: middle;
+}

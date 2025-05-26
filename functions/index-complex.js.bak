@@ -1,0 +1,384 @@
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+const fetch = require("node-fetch");
+
+// Import our custom Google Sheets export functionality
+// Temporarily commented out due to version compatibility issues
+// const sheetsExport = require('./google-sheets-export');
+
+admin.initializeApp();
+
+// Import Google Sheets API
+const { google } = require('googleapis');
+
+// Utility function to truncate long strings for logging
+const truncate = (str, maxLength = 100) => {
+  if (str && str.length > maxLength) {
+    return `${str.substring(0, maxLength)}...`;
+  }
+  return str;
+};
+
+// Get Slack webhook URLs from environment configuration
+// Set these using: firebase functions:config:set slack.wny_webhook="YOUR_URL" slack.denver_webhook="YOUR_URL"
+const getWebhooks = () => {
+  const config = functions.config();
+  if (!config.slack || !config.slack.wny_webhook || !config.slack.denver_webhook) {
+    console.error('Slack webhooks not configured. Please set slack.wny_webhook and slack.denver_webhook in Firebase config.');
+    return null;
+  }
+  return {
+    "Western New York": config.slack.wny_webhook,
+    "Denver": config.slack.denver_webhook
+  };
+};
+
+// Helper function to save pitch data to Google Sheets
+async function savePitchToGoogleSheets(pitchData, pitchId) {
+  try {
+    // Get configuration
+    const config = functions.config().googlesheets || {};
+    const spreadsheetId = config.spreadsheet_id || '1D7t661RQ3J0vC8N0g3gQfEcxxmEMa8Bq0KJcjvYceuw';
+    const sheetName = config.sheet_name || 'Pitches';
+    
+    if (!spreadsheetId || !sheetName) {
+      throw new Error('Google Sheets configuration missing');
+    }
+    
+    // Initialize auth
+    const auth = new google.auth.GoogleAuth({
+      scopes: ['https://www.googleapis.com/auth/spreadsheets']
+    });
+    const client = await auth.getClient();
+    const sheets = google.sheets({ version: 'v4', auth: client });
+    
+    // Prepare data row
+    const timestamp = new Date().toLocaleString();
+    const row = [
+      timestamp,
+      pitchData.chapter || '',
+      pitchData.founderName || '',
+      pitchData.businessName || '',
+      pitchData.email || '',
+      pitchData.phone || '',
+      pitchData.website || '',
+      pitchData.bio || '',
+      pitchData.valueProp || '',
+      pitchData.problem || '',
+      pitchData.solution || '',
+      pitchData.businessModel || '',
+      pitchData.hasPayingCustomers || '',
+      pitchData.grantUsePlan || '',
+      pitchData.heardAbout || '',
+      pitchData.pitchVideoUrl || pitchData.pitchVideoFile || '',
+      pitchId
+    ];
+    
+    // Append to sheet
+    await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${sheetName}!A:Q`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [row]
+      }
+    });
+    
+    console.log('Successfully saved pitch to Google Sheets');
+  } catch (error) {
+    console.error('Error saving to Google Sheets:', error);
+    throw error;
+  }
+}
+
+// Cloud Function that triggers when a new pitch document is created in Firestore
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+
+exports.sendPitchToSlack = onDocumentCreated('pitches/{pitchId}', async (event) => {
+  const snapshot = event.data;
+  const context = event.params;
+    try {
+      const pitchId = context.pitchId;
+      const pitchData = snapshot.data();
+      
+      console.log(`PITCH DEBUG: Full data snapshot: ${JSON.stringify(pitchData, null, 2)}`);
+      console.log(`PITCH DEBUG: Function triggered for document ID ${pitchId}`);
+      
+      console.log(`Processing new pitch submission: ${pitchId}`);
+      console.log(`Pitch data: ${JSON.stringify({
+        businessName: pitchData.businessName,
+        founderName: pitchData.founderName,
+        chapter: pitchData.chapter,
+        timestamp: pitchData.createdAt ? 'exists' : 'missing'
+      })}`);
+      
+      // Check if the document has a chapter field
+      if (!pitchData.chapter) {
+        console.error(`Missing chapter field in pitch document: ${pitchId}`);
+        return null;
+      }
+      
+      // Get webhooks from secure configuration
+      const WEBHOOKS = getWebhooks();
+      if (!WEBHOOKS) {
+        console.error('Webhooks not properly configured');
+        return null;
+      }
+      
+      // Check if we have a webhook for this chapter
+      if (!WEBHOOKS[pitchData.chapter]) {
+        console.error(`No webhook configured for chapter: ${pitchData.chapter}`);
+        console.log(`Available chapters: ${Object.keys(WEBHOOKS).join(', ')}`);
+        return null;
+      }
+      
+      // Format timestamp if it exists
+      let formattedTimestamp = "No timestamp";
+      if (pitchData.createdAt && pitchData.createdAt.toDate) {
+        formattedTimestamp = pitchData.createdAt.toDate().toLocaleString();
+        console.log(`Formatted Firestore timestamp: ${formattedTimestamp}`);
+      } else if (pitchData.createdAt) {
+        formattedTimestamp = new Date(pitchData.createdAt).toLocaleString();
+        console.log(`Formatted JS timestamp: ${formattedTimestamp}`);
+      } else {
+        console.log(`No timestamp field found in document`);
+      }
+      
+      // Construct message for Slack
+      const message = {
+        text: `*New Pitch Submission - ${pitchData.chapter}*`,
+        blocks: [
+          {
+            type: "header",
+            text: {
+              type: "plain_text",
+              text: `New Pitch Submission - ${pitchData.chapter}`,
+              emoji: true
+            }
+          },
+          {
+            type: "section",
+            fields: [
+              {
+                type: "mrkdwn",
+                text: `*Timestamp:*\n${formattedTimestamp}`
+              },
+              {
+                type: "mrkdwn",
+                text: `*Business Name:*\n${pitchData.businessName || "Not provided"}`
+              }
+            ]
+          },
+          {
+            type: "section",
+            fields: [
+              {
+                type: "mrkdwn",
+                text: `*Founder Name:*\n${pitchData.founderName || "Not provided"}`
+              },
+              {
+                type: "mrkdwn",
+                text: `*Chapter:*\n${pitchData.chapter}`
+              }
+            ]
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*About Me:*\n${pitchData.bio || "Not provided"}`
+            }
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*Value Proposition:*\n${pitchData.valueProp || "Not provided"}`
+            }
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*Problem:*\n${pitchData.problem || "Not provided"}`
+            }
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*Solution:*\n${pitchData.solution || "Not provided"}`
+            }
+          },
+          {
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: `*Use of Funds:*\n${pitchData.grantUsePlan || "Not provided"}`
+            }
+          },
+          {
+            type: "divider"
+          }
+        ]
+      };
+      
+      // Determine which webhook URL to use based on chapter
+      const webhookUrl = WEBHOOKS[pitchData.chapter];
+      console.log(`Using webhook for chapter: ${pitchData.chapter}`);
+      
+      // Send the message to Slack
+      console.log(`Sending notification to Slack for chapter: ${pitchData.chapter}...`);
+      console.log(`Using webhook URL: ${webhookUrl.substring(0, 30)}...`);
+      console.log(`Sending message payload: ${JSON.stringify(message, null, 2)}`);
+      
+      try {
+        const response = await fetch(webhookUrl, {
+          method: 'POST',
+          body: JSON.stringify(message),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        // Process the response
+        const responseText = await response.text();
+        console.log(`PITCH DEBUG: Slack API response status: ${response.status}`);
+        console.log(`PITCH DEBUG: Slack API response text: ${responseText}`);
+        
+        if (!response.ok) {
+          console.error(`Slack API error: HTTP ${response.status}`);
+          console.error(`Response body: ${responseText}`);
+          throw new Error(`HTTP error! status: ${response.status}, response: ${responseText}`);
+        }
+      } catch (fetchError) {
+        console.error(`PITCH DEBUG: Error sending to Slack webhook:`, fetchError);
+        console.error(`PITCH DEBUG: Error details:`, {
+          message: fetchError.message,
+          stack: fetchError.stack,
+          webhookUrl: webhookUrl.substring(0, 30) + '...'
+        });
+        throw fetchError;
+      }
+      
+      console.log(`Notification successfully sent to Slack for pitch in ${pitchData.chapter} chapter`);
+      
+      // Also save to Google Sheets
+      try {
+        await savePitchToGoogleSheets(pitchData, pitchId);
+        console.log('Pitch also saved to Google Sheets');
+      } catch (sheetsError) {
+        console.error('Failed to save to Google Sheets:', sheetsError);
+        // Don't throw - we still want Slack notification to succeed
+      }
+      
+      return null;
+      
+    } catch (error) {
+      console.error("Error sending Slack notification:", error);
+      console.error("Error details:", error.message);
+      console.error("Stack trace:", error.stack);
+      return null;
+    }
+  });
+
+// HTTP function that can be called manually to test Slack webhook functionality
+const { onCall } = require("firebase-functions/v2/https");
+
+exports.testSlackWebhook = onCall(async (request) => {
+  const data = request.data;
+  const context = request.auth;
+  try {
+    // Check if the user is authenticated (optional - you can remove this if you want to allow unauthenticated access)
+    if (!context) {
+      throw new Error('Unauthenticated. Please sign in to use this function.');
+    }
+    
+    // Get the chapter from the request or use a default
+    const chapter = data.chapter || 'Western New York';
+    console.log(`Testing webhook for chapter: ${chapter}`);
+    
+    // Validate the chapter
+    if (!WEBHOOKS[chapter]) {
+      const error = `No webhook found for chapter: ${chapter}. Available chapters: ${Object.keys(WEBHOOKS).join(', ')}`;
+      console.error(error);
+      return { success: false, error };
+    }
+    
+    // Construct a test message
+    const message = {
+      text: `*Test Message - ${chapter}*`,
+      blocks: [
+        {
+          type: "header",
+          text: {
+            type: "plain_text",
+            text: `Test Notification - ${chapter}`,
+            emoji: true
+          }
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "This is a test message sent from the GNF App Firebase Functions."
+          }
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Sent by:* ${context.auth ? context.auth.token.email || context.auth.uid : 'Anonymous'}`
+          }
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*Timestamp:* ${new Date().toLocaleString()}`
+          }
+        }
+      ]
+    };
+    
+    // Send the message to Slack
+    console.log(`Sending test message to Slack...`);
+    const webhookUrl = WEBHOOKS[chapter];
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      body: JSON.stringify(message),
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    // Process the response
+    const responseText = await response.text();
+    if (!response.ok) {
+      console.error(`Slack API error: HTTP ${response.status}`);
+      console.error(`Response body: ${responseText}`);
+      return {
+        success: false,
+        error: `HTTP error: ${response.status}`,
+        details: responseText
+      };
+    }
+    
+    console.log(`Test notification successfully sent to Slack for ${chapter} chapter`);
+    console.log(`Slack API response: ${responseText}`);
+    
+    return {
+      success: true,
+      message: `Test notification sent to ${chapter} channel`,
+      response: responseText
+    };
+    
+  } catch (error) {
+    console.error("Error testing Slack webhook:", error);
+    return {
+      success: false,
+      error: error.message,
+      stack: error.stack
+    };
+  }
+});
+
+// Export the Google Sheets functionality
+// Temporarily commented out due to version compatibility issues
+// exports.saveFormToSheets = sheetsExport.saveFormToSheets;

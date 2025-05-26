@@ -1,0 +1,11 @@
+{
+  "slack": {
+    "denver_webhook": "https://hooks.slack.com/services/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",
+    "wny_webhook": "https://hooks.slack.com/services/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"
+  },
+  "googlesheets": {
+    "sheet_name": "Sheet1",
+    "allowed_columns": "*",
+    "spreadsheet_id": "1D7t661RQ3J0vC8N0g3gQfEcxxmEMa8Bq0KJcjvYceuw"
+  }
+}

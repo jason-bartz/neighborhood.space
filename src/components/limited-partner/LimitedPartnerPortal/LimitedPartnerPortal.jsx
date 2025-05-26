@@ -13,6 +13,15 @@ import Papa from "papaparse";
 import { saveAs } from "file-saver";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Confetti from "react-confetti";
+import StatsBar from "../../StatsBar";
+import { BadgeNotification, TrophyCase } from "../../BadgeDisplay";
+import { 
+  trackReviewSubmission, 
+  trackRatingChange, 
+  initializeUserStats,
+  calculateRetroactiveStats,
+  updateWinnerPredictions
+} from "../../../services/statsTracking";
 
 // --- Constants ---
 const provider = new GoogleAuthProvider();
@@ -103,6 +112,12 @@ const [photosById, setPhotosById] = useState({});
 const [winnerSearchTerm, setWinnerSearchTerm] = useState("");
 const [pendingChanges, setPendingChanges] = useState({});
 
+// Gamification state
+const [userStats, setUserStats] = useState(null);
+const [userBadges, setUserBadges] = useState([]);
+const [showBadgeNotification, setShowBadgeNotification] = useState(null);
+const [statsInitialized, setStatsInitialized] = useState(false);
+
 
 // --- Refs ---
 const listScrollRef = useRef(null); // Ref for the scrollable list container
@@ -150,6 +165,28 @@ useEffect(() => {
             console.log("LPPortal: User document found, role valid.", userData.role);
             setUser({ uid: authUserData.uid, email: authUserData.email, ...userData });
             setAuthError("");
+            
+            // Initialize stats and badges
+            setUserStats(userData.stats || {
+              totalReviews: 0,
+              quarterReviews: 0,
+              favoritesPicked: 0,
+              considerationsPicked: 0,
+              passedPicked: 0,
+              ineligiblePicked: 0,
+              reviewsByQuarter: {},
+              reviewsByHour: {},
+              longestStreak: 0,
+              currentStreak: 0,
+              lastReviewDate: null,
+              averageReviewLength: 0,
+              totalComments: 0,
+              winnersIdentified: 0,
+              accuracyRate: 0
+            });
+            const userBadgesData = userData.badges || [];
+            console.log('LPPortal: Loading user badges:', userBadgesData);
+            setUserBadges(userBadgesData);
             
             // If not in standalone mode and user just logged in, redirect to portal
             if (!isStandalone && !sessionStorage.getItem('lpPortalRedirected')) {
@@ -209,6 +246,31 @@ useEffect(() => {
   };
 }, []); // Empty dependency array ensures this runs only once on mount
 
+// Effect 2: Initialize stats if needed
+useEffect(() => {
+  const initStats = async () => {
+    if (user && !statsInitialized) {
+      if (!userStats) {
+        console.log("LPPortal: Initializing user stats...");
+        const stats = await initializeUserStats(user.uid);
+        setUserStats(stats);
+        
+        // Calculate retroactive stats if this is first time
+        if (stats && stats.totalReviews === 0) {
+          console.log("LPPortal: Calculating retroactive stats...");
+          const retroData = await calculateRetroactiveStats(user.uid);
+          if (retroData) {
+            setUserStats(retroData.stats);
+            setUserBadges(retroData.badges);
+          }
+        }
+      }
+      setStatsInitialized(true);
+    }
+  };
+  
+  initStats();
+}, [user, userStats, statsInitialized]);
 
 // --- Data Loading Functions 
 const loadLPData = useCallback(async () => {
@@ -630,6 +692,19 @@ const handleReviewSubmit = async (e) => {
 
     // --- Success ---
     console.log(`LPPortal: Review ${reviewId} submitted/updated successfully.`);
+    
+    // Track stats and check for badges
+    const isEdit = reviews[selectedPitch.id] ? true : false;
+    const trackingResult = await trackReviewSubmission(user.uid, newReview, selectedPitch, isEdit);
+    
+    if (trackingResult.newBadges && trackingResult.newBadges.length > 0) {
+      // Show badge notification
+      setShowBadgeNotification(trackingResult.newBadges[0]);
+      setUserBadges([...userBadges, ...trackingResult.newBadges]);
+    }
+    
+    setUserStats(trackingResult.stats);
+    
     alert("Review submitted successfully! 🥳"); // Use showAppAlert if implemented
 
     setShowConfetti(true);
@@ -811,6 +886,125 @@ const handleAdminPasswordReset = async (emailToReset) => {
   }
 };
 
+const handleAssignAnniversaryBadges = async () => {
+  if (!showAppConfirm('This will check all users and assign OG Neighbor and Year Club badges to those who qualify based on their join dates. Continue?')) {
+    return;
+  }
+  
+  try {
+    showAppAlert('Starting anniversary badge assignment...');
+    
+    // Get all users
+    const usersSnapshot = await getDocs(collection(db, "users"));
+    let processedCount = 0;
+    let badgesAddedCount = 0;
+    
+    // Anniversary badge definitions
+    const ANNIVERSARY_BADGES = {
+      og_neighbor: {
+        id: 'og_neighbor',
+        name: '🏛️ OG Neighbor',
+        description: 'LP who joined in 2023',
+        category: 'general',
+        checkFunction: (joinDate) => joinDate.getFullYear() === 2023
+      },
+      two_year_club: {
+        id: 'two_year_club',
+        name: '📅 2 Year Club',
+        description: 'Active LP for 2 years',
+        category: 'general',
+        checkFunction: (joinDate) => {
+          const yearsSince = (Date.now() - joinDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+          return yearsSince >= 2;
+        }
+      },
+      three_year_club: {
+        id: 'three_year_club',
+        name: '🎂 3 Year Club',
+        description: 'Active LP for 3 years',
+        category: 'general',
+        checkFunction: (joinDate) => {
+          const yearsSince = (Date.now() - joinDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+          return yearsSince >= 3;
+        }
+      },
+      four_year_club: {
+        id: 'four_year_club',
+        name: '🎊 4 Year Club',
+        description: 'Active LP for 4 years',
+        category: 'general',
+        checkFunction: (joinDate) => {
+          const yearsSince = (Date.now() - joinDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+          return yearsSince >= 4;
+        }
+      },
+      five_year_club: {
+        id: 'five_year_club',
+        name: '🏅 5 Year Club',
+        description: 'Active LP for 5 years',
+        category: 'general',
+        checkFunction: (joinDate) => {
+          const yearsSince = (Date.now() - joinDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+          return yearsSince >= 5;
+        }
+      }
+    };
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const currentBadges = userData.badges || [];
+      const currentBadgeIds = currentBadges.map(b => b.badgeId || b.id);
+      
+      // Skip if no anniversary date
+      if (!userData.anniversary) {
+        console.log(`Skipping user ${userDoc.id} - no anniversary date`);
+        continue;
+      }
+      
+      // Get join date
+      const joinDate = userData.anniversary.toDate ? userData.anniversary.toDate() : new Date(userData.anniversary);
+      console.log(`User ${userData.email || userDoc.id} joined on ${joinDate.toLocaleDateString()}`);
+      
+      // Check which badges they should have
+      const newBadges = [];
+      
+      for (const [badgeId, badge] of Object.entries(ANNIVERSARY_BADGES)) {
+        if (!currentBadgeIds.includes(badgeId) && badge.checkFunction(joinDate)) {
+          newBadges.push({
+            badgeId: badge.id,
+            earnedDate: new Date(),
+            category: badge.category,
+            name: badge.name,
+            description: badge.description
+          });
+          badgesAddedCount++;
+        }
+      }
+      
+      // Update if new badges to add
+      if (newBadges.length > 0) {
+        await updateDoc(doc(db, 'users', userDoc.id), {
+          badges: [...currentBadges, ...newBadges]
+        });
+        console.log(`Added ${newBadges.length} badge(s) to ${userData.email || userDoc.id}`);
+      }
+      
+      processedCount++;
+    }
+    
+    showAppAlert(`Anniversary badge assignment complete!\n\nUsers processed: ${processedCount}\nNew badges added: ${badgesAddedCount}`);
+    
+    // Reload admin data to refresh user list
+    if (isAdmin) {
+      loadAdminData();
+    }
+    
+  } catch (error) {
+    console.error('Error assigning anniversary badges:', error);
+    showAppAlert(`Error: ${error.message}`);
+  }
+};
+
 const handleAssignWinner = async (pitchId, currentWinnerStatus) => {
   const action = currentWinnerStatus ? "Remove Winner" : "Assign Winner";
   // Find the pitch data from the currently loaded admin pitches
@@ -828,6 +1022,14 @@ const handleAssignWinner = async (pitchId, currentWinnerStatus) => {
         isWinner: !currentWinnerStatus
       });
       console.log(`LPPortal: Pitch winner status updated successfully.`);
+      
+      // Update accuracy stats for all LPs who reviewed this pitch
+      if (!currentWinnerStatus) {
+        // Marking as winner - update stats for LPs who picked Favorite or Consideration
+        console.log(`LPPortal: Updating accuracy stats for pitch ${pitchId}...`);
+        await updateWinnerPredictions(pitchId, pitchToUpdate);
+      }
+      
       showAppAlert(`Pitch "${pitchToUpdate.businessName}" marked as ${!currentWinnerStatus ? 'Winner ✅' : 'Not Winner'}.`); // Added emoji
       // Refresh both LP and Admin data as winner status affects both views
       loadLPData();
@@ -1162,7 +1364,7 @@ if (!user) {
 
 // --- Logged-In View ---
 return (
-  <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif', background: '#f0f0f0' /* Light background for overall app */ }}>
+  <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif', background: '#f0f0f0' }}>
 
     {showConfetti && (
       <Confetti
@@ -1172,9 +1374,17 @@ return (
         recycle={false}
       />
     )}
+    
+    {/* Badge Notification */}
+    {showBadgeNotification && (
+      <BadgeNotification 
+        badge={showBadgeNotification}
+        onClose={() => setShowBadgeNotification(null)}
+      />
+    )}
 
     {/* Header Bar */}
-    <div style={{ borderBottom: '2px outset #ccc', padding: '5px 15px', marginBottom: '10px', background: '#eee', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ borderBottom: '2px outset #ccc', padding: '5px 15px', background: '#eee', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
         <div style={{ fontWeight: 'bold', fontSize: '1.1em' }}>{(user?.chapter || "Neighborhood OS") + ": LP Portal"}</div>
         <div style={{ fontSize: '0.9em', color: '#333' }}> Welcome, {user?.name || user?.email}! ({user?.role}) </div>
@@ -1183,51 +1393,116 @@ return (
         Logout
       </RetroButton>
     </div>
+    
+    {/* Stats Bar */}
+    {userStats && (
+      <StatsBar 
+        user={user}
+        stats={userStats}
+        badges={userBadges}
+      />
+    )}
 
-    {/* Top Level Tabs Navigation */}
-    <div style={{ display: 'flex', borderBottom: '1px solid #888', marginBottom: '15px', flexShrink: 0, paddingLeft: '10px', background: '#eee' }}>
-      {/* Review Pitches Tab */}
-      <button
-        onClick={() => setActiveTab('reviewPitches')}
-        style={{
-          padding: '8px 15px',
-          border: '1px solid #888',
-          borderBottom: activeTab === 'reviewPitches' ? '1px solid #f0f0f0' : '1px solid #888', // Connects to content area bg
-          background: activeTab === 'reviewPitches' ? '#f0f0f0' : '#ccc', // Active tab matches content bg
-          marginBottom: '-1px', // Overlap border
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          fontSize: '1em',
-          fontWeight: activeTab === 'reviewPitches' ? 'bold' : 'normal'
-        }}>
-        Review Pitches
-      </button>
-      {/* Admin Panel Tab (Conditional) */}
-      {isAdmin && (
+    {/* Main Content Area with Sidebar */}
+    <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      {/* Sidebar Navigation */}
+      <div style={{
+        width: '200px',
+        background: '#e8e8e8',
+        borderRight: '2px solid #ccc',
+        display: 'flex',
+        flexDirection: 'column',
+        flexShrink: 0
+      }}>
+        <div style={{ padding: '10px', borderBottom: '1px solid #ccc' }}>
+          <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '5px' }}>Navigation</div>
+        </div>
+        
+        {/* Review Pitches */}
         <button
-          onClick={() => setActiveTab('adminPanel')}
+          onClick={() => setActiveTab('reviewPitches')}
           style={{
-            padding: '8px 15px',
-            border: '1px solid #888',
-            borderLeft: 'none', // Avoid double border
-            borderBottom: activeTab === 'adminPanel' ? '1px solid #f0f0f0' : '1px solid #888',
-            background: activeTab === 'adminPanel' ? '#f0f0f0' : '#ccc',
-            marginBottom: '-1px',
+            padding: '12px 15px',
+            border: 'none',
+            background: activeTab === 'reviewPitches' ? '#FFD6EC' : 'transparent',
+            borderLeft: activeTab === 'reviewPitches' ? '4px solid #FF6B6B' : '4px solid transparent',
             cursor: 'pointer',
             fontFamily: 'inherit',
-            fontSize: '1em',
-            fontWeight: activeTab === 'adminPanel' ? 'bold' : 'normal'
+            fontSize: '14px',
+            fontWeight: activeTab === 'reviewPitches' ? 'bold' : 'normal',
+            textAlign: 'left',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-          Admin Panel
+          📋 Review Pitches
         </button>
-      )}
-      {/* Spacer */}
-      <div style={{ flexGrow: 1, borderBottom: '1px solid #888', marginBottom: '-1px'}}></div>
-    </div>
+        
+        {/* Badges */}
+        <button
+          onClick={() => setActiveTab('badges')}
+          style={{
+            padding: '12px 15px',
+            border: 'none',
+            background: activeTab === 'badges' ? '#FFD6EC' : 'transparent',
+            borderLeft: activeTab === 'badges' ? '4px solid #FF6B6B' : '4px solid transparent',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontSize: '14px',
+            fontWeight: activeTab === 'badges' ? 'bold' : 'normal',
+            textAlign: 'left',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+          🏆 Badges ({userBadges.length} Unlocked)
+        </button>
+        
+        {/* Admin Panel (Conditional) */}
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab('adminPanel')}
+            style={{
+              padding: '12px 15px',
+              border: 'none',
+              background: activeTab === 'adminPanel' ? '#FFD6EC' : 'transparent',
+              borderLeft: activeTab === 'adminPanel' ? '4px solid #FF6B6B' : '4px solid transparent',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              fontSize: '14px',
+              fontWeight: activeTab === 'adminPanel' ? 'bold' : 'normal',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+            👥 Admin Panel
+          </button>
+        )}
+        
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+        
+        {/* Chapter Info */}
+        <div style={{
+          padding: '15px',
+          borderTop: '1px solid #ccc',
+          fontSize: '12px',
+          color: '#666'
+        }}>
+          <div style={{ marginBottom: '5px' }}>
+            <strong>Chapter:</strong><br />
+            {user?.chapter || 'Unknown'}
+          </div>
+          <div>
+            <strong>Member Since:</strong><br />
+            {user?.anniversary ? new Date(user.anniversary.seconds * 1000).toLocaleDateString() : 'Unknown'}
+          </div>
+        </div>
+      </div>
 
-    {/* Main Content Area (Scrollable) */}
-    {/* Added ref={listScrollRef} */}
-    <div ref={listScrollRef} style={{ flexGrow: 1, overflowY: 'auto', padding: '0 15px 15px 15px' /* Add padding */ }}>
+      {/* Main Content Area (Scrollable) */}
+      <div ref={listScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '15px', background: '#f9f9f9' }}>
 
       {/* --- Review Pitches Tab Content --- */}
       {activeTab === 'reviewPitches' && (
@@ -2037,24 +2312,53 @@ return (
           {/* Admin: Super Admin Tools Sub-Tab Content (Conditional) */}
           {activeAdminTab === 'superAdminTools' && isSuperAdmin && (
             <div>
-              <h4> Super Admin Tools</h4> {/* Changed back */}
+              <h4> Super Admin Tools</h4>
               <p>This area is reserved for SuperAdmin functions.</p>
-              {/* Examples:
-              <ul>
-                <li>Manage Chapters (Add/Edit/Delete)</li>
-                <li>Global Application Settings</li>
-                <li>Bulk User Actions</li>
-                <li>View Audit Logs</li>
-              </ul>
-              */}
-              <div style={{border:'1px dashed red', padding:'20px', background:'#fff8f8'}}>
-                <strong>Placeholder:</strong> Future tools for managing chapters, global settings, etc. will appear here.
+              
+              {/* Anniversary Badge Assignment */}
+              <div style={{ marginBottom: '30px', padding: '20px', background: '#f9f9f9', border: '1px solid #ddd', borderRadius: '4px' }}>
+                <h5 style={{ marginTop: 0 }}>🎂 Anniversary Badge Assignment</h5>
+                <p style={{ fontSize: '0.9em', color: '#555' }}>
+                  Assign OG Neighbor and Year Club badges to all qualifying LPs based on their join dates.
+                </p>
+                <ul style={{ fontSize: '0.85em', color: '#666' }}>
+                  <li>🏛️ OG Neighbor - for LPs who joined in 2023</li>
+                  <li>📅 2 Year Club - for LPs active 2+ years</li>
+                  <li>🎂 3 Year Club - for LPs active 3+ years</li>
+                  <li>🎊 4 Year Club - for LPs active 4+ years</li>
+                  <li>🏅 5 Year Club - for LPs active 5+ years</li>
+                </ul>
+                <RetroButton
+                  onClick={handleAssignAnniversaryBadges}
+                  style={{
+                    background: '#d4edda',
+                    border: '1px solid #c3e6cb',
+                    padding: '8px 16px',
+                    fontSize: '0.9em',
+                    marginTop: '10px'
+                  }}
+                >
+                  🎊 Assign Anniversary Badges
+                </RetroButton>
+              </div>
+              
+              <div style={{border:'1px dashed #ccc', padding:'20px', background:'#fafafa'}}>
+                <strong>Coming Soon:</strong> More super admin tools for managing chapters, global settings, etc.
               </div>
             </div>
           )}
         </div>
       )} {/* End Admin Panel Content */}
-    </div> {/* End Main Content Area */}
+      
+      {/* --- Badges Tab Content --- */}
+      {activeTab === 'badges' && (
+        <TrophyCase 
+          badges={userBadges || []}
+          userStats={userStats || {}}
+        />
+      )}
+      </div> {/* End Main Content Area */}
+    </div> {/* End Main Content Container */}
   </div> // End Logged-In Container
 ); // End Main Return
 

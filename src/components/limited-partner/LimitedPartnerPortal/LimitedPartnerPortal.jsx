@@ -78,7 +78,7 @@ export default function LimitedPartnerPortal({ onOpenGNFWebsite, isStandalone = 
 // --- State Variables ---
 const [user, setUser] = useState(null);
 const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-const [authMode, setAuthMode] = useState("login"); // Default to login
+const [authMode, setAuthMode] = useState("login"); // "login" or "signup"
 const [email, setEmail] = useState("");
 const [password, setPassword] = useState("");
 const [authError, setAuthError] = useState("");
@@ -117,6 +117,16 @@ const [userStats, setUserStats] = useState(null);
 const [userBadges, setUserBadges] = useState([]);
 const [showBadgeNotification, setShowBadgeNotification] = useState(null);
 const [statsInitialized, setStatsInitialized] = useState(false);
+
+// User creation state
+const [newUserData, setNewUserData] = useState({
+  uid: '',
+  email: '',
+  name: '',
+  role: 'lp',
+  chapter: '',
+  anniversary: new Date().toISOString().split('T')[0]
+});
 
 
 // --- Refs ---
@@ -203,18 +213,44 @@ useEffect(() => {
         } else {
           console.log("LPPortal: User document NOT found for UID:", authUserData.uid);
           
-          if (authUserData.providerData.some(p => p.providerId === GoogleAuthProvider.PROVIDER_ID)) {
-            console.log("LPPortal: User logged in via Google, likely needs Firestore doc. Checking...");
-            setUser(null); 
-            setAuthError("Your Google account is authenticated, but your user profile is not set up in the portal. Please contact an administrator to complete setup.");
-            await signOut(auth); 
-          } else {
+          // Check if there's a pending profile for this email
+          const pendingQuery = query(
+            collection(db, "users"), 
+            where("email", "==", authUserData.email.toLowerCase()),
+            where("isPendingAuth", "==", true)
+          );
+          const pendingSnap = await getDocs(pendingQuery);
+          
+          if (!pendingSnap.empty) {
+            // Found a pending profile - migrate it to the proper UID
+            console.log("LPPortal: Found pending profile for user, migrating...");
+            const pendingDoc = pendingSnap.docs[0];
+            const pendingData = pendingDoc.data();
+            const pendingId = pendingDoc.id;
             
-            console.warn("LPPortal: User exists in Auth but not Firestore. Account setup may be incomplete.");
-            setUser(null);
-            setAuthError("Your account authentication exists, but your user profile is missing or incomplete in the portal. Please contact an administrator.");
-            await signOut(auth);
+            // Create the proper user document
+            const properUserDocRef = doc(db, "users", authUserData.uid);
+            await setDoc(properUserDocRef, {
+              ...pendingData,
+              uid: authUserData.uid,
+              hasCompletedSignup: true,
+              isPendingAuth: false,
+              tempUserId: undefined
+            });
+            
+            // Delete the temporary document
+            await deleteDoc(doc(db, "users", pendingId));
+            
+            console.log("LPPortal: Profile migrated successfully");
+            
+            // The auth state listener will re-trigger and find the proper document
+            return;
           }
+          
+          console.warn("LPPortal: User exists in Auth but not Firestore. Account setup may be incomplete.");
+          setUser(null);
+          setAuthError("Your account setup is incomplete. Please contact your administrator.");
+          await signOut(auth);
         }
       } catch (error) {
         console.error("LPPortal: Error during auth state change processing:", error);
@@ -444,7 +480,8 @@ const loadAdminData = useCallback(async () => {
     console.log("LPPortal: Querying ALL users for admin panel...");
     let usersQuery = query(collection(db, "users"), orderBy("name", "asc")); // Fetch all, maybe order?
     const usersSnap = await getDocs(usersQuery);
-    const usersList = usersSnap.docs.map(d => ({ id: d.id, ...d.data(), uid: d.id })); // Ensure uid is set
+    const usersList = usersSnap.docs
+      .map(d => ({ id: d.id, ...d.data(), uid: d.id })); // Ensure uid is set
     setUsers(usersList);
     console.log(`LPPortal: ALL users loaded (${usersSnap.docs.length}).`);
   } catch (error) {
@@ -613,6 +650,8 @@ const handleEmailLogin = async () => {
   }
 };
 
+// Removed handleEmailSignUp - users can no longer self-register
+
 const handleGoogleLogin = async () => {
   try {
     setAuthError("");
@@ -650,6 +689,8 @@ const handleSignOut = async () => {
     showAppAlert(`Sign out failed: ${error.message}`);
   }
 };
+
+// Removed handleInviteCodeSubmit - no longer using invite codes
 
 
 // LP Review Handlers
@@ -761,7 +802,113 @@ const handleBackToList = () => {
 
 
 // Admin Panel Handlers
-// Removed handleCreateUser - User creation handled externally
+
+// Generate a temporary password for new users
+const generateTempPassword = () => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*';
+  let password = '';
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
+
+// Removed handleSendWelcomeEmail - users must use Forgot Password flow
+
+const handleCreateUser = async (e) => {
+  e.preventDefault();
+  
+  if (!isSuperAdmin) {
+    showAppAlert("Only Super Admins can create new users.");
+    return;
+  }
+  
+  try {
+    // Validate required fields
+    if (!newUserData.uid || !newUserData.email || !newUserData.name || !newUserData.chapter) {
+      showAppAlert("Please fill in all required fields including UID.");
+      return;
+    }
+    
+    // Validate UID format (should be alphanumeric, typically 28 characters)
+    if (newUserData.uid.length < 20 || newUserData.uid.length > 40) {
+      showAppAlert("UID seems invalid. Please check the Firebase Auth UID.");
+      return;
+    }
+    
+    const userEmail = newUserData.email.toLowerCase();
+    console.log('LPPortal: Creating Firestore document for user:', userEmail, 'with UID:', newUserData.uid);
+    
+    // Create Firestore user profile using the provided UID as document ID
+    const userDocRef = doc(db, "users", newUserData.uid);
+    
+    // Check if document already exists
+    const existingDoc = await getDoc(userDocRef);
+    if (existingDoc.exists()) {
+      showAppAlert("A user document with this UID already exists!");
+      return;
+    }
+    
+    await setDoc(userDocRef, {
+      uid: newUserData.uid,
+      email: newUserData.email,
+      name: newUserData.name,
+      role: newUserData.role,
+      chapter: newUserData.chapter,
+      anniversary: Timestamp.fromDate(new Date(newUserData.anniversary)),
+      createdAt: Timestamp.now(),
+      createdBy: user.uid,
+      hasCompletedSignup: true,
+      // Initialize stats for gamification
+      stats: {
+        totalReviews: 0,
+        quarterReviews: 0,
+        favoritesPicked: 0,
+        considerationsPicked: 0,
+        passedPicked: 0,
+        ineligiblePicked: 0,
+        reviewsByQuarter: {},
+        reviewsByHour: {},
+        longestStreak: 0,
+        currentStreak: 0,
+        lastReviewDate: null,
+        averageReviewLength: 0,
+        totalComments: 0,
+        winnersIdentified: 0,
+        accuracyRate: 0
+      },
+      badges: []
+    });
+    
+    console.log('LPPortal: User profile created in Firestore');
+    
+    // Show success message
+    showAppAlert(`User profile created successfully!\n\n` +
+      `UID: ${newUserData.uid}\n` +
+      `Email: ${userEmail}\n` +
+      `Name: ${newUserData.name}\n` +
+      `Role: ${newUserData.role}\n` +
+      `Chapter: ${newUserData.chapter}\n\n` +
+      `Next step: Use the "Reset Pwd" button in the users table to send them a password reset email.`);
+    
+    // Reset form
+    setNewUserData({
+      uid: '',
+      email: '',
+      name: '',
+      role: 'lp',
+      chapter: '',
+      anniversary: new Date().toISOString().split('T')[0]
+    });
+    
+    // Reload admin data to show new user
+    loadAdminData();
+    
+  } catch (error) {
+    console.error('LPPortal: Error creating user:', error);
+    showAppAlert(`Failed to create user: ${error.message}`);
+  }
+};
 
 const handleDeleteUser = async (userIdToDelete, userEmailToDelete) => {
   console.log(`LPPortal: Attempting delete user: ${userIdToDelete} (${userEmailToDelete}) by admin ${user.uid}`);
@@ -1306,14 +1453,12 @@ if (isLoadingAuth) {
 }
 
 
-// --- Login/Register Screen ---
+// --- Login Screen ---
 if (!user) {
   return (
     <div style={{ width: "100%", height: "100%", display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
       <div style={{ width: "100%", maxWidth: "450px", padding: "15px 25px", textAlign: "center", background: '#f5f5f5', fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif' }}>
         <h2 style={{ borderBottom: '2px solid #888', paddingBottom: '8px', marginBottom: '15px', color: '#222', fontSize: '1.5em' }}>LP Portal</h2>
-
-      {/* Auth Mode Tabs REMOVED */}
 
       {/* Auth Error Display */}
       {authError && (
@@ -1330,9 +1475,29 @@ if (!user) {
         <>
             <AuthInput type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} required />
             <AuthInput type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            <RetroButton onClick={handleEmailLogin} primary style={{ margin: "15px auto 5px auto", display: 'block', width: "calc(100% - 20px)"}}>Sign In</RetroButton>
-            {/* Add Forgot Password Link? */}
-            {/* <button onClick={() => handleForgotPassword(email)} style={{background:'none', border:'none', color:'blue', textDecoration:'underline', cursor:'pointer', fontSize:'0.9em', marginTop:'10px'}}>Forgot Password?</button> */}
+            <RetroButton 
+              onClick={handleEmailLogin} 
+              primary 
+              style={{ margin: "15px auto 5px auto", display: 'block', width: "calc(100% - 20px)"}}
+            >
+              Sign In
+            </RetroButton>
+            <button 
+              onClick={() => {
+                if (email) {
+                  import("firebase/auth").then(({ sendPasswordResetEmail }) => {
+                    sendPasswordResetEmail(auth, email)
+                      .then(() => showAppAlert("Password reset email sent! Check your inbox."))
+                      .catch(err => showAppAlert(`Error: ${err.message}`));
+                  });
+                } else {
+                  showAppAlert("Please enter your email address first.");
+                }
+              }} 
+              style={{background:'none', border:'none', color:'#0000EE', textDecoration:'underline', cursor:'pointer', fontSize:'0.9em', marginTop:'10px'}}
+            >
+              Forgot Password?
+            </button>
         </>
       </div>
 
@@ -1361,6 +1526,8 @@ if (!user) {
     </div>
   );
 }
+
+// Removed invite code screen - no longer needed
 
 // --- Logged-In View ---
 return (
@@ -1804,6 +1971,12 @@ return (
             >
               Users
             </button>
+            <button
+              onClick={() => setActiveAdminTab('createUser')}
+              style={{ padding: '7px 12px', border: 'none', borderBottom: activeAdminTab === 'createUser' ? '3px solid #FFD6EC' : '3px solid transparent', background: 'transparent', cursor: 'pointer', fontWeight: activeAdminTab === 'createUser' ? 'bold' : 'normal', fontSize:'inherit', fontFamily:'inherit'}}
+            >
+              Create User
+            </button>
             {isSuperAdmin && (
               <button
                 onClick={() => setActiveAdminTab('superAdminTools')}
@@ -2212,8 +2385,9 @@ return (
 
               {/* Create New User Section REMOVED */}
                <p style={{fontSize: '0.9em', color: '#444', background:'#f0f0f0', border:'1px dashed #ccc', padding:'10px', borderRadius:'4px', marginBottom:'20px'}}>
-                 User creation and registration are now handled directly within the Firebase Authentication console by Super Admin. Use the table below to manage roles, chapters, reset passwords, or delete portal profile data for existing users.
+                 Super Admins can create new users via the "Create User" tab. Use the table below to manage roles, chapters, reset passwords, or delete portal profile data for existing users.
                </p>
+
 
               {/* Registered User Accounts List */}
               <h5>Registered User Accounts</h5>
@@ -2307,6 +2481,168 @@ return (
                 </div>
               )}
             </>
+          )}
+
+          {/* Admin: Create User Sub-Tab Content */}
+          {activeAdminTab === 'createUser' && isAdmin && (
+            <div>
+              <h4>Create New LP User</h4>
+              <p style={{ fontSize: '0.9em', color: '#555', marginBottom: '20px' }}>
+                Create a new Limited Partner user profile. The user will need to use the "Forgot Password" 
+                flow to create their authentication credentials on first access.
+              </p>
+              
+              
+              <div style={{ maxWidth: '600px', background: '#f9f9f9', padding: '20px', border: '1px solid #ddd', borderRadius: '4px' }}>
+                <div style={{ marginBottom: '20px', padding: '15px', background: '#e3f2fd', border: '1px solid #1976d2', borderRadius: '4px' }}>
+                  <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', color: '#1976d2' }}>
+                    📋 Before You Begin:
+                  </p>
+                  <ol style={{ margin: '0', paddingLeft: '20px', color: '#555' }}>
+                    <li>Go to Firebase Console → Authentication</li>
+                    <li>Click "Add user" and create the account</li>
+                    <li>Copy the generated UID</li>
+                    <li>Paste it below to create the matching Firestore profile</li>
+                  </ol>
+                </div>
+                
+                <form onSubmit={handleCreateUser}>
+                  {/* UID */}
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      Firebase UID <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newUserData.uid || ''}
+                      onChange={(e) => setNewUserData({ ...newUserData, uid: e.target.value.trim() })}
+                      required
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', fontFamily: 'monospace', fontSize: '0.9em' }}
+                      placeholder="Paste the UID from Firebase Console"
+                    />
+                    <small style={{ color: '#666', fontSize: '0.85em' }}>
+                      This will be used as the document ID in Firestore
+                    </small>
+                  </div>
+                  
+                  {/* Email */}
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      Email Address <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={newUserData.email || ''}
+                      onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value.toLowerCase() })}
+                      required
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', fontFamily: 'inherit' }}
+                      placeholder="user@example.com"
+                    />
+                  </div>
+                  
+                  {/* Name */}
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      Full Name <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newUserData.name || ''}
+                      onChange={(e) => setNewUserData({ ...newUserData, name: e.target.value })}
+                      required
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', fontFamily: 'inherit' }}
+                      placeholder="Jane Smith"
+                    />
+                  </div>
+                  
+                  {/* Role */}
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      Role <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <select
+                      value={newUserData.role || 'lp'}
+                      onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value })}
+                      required
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', fontFamily: 'inherit', background: '#fff' }}
+                    >
+                      <option value="lp">Limited Partner (LP)</option>
+                      <option value="admin">Admin</option>
+                      {isSuperAdmin && <option value="superAdmin">Super Admin</option>}
+                    </select>
+                  </div>
+                  
+                  {/* Chapter */}
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      Chapter <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <select
+                      value={newUserData.chapter || ''}
+                      onChange={(e) => setNewUserData({ ...newUserData, chapter: e.target.value })}
+                      required
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', fontFamily: 'inherit', background: '#fff' }}
+                    >
+                      <option value="">-- Select Chapter --</option>
+                      <option value="Western New York">Western New York</option>
+                      <option value="Denver">Denver</option>
+                      {/* Add other chapters as needed */}
+                    </select>
+                  </div>
+                  
+                  {/* Anniversary Date */}
+                  <div style={{ marginBottom: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      Join Date (Anniversary) <span style={{ color: 'red' }}>*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={newUserData.anniversary || new Date().toISOString().split('T')[0]}
+                      onChange={(e) => setNewUserData({ ...newUserData, anniversary: e.target.value })}
+                      required
+                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', fontFamily: 'inherit' }}
+                    />
+                  </div>
+                  
+                  
+                  {/* Submit Buttons */}
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                    <RetroButton
+                      type="submit"
+                      primary
+                      style={{ 
+                        background: '#d4edda', 
+                        border: '1px solid #c3e6cb',
+                        padding: '8px 20px',
+                        fontSize: '0.9em'
+                      }}
+                    >
+                      ✅ Create User
+                    </RetroButton>
+                    <RetroButton
+                      type="button"
+                      onClick={() => {
+                        setNewUserData({
+                          email: '',
+                          name: '',
+                          role: 'lp',
+                          chapter: '',
+                          anniversary: new Date().toISOString().split('T')[0]
+                        });
+                      }}
+                      style={{ 
+                        background: '#f0f0f0',
+                        padding: '8px 20px',
+                        fontSize: '0.9em'
+                      }}
+                    >
+                      🔄 Reset Form
+                    </RetroButton>
+                  </div>
+                </form>
+              </div>
+              
+            </div>
           )}
 
           {/* Admin: Super Admin Tools Sub-Tab Content (Conditional) */}

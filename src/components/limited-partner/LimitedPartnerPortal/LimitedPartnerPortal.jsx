@@ -851,6 +851,7 @@ const handleCreateUser = async (e) => {
     
     await setDoc(userDocRef, {
       uid: newUserData.uid,
+      reviewerId: newUserData.uid, // Same as UID for LP users
       email: newUserData.email,
       name: newUserData.name,
       role: newUserData.role,

@@ -37,7 +37,7 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
   const reviewsUntilNext = nextMilestone ? nextMilestone.count - totalReviews : 0;
 
   return (
-    <div style={{
+    <div className="stats-bar" style={{
       background: 'white',
       borderBottom: '1px solid #e0e0e0',
       padding: '12px 20px',
@@ -51,11 +51,11 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
         gap: '15px'
       }}>
         {/* Stats Sections */}
-        <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div className="stats-sections" style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
           {/* LP Stats */}
-          <div>
+          <div className="stats-group">
             <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px', fontWeight: '600' }}>LP Stats</div>
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+            <div className="stats-items" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>{currentQuarter}</div>
                 <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>{quarterReviews}</div>
@@ -95,9 +95,9 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
           </div>
 
           {/* Chapter Stats */}
-          <div>
+          <div className="stats-group">
             <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px', fontWeight: '600' }}>Chapter Stats</div>
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+            <div className="stats-items" style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>{currentQuarter}</div>
                 <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>{pitchesThisQuarter}</div>
@@ -126,7 +126,7 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
         </div>
 
         {/* Badges Section - All together on the right */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch' }}>
+        <div className="badges-section" style={{ display: 'flex', gap: '10px', alignItems: 'stretch' }}>
           {/* Recent Badges */}
           {badges.length > 0 && badges
             .filter(badge => badge.earnedAt || badge.earnedDate)

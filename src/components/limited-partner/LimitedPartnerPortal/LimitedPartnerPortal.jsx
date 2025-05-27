@@ -84,7 +84,11 @@ const [email, setEmail] = useState("");
 const [password, setPassword] = useState("");
 const [authError, setAuthError] = useState("");
 const [activeTab, setActiveTab] = useState("reviewPitches"); // Default tab
+const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobile menu state
 const [activeAdminTab, setActiveAdminTab] = useState("pitchesAndReviews");
+
+// Helper to check if viewport is mobile
+const isMobile = () => window.innerWidth < 768;
 const [showConfetti, setShowConfetti] = useState(false);
 const [expandedPitchId, setExpandedPitchId] = useState(null);
 const [lpPitches, setLpPitches] = useState([]);
@@ -641,7 +645,7 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
   };
 
   return (
-    <div ref={dropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
+    <div ref={dropdownRef} className="multi-select-dropdown" style={{ position: 'relative', display: 'inline-block' }}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
@@ -1493,6 +1497,225 @@ const getNextUnreviewedPitch = () => {
   
   return null; // No unreviewed pitches found
 };
+
+// Helper function to handle tab changes (closes mobile menu)
+const handleTabChange = (tab) => {
+  setActiveTab(tab);
+  if (isMobile()) {
+    setIsMobileMenuOpen(false);
+  }
+};
+
+// Navigation items component (shared between desktop and mobile)
+const NavigationItems = () => (
+  <>
+    <div style={{ padding: '15px', borderBottom: '1px solid #e0e0e0' }}>
+      <div style={{ 
+        fontSize: '12px', 
+        fontWeight: 'bold', 
+        color: '#666', 
+        textTransform: 'uppercase', 
+        letterSpacing: '0.5px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        Navigation
+        {/* Mobile close button */}
+        <button
+          onClick={() => setIsMobileMenuOpen(false)}
+          style={{
+            display: 'none',
+            background: 'none',
+            border: 'none',
+            fontSize: '24px',
+            cursor: 'pointer',
+            padding: '0',
+            color: '#666'
+          }}
+          className="mobile-close-btn"
+        >
+          ×
+        </button>
+      </div>
+    </div>
+    
+    {/* Review Pitches */}
+    <button
+      onClick={() => handleTabChange('reviewPitches')}
+      style={{
+        padding: '12px 20px',
+        border: 'none',
+        background: activeTab === 'reviewPitches' ? 'white' : 'transparent',
+        borderLeft: activeTab === 'reviewPitches' ? '3px solid #FFB6D9' : '3px solid transparent',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: '14px',
+        fontWeight: activeTab === 'reviewPitches' ? '500' : 'normal',
+        color: activeTab === 'reviewPitches' ? '#333' : '#666',
+        textAlign: 'left',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        transition: 'all 0.2s ease',
+        width: '100%'
+      }}
+      onMouseEnter={(e) => {
+        if (activeTab !== 'reviewPitches') {
+          e.currentTarget.style.background = '#f0f0f0';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (activeTab !== 'reviewPitches') {
+          e.currentTarget.style.background = 'transparent';
+        }
+      }}>
+      📋 Review Pitches
+    </button>
+    
+    {/* Badges */}
+    <button
+      onClick={() => handleTabChange('badges')}
+      style={{
+        padding: '12px 20px',
+        border: 'none',
+        background: activeTab === 'badges' ? 'white' : 'transparent',
+        borderLeft: activeTab === 'badges' ? '3px solid #FFB6D9' : '3px solid transparent',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: '14px',
+        fontWeight: activeTab === 'badges' ? '500' : 'normal',
+        color: activeTab === 'badges' ? '#333' : '#666',
+        textAlign: 'left',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        transition: 'all 0.2s ease',
+        width: '100%'
+      }}
+      onMouseEnter={(e) => {
+        if (activeTab !== 'badges') {
+          e.currentTarget.style.background = '#f0f0f0';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (activeTab !== 'badges') {
+          e.currentTarget.style.background = 'transparent';
+        }
+      }}>
+      🏆 Badges ({userBadges.length} Unlocked)
+    </button>
+    
+    {/* Chapter Members */}
+    <button
+      onClick={() => handleTabChange('chapterMembers')}
+      style={{
+        padding: '12px 20px',
+        border: 'none',
+        background: activeTab === 'chapterMembers' ? 'white' : 'transparent',
+        borderLeft: activeTab === 'chapterMembers' ? '3px solid #FFB6D9' : '3px solid transparent',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: '14px',
+        fontWeight: activeTab === 'chapterMembers' ? '500' : 'normal',
+        color: activeTab === 'chapterMembers' ? '#333' : '#666',
+        textAlign: 'left',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        transition: 'all 0.2s ease',
+        width: '100%'
+      }}
+      onMouseEnter={(e) => {
+        if (activeTab !== 'chapterMembers') {
+          e.currentTarget.style.background = '#f0f0f0';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (activeTab !== 'chapterMembers') {
+          e.currentTarget.style.background = 'transparent';
+        }
+      }}>
+      🏢 Chapter Members
+    </button>
+    
+    {/* Social Cards */}
+    <button
+      onClick={() => handleTabChange('socialCards')}
+      style={{
+        padding: '12px 20px',
+        border: 'none',
+        background: activeTab === 'socialCards' ? 'white' : 'transparent',
+        borderLeft: activeTab === 'socialCards' ? '3px solid #FFB6D9' : '3px solid transparent',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: '14px',
+        fontWeight: activeTab === 'socialCards' ? '500' : 'normal',
+        color: activeTab === 'socialCards' ? '#333' : '#666',
+        textAlign: 'left',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        transition: 'all 0.2s ease',
+        width: '100%'
+      }}
+      onMouseEnter={(e) => {
+        if (activeTab !== 'socialCards') {
+          e.currentTarget.style.background = '#f0f0f0';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (activeTab !== 'socialCards') {
+          e.currentTarget.style.background = 'transparent';
+        }
+      }}>
+      🎨 Social Cards
+    </button>
+    
+    {/* Admin Panel - Only show if admin */}
+    {isAdmin && (
+      <button
+        onClick={() => handleTabChange('adminPanel')}
+        style={{
+          padding: '12px 20px',
+          border: 'none',
+          background: activeTab === 'adminPanel' ? 'white' : 'transparent',
+          borderLeft: activeTab === 'adminPanel' ? '3px solid #FFB6D9' : '3px solid transparent',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+          fontSize: '14px',
+          fontWeight: activeTab === 'adminPanel' ? '500' : 'normal',
+          color: activeTab === 'adminPanel' ? '#333' : '#666',
+          textAlign: 'left',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          transition: 'all 0.2s ease',
+          width: '100%'
+        }}
+        onMouseEnter={(e) => {
+          if (activeTab !== 'adminPanel') {
+            e.currentTarget.style.background = '#f0f0f0';
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (activeTab !== 'adminPanel') {
+            e.currentTarget.style.background = 'transparent';
+          }
+        }}>
+        👤 Admin Panel
+      </button>
+    )}
+    
+    {/* Chapter Info at bottom */}
+    <div style={{ marginTop: 'auto', padding: '20px', borderTop: '1px solid #e0e0e0', background: 'white', fontSize: '12px', color: '#666' }}>
+      <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>Chapter</div>
+      <div>{user?.chapter || 'Not assigned'}</div>
+      <div style={{ fontWeight: 'bold', marginTop: '10px', marginBottom: '5px' }}>Member Since</div>
+      <div>{user?.anniversary ? new Date(user.anniversary.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'Unknown'}</div>
+    </div>
+  </>
+);
 
 // --- Helper Functions ---
 
@@ -2442,6 +2665,185 @@ if (!user) {
 // --- Logged-In View ---
 return (
   <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif', background: '#f0f0f0' }}>
+    
+    {/* Mobile Styles */}
+    <style>{`
+      @media (max-width: 768px) {
+        .mobile-menu-btn { display: block !important; }
+        .mobile-close-btn { display: block !important; }
+        .desktop-sidebar { display: none !important; }
+        .mobile-sidebar-overlay {
+          display: ${isMobileMenuOpen ? 'block' : 'none'} !important;
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          z-index: 998;
+        }
+        .mobile-sidebar {
+          display: flex !important;
+          position: fixed;
+          top: 0;
+          left: ${isMobileMenuOpen ? '0' : '-100%'};
+          height: 100vh;
+          width: 80%;
+          max-width: 300px;
+          background: #f8f8f8;
+          transition: left 0.3s ease;
+          z-index: 999;
+          flex-direction: column;
+          box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+        .main-content-area {
+          width: 100% !important;
+        }
+        .content-section {
+          width: 100% !important;
+          max-width: 100% !important;
+          padding: 15px !important;
+        }
+        .stats-grid {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 15px !important;
+        }
+        .stats-card {
+          width: 100% !important;
+        }
+        .pitch-card, .member-card {
+          width: 100% !important;
+          max-width: 100% !important;
+        }
+        .filter-bar {
+          flex-direction: column !important;
+          gap: 10px !important;
+        }
+        .filter-bar select, .filter-bar input {
+          width: 100% !important;
+        }
+        .badge-grid {
+          grid-template-columns: repeat(2, 1fr) !important;
+          gap: 10px !important;
+        }
+        .social-cards-container {
+          flex-direction: column !important;
+          align-items: center !important;
+        }
+        .social-card-wrapper {
+          width: 100% !important;
+          max-width: 350px !important;
+        }
+        .header-text {
+          max-width: 200px !important;
+          overflow: hidden !important;
+          text-overflow: ellipsis !important;
+        }
+        .logout-btn {
+          padding: 6px 10px !important;
+          font-size: 12px !important;
+        }
+        canvas {
+          max-width: 100% !important;
+          height: auto !important;
+        }
+        .pitch-card {
+          margin-bottom: 10px !important;
+        }
+        .hide-on-mobile {
+          display: none !important;
+        }
+        
+        /* StatsBar responsive styles - single horizontal scroll row */
+        .stats-bar {
+          padding: 8px 10px !important;
+        }
+        .stats-bar > div:first-child {
+          flex-direction: row !important;
+          gap: 0 !important;
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch !important;
+          scrollbar-width: none !important;
+          -ms-overflow-style: none !important;
+          flex-wrap: nowrap !important;
+        }
+        .stats-bar > div:first-child::-webkit-scrollbar {
+          display: none !important;
+        }
+        .stats-sections {
+          display: contents !important;
+        }
+        .stats-group {
+          display: contents !important;
+        }
+        .stats-items {
+          display: contents !important;
+        }
+        .stats-items > div {
+          min-width: 60px !important;
+          flex-shrink: 0 !important;
+          margin-right: 12px !important;
+        }
+        .stats-items > div > div:first-child {
+          font-size: 9px !important;
+        }
+        .stats-items > div > div:nth-child(2) {
+          font-size: 14px !important;
+        }
+        .stats-items > div > div:last-child {
+          font-size: 8px !important;
+        }
+        .stats-items > div:nth-child(2), .stats-items > div:nth-child(4), .stats-items > div:nth-child(6) {
+          display: none !important;
+        }
+        .badges-section {
+          display: contents !important;
+        }
+        .badges-section > div {
+          min-width: 65px !important;
+          min-height: 65px !important;
+          padding: 4px 6px !important;
+          margin-right: 8px !important;
+          flex-shrink: 0 !important;
+        }
+        .badges-section > div:last-child {
+          margin-right: 0 !important;
+        }
+        
+        /* Admin table responsive */
+        table {
+          font-size: 12px !important;
+        }
+        table th, table td {
+          padding: 6px !important;
+          font-size: 11px !important;
+        }
+        
+        /* Form responsive */
+        form {
+          padding: 15px !important;
+        }
+        textarea {
+          font-size: 14px !important;
+        }
+        
+        /* Member cards grid */
+        .member-cards-grid {
+          grid-template-columns: 1fr !important;
+        }
+        
+        /* Multi-select dropdown */
+        .multi-select-dropdown {
+          width: 100% !important;
+        }
+      }
+      @media (min-width: 769px) {
+        .mobile-menu-btn { display: none !important; }
+        .mobile-sidebar-overlay { display: none !important; }
+        .mobile-sidebar { display: none !important; }
+      }
+    `}</style>
 
     {showConfetti && (
       <Confetti
@@ -2462,11 +2864,30 @@ return (
 
     {/* Header Bar */}
     <div style={{ borderBottom: '1px solid #e0e0e0', padding: '12px 20px', background: 'white', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div>
-        <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: '#333' }}>{(user?.chapter || "Neighborhood OS") + ": LP Portal"}</div>
-        <div style={{ fontSize: '0.9em', color: '#666' }}> Welcome, {user?.name || user?.email}!</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        {/* Mobile Menu Button */}
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          style={{
+            display: 'none',
+            '@media (max-width: 768px)': { display: 'block' },
+            background: 'none',
+            border: 'none',
+            fontSize: '24px',
+            cursor: 'pointer',
+            padding: '5px',
+            lineHeight: '1'
+          }}
+          className="mobile-menu-btn"
+        >
+          ☰
+        </button>
+        <div className="header-text">
+          <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: '#333', whiteSpace: 'nowrap' }}>{(user?.chapter || "Neighborhood OS") + ": LP Portal"}</div>
+          <div style={{ fontSize: '0.9em', color: '#666', whiteSpace: 'nowrap' }}> Welcome, {user?.name || user?.email}!</div>
+        </div>
       </div>
-      <button onClick={handleSignOut} style={{ 
+      <button onClick={handleSignOut} className="logout-btn" style={{ 
         padding: "6px 16px", 
         fontSize: "13px", 
         background: "white", 
@@ -2528,8 +2949,15 @@ return (
     )}
 
     {/* Main Content Area with Sidebar */}
-    <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-      {/* Sidebar Navigation */}
+    <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }} className="main-content-container">
+      {/* Mobile Sidebar Overlay */}
+      <div 
+        className="mobile-sidebar-overlay" 
+        onClick={() => setIsMobileMenuOpen(false)}
+        style={{ display: 'none' }}
+      />
+      
+      {/* Desktop Sidebar */}
       <div style={{
         width: '200px',
         background: '#f8f8f8',
@@ -2537,201 +2965,24 @@ return (
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0
+      }} className="desktop-sidebar">
+        <NavigationItems />
+      </div>
+      
+      {/* Mobile Sidebar */}
+      <div className="mobile-sidebar" style={{
+        display: 'none',
+        width: '200px',
+        background: '#f8f8f8',
+        borderRight: '1px solid #e0e0e0',
+        flexDirection: 'column',
+        flexShrink: 0
       }}>
-        <div style={{ padding: '15px', borderBottom: '1px solid #e0e0e0' }}>
-          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Navigation</div>
-        </div>
-        
-        {/* Review Pitches */}
-        <button
-          onClick={() => setActiveTab('reviewPitches')}
-          style={{
-            padding: '12px 20px',
-            border: 'none',
-            background: activeTab === 'reviewPitches' ? 'white' : 'transparent',
-            borderLeft: activeTab === 'reviewPitches' ? '3px solid #FFB6D9' : '3px solid transparent',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            fontSize: '14px',
-            fontWeight: activeTab === 'reviewPitches' ? '500' : 'normal',
-            color: activeTab === 'reviewPitches' ? '#333' : '#666',
-            textAlign: 'left',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            if (activeTab !== 'reviewPitches') {
-              e.currentTarget.style.background = '#f0f0f0';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (activeTab !== 'reviewPitches') {
-              e.currentTarget.style.background = 'transparent';
-            }
-          }}>
-          📋 Review Pitches
-        </button>
-        
-        {/* Badges */}
-        <button
-          onClick={() => setActiveTab('badges')}
-          style={{
-            padding: '12px 20px',
-            border: 'none',
-            background: activeTab === 'badges' ? 'white' : 'transparent',
-            borderLeft: activeTab === 'badges' ? '3px solid #FFB6D9' : '3px solid transparent',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            fontSize: '14px',
-            fontWeight: activeTab === 'badges' ? '500' : 'normal',
-            color: activeTab === 'badges' ? '#333' : '#666',
-            textAlign: 'left',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            if (activeTab !== 'badges') {
-              e.currentTarget.style.background = '#f0f0f0';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (activeTab !== 'badges') {
-              e.currentTarget.style.background = 'transparent';
-            }
-          }}>
-          🏆 Badges ({userBadges.length} Unlocked)
-        </button>
-        
-        {/* Chapter Members */}
-        <button
-          onClick={() => setActiveTab('chapterMembers')}
-          style={{
-            padding: '12px 20px',
-            border: 'none',
-            background: activeTab === 'chapterMembers' ? 'white' : 'transparent',
-            borderLeft: activeTab === 'chapterMembers' ? '3px solid #FFB6D9' : '3px solid transparent',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            fontSize: '14px',
-            fontWeight: activeTab === 'chapterMembers' ? '500' : 'normal',
-            color: activeTab === 'chapterMembers' ? '#333' : '#666',
-            textAlign: 'left',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            if (activeTab !== 'chapterMembers') {
-              e.currentTarget.style.background = '#f0f0f0';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (activeTab !== 'chapterMembers') {
-              e.currentTarget.style.background = 'transparent';
-            }
-          }}>
-          🏘️ Chapter Members
-        </button>
-        
-        {/* Social Cards */}
-        <button
-          onClick={() => setActiveTab('socialCards')}
-          style={{
-            padding: '12px 20px',
-            border: 'none',
-            background: activeTab === 'socialCards' ? 'white' : 'transparent',
-            borderLeft: activeTab === 'socialCards' ? '3px solid #FFB6D9' : '3px solid transparent',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            fontSize: '14px',
-            fontWeight: activeTab === 'socialCards' ? '500' : 'normal',
-            color: activeTab === 'socialCards' ? '#333' : '#666',
-            textAlign: 'left',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            transition: 'all 0.2s ease'
-          }}
-          onMouseEnter={(e) => {
-            if (activeTab !== 'socialCards') {
-              e.currentTarget.style.background = '#f0f0f0';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (activeTab !== 'socialCards') {
-              e.currentTarget.style.background = 'transparent';
-            }
-          }}>
-          🎨 Social Cards
-        </button>
-        
-        {/* Admin Panel (Conditional) */}
-        {isAdmin && (
-          <button
-            onClick={() => setActiveTab('adminPanel')}
-            style={{
-              padding: '12px 20px',
-              border: 'none',
-              background: activeTab === 'adminPanel' ? 'white' : 'transparent',
-              borderLeft: activeTab === 'adminPanel' ? '3px solid #FFB6D9' : '3px solid transparent',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              fontSize: '14px',
-              fontWeight: activeTab === 'adminPanel' ? '500' : 'normal',
-              color: activeTab === 'adminPanel' ? '#333' : '#666',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              transition: 'all 0.2s ease'
-            }}
-            onMouseEnter={(e) => {
-              if (activeTab !== 'adminPanel') {
-                e.currentTarget.style.background = '#f0f0f0';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (activeTab !== 'adminPanel') {
-                e.currentTarget.style.background = 'transparent';
-              }
-            }}>
-            👥 Admin Panel
-          </button>
-        )}
-        
-        {/* Spacer */}
-        <div style={{ flex: 1 }} />
-        
-        {/* Chapter Info */}
-        <div style={{
-          padding: '15px',
-          borderTop: '1px solid #e0e0e0',
-          fontSize: '11px',
-          color: '#999'
-        }}>
-          <div style={{ marginBottom: '8px' }}>
-            <div style={{ fontWeight: '600', color: '#666', marginBottom: '2px' }}>Chapter</div>
-            {user?.chapter || 'Unknown'}
-          </div>
-          <div>
-            <div style={{ fontWeight: '600', color: '#666', marginBottom: '2px' }}>Member Since</div>
-            {user?.anniversary ? (() => {
-              const date = new Date(user.anniversary.seconds * 1000);
-              const monthNames = ["January", "February", "March", "April", "May", "June", 
-                                 "July", "August", "September", "October", "November", "December"];
-              return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
-            })() : 'Unknown'}
-          </div>
-        </div>
+        <NavigationItems />
       </div>
 
       {/* Main Content Area (Scrollable) */}
-      <div ref={listScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '20px', background: '#fafafa' }}>
+      <div ref={listScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '20px', background: '#fafafa' }} className="main-content-area content-section">
 
       {/* --- Review Pitches Tab Content --- */}
       {activeTab === 'reviewPitches' && (
@@ -2740,7 +2991,7 @@ return (
           {!selectedPitch ? (
             <>
               {/* Filters and Controls - Added Quarter Filter */}
-              <div style={{ display: "flex", gap: "10px", marginBottom: "20px", alignItems: "center", flexWrap: "wrap", background: "white", padding: "15px", borderRadius: "8px", border: "1px solid #e0e0e0", boxShadow: '0 1px 3px rgba(0,0,0,0.05)', fontSize: '14px' }}>
+              <div className="filter-bar" style={{ display: "flex", gap: "10px", marginBottom: "20px", alignItems: "center", flexWrap: "wrap", background: "white", padding: "15px", borderRadius: "8px", border: "1px solid #e0e0e0", boxShadow: '0 1px 3px rgba(0,0,0,0.05)', fontSize: '14px' }}>
                 <input
                   type="text"
                   placeholder="Search name/business"
@@ -3357,9 +3608,9 @@ return (
             By posting, you're helping spotlight underrepresented founders and spreading the mission of Good Neighbor Fund—$1,000 at a time.
           </p>
           
-          <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div className="social-cards-container" style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
             {/* Welcome Card */}
-            <div>
+            <div className="social-card-wrapper">
               <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333', textAlign: 'center' }}>Welcome to GNF</h3>
               <canvas
                 id="welcome-canvas"
@@ -3382,7 +3633,7 @@ return (
             </div>
             
             {/* Badge Achievement Card */}
-            <div>
+            <div className="social-card-wrapper">
               <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333', textAlign: 'center' }}>Badge Achievements</h3>
               <canvas
                 id="badge-canvas"
@@ -3405,7 +3656,7 @@ return (
             </div>
             
             {/* Chapter Stats Card */}
-            <div>
+            <div className="social-card-wrapper">
               <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333', textAlign: 'center' }}>Chapter Impact Stats</h3>
               <canvas
                 id="stats-canvas"
@@ -3428,7 +3679,7 @@ return (
             </div>
             
             {/* Recruitment Card */}
-            <div>
+            <div className="social-card-wrapper">
               <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333', textAlign: 'center' }}>Limited Partner CTA</h3>
               <canvas
                 id="recruitment-canvas"
@@ -4484,7 +4735,7 @@ return (
               No active members found in your chapter.
             </p>
           ) : (
-            <div style={{ 
+            <div className="member-cards-grid" style={{ 
               display: 'grid', 
               gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
               gap: '15px'

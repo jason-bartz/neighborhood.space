@@ -82,10 +82,16 @@ export function TrophyCase({ badges = [], userStats = {} }) {
   const earnedBadgeIds = badges.map(b => b.id || b.badgeId);
   console.log('TrophyCase: Earned badge IDs:', earnedBadgeIds);
 
-  // Get all badges by category
-  const allBadges = selectedCategory === 'all' 
+  // Get all badges by category and sort with hidden ones at the end
+  const allBadges = (selectedCategory === 'all' 
     ? Object.values(BADGES)
-    : getBadgesByCategory(selectedCategory);
+    : getBadgesByCategory(selectedCategory))
+    .sort((a, b) => {
+      // Sort hidden badges to the end
+      if (a.hidden && !b.hidden) return 1;
+      if (!a.hidden && b.hidden) return -1;
+      return 0;
+    });
 
   // Category names for display
   const categoryNames = {

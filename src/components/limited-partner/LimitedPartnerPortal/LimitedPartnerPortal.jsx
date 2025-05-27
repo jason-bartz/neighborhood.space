@@ -22,6 +22,7 @@ import {
   calculateRetroactiveStats,
   updateWinnerPredictions
 } from "../../../services/statsTracking";
+import { BADGES } from "../../../data/badgeDefinitions";
 
 // --- Constants ---
 const provider = new GoogleAuthProvider();
@@ -97,6 +98,7 @@ const [reviewChapterFilter, setReviewChapterFilter] = useState(""); // State for
 const [reviewQuarterFilter, setReviewQuarterFilter] = useState(""); // New state for review pitches quarter filter
 const [adminPitches, setAdminPitches] = useState([]);
 const [users, setUsers] = useState([]);
+const [chapterMembers, setChapterMembers] = useState([]);
 const [allReviewsData, setAllReviewsData] = useState([]); // State for ALL reviews [{...reviewData}]
 const [adminChapterFilter, setAdminChapterFilter] = useState("");
 const [adminQuarterFilter, setAdminQuarterFilter] = useState("");
@@ -126,6 +128,8 @@ const [newUserData, setNewUserData] = useState({
   anniversary: new Date().toISOString().split('T')[0]
 });
 
+// User editing state
+const [editingUsers, setEditingUsers] = useState({}); // { userId: { linkedinUrl: '', professionalRole: '', bio: '' } }
 
 // --- Refs ---
 const listScrollRef = useRef(null); // Ref for the scrollable list container
@@ -482,6 +486,16 @@ const loadAdminData = useCallback(async () => {
       .map(d => ({ id: d.id, ...d.data(), uid: d.id })); // Ensure uid is set
     setUsers(usersList);
     console.log(`LPPortal: ALL users loaded (${usersSnap.docs.length}).`);
+    
+    // Filter chapter members for the Chapter Members tab
+    if (user?.chapter) {
+      const chapterMembersList = usersList.filter(u => 
+        u.chapter === user.chapter && 
+        ['lp', 'admin', 'superAdmin'].includes(u.role)
+      );
+      setChapterMembers(chapterMembersList);
+      console.log(`LPPortal: Chapter members loaded (${chapterMembersList.length}).`);
+    }
   } catch (error) {
     console.error(`LPPortal: Error loading ALL users for admin panel:`, error.code, error.message);
     setUsers([]); success = false;
@@ -1624,6 +1638,26 @@ return (
           🏆 Badges ({userBadges.length} Unlocked)
         </button>
         
+        {/* Chapter Members */}
+        <button
+          onClick={() => setActiveTab('chapterMembers')}
+          style={{
+            padding: '12px 15px',
+            border: 'none',
+            background: activeTab === 'chapterMembers' ? '#FFD6EC' : 'transparent',
+            borderLeft: activeTab === 'chapterMembers' ? '4px solid #FF6B6B' : '4px solid transparent',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontSize: '14px',
+            fontWeight: activeTab === 'chapterMembers' ? 'bold' : 'normal',
+            textAlign: 'left',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+          🏘️ Chapter Members
+        </button>
+        
         {/* Admin Panel (Conditional) */}
         {isAdmin && (
           <button
@@ -1723,23 +1757,22 @@ return (
                   <option value="notReviewed">Not Reviewed</option>
                   <option value="favorites">⭐ Favorites Only</option> {/* Added Emoji */}
                 </select>
-                {/* Hide Passed Button - Changed to Emoji */}
+                {/* Hide Passed Button */}
                 <RetroButton
                   onClick={() => setHidePassedReviews(!hidePassedReviews)}
                   title={hidePassedReviews ? "Show Passed/Ineligible Reviews" : "Hide Passed/Ineligible Reviews"}
                   style={{
-                    background: "#eee",
-                    padding: "0 8px", // Adjusted padding
+                    background: hidePassedReviews ? "#FFD6EC" : "#eee",
+                    padding: "0 12px",
                     height: "28px",
-                    width: "32px", // Fixed width for emoji
-                    fontSize: "16px", // Emoji size
-                    lineHeight: "1", // Adjust line height for emoji centering
-                    overflow: 'hidden', // Hide text if it overflows (shouldn't)
+                    fontSize: "13px",
                     whiteSpace: "nowrap",
-                    // Centering handled by base RetroButton style now
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px"
                   }}
                 >
-                  {hidePassedReviews ? '👁️‍🗨️' : '👁️'}
+                  {hidePassedReviews ? '👁️‍🗨️' : '👁️'} {hidePassedReviews ? 'Show' : 'Hide'} Passed/Ineligible
                 </RetroButton>
               </div>
 
@@ -2355,9 +2388,6 @@ return (
               <h4> User Management</h4>
 
               {/* Create New User Section REMOVED */}
-               <p style={{fontSize: '0.9em', color: '#444', background:'#f0f0f0', border:'1px dashed #ccc', padding:'10px', borderRadius:'4px', marginBottom:'20px'}}>
-                 Super Admins can create new users via the "Create User" tab. Use the table below to manage roles, chapters, reset passwords, or delete portal profile data for existing users.
-               </p>
 
 
               {/* Registered User Accounts List */}
@@ -2366,13 +2396,16 @@ return (
                 <p style={{ color: '#666', textAlign:'center', padding:'15px', background:'#f5f5f5', border:'1px dashed #ddd' }}>No registered user accounts found matching your view.</p>
               ) : (
                 <div style={{ overflowX: 'auto', border:'1px solid #ccc' }}>
-                  <table style={{ width: "100%", minWidth:'800px', fontSize: "14px", borderCollapse: "collapse" }}>
+                  <table style={{ width: "100%", minWidth:'1200px', fontSize: "14px", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ borderBottom: "2px solid #ccc", textAlign: "left", background: '#f2f2f2' }}>
                         <th style={{ padding: "10px 8px" }}>Name</th>
                         <th style={{ padding: "10px 8px" }}>Email</th>
-                        <th style={{ padding: "10px 8px" }}>Role</th>
+                        <th style={{ padding: "10px 8px" }}>System Role</th>
                         <th style={{ padding: "10px 8px" }}>Chapter</th>
+                        <th style={{ padding: "10px 8px" }}>LinkedIn</th>
+                        <th style={{ padding: "10px 8px" }}>Professional Role</th>
+                        <th style={{ padding: "10px 8px" }}>Bio</th>
                         <th style={{ padding: "10px 8px" }}>Actions</th>
                       </tr>
                     </thead>
@@ -2425,24 +2458,134 @@ return (
                                   {/* Add other chapters */}
                                 </select>
                               </td>
+                              {/* LinkedIn URL */}
+                              <td style={{ padding: "8px" }}>
+                                {editingUsers[u.uid] ? (
+                                  <input
+                                    type="text"
+                                    value={editingUsers[u.uid].linkedinUrl || ''}
+                                    onChange={(e) => setEditingUsers({
+                                      ...editingUsers,
+                                      [u.uid]: { ...editingUsers[u.uid], linkedinUrl: e.target.value }
+                                    })}
+                                    style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                    placeholder="LinkedIn URL"
+                                  />
+                                ) : (
+                                  u.linkedinUrl ? (
+                                    <a href={u.linkedinUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#0077B5' }}>
+                                      LinkedIn
+                                    </a>
+                                  ) : (
+                                    <span style={{ color: '#888' }}>-</span>
+                                  )
+                                )}
+                              </td>
+                              {/* Professional Role */}
+                              <td style={{ padding: "8px" }}>
+                                {editingUsers[u.uid] ? (
+                                  <input
+                                    type="text"
+                                    value={editingUsers[u.uid].professionalRole || ''}
+                                    onChange={(e) => setEditingUsers({
+                                      ...editingUsers,
+                                      [u.uid]: { ...editingUsers[u.uid], professionalRole: e.target.value }
+                                    })}
+                                    style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '3px' }}
+                                    placeholder="e.g. CEO, Investor"
+                                  />
+                                ) : (
+                                  <span>{u.professionalRole || <span style={{ color: '#888' }}>-</span>}</span>
+                                )}
+                              </td>
+                              {/* Bio */}
+                              <td style={{ padding: "8px" }}>
+                                {editingUsers[u.uid] ? (
+                                  <textarea
+                                    value={editingUsers[u.uid].bio || ''}
+                                    onChange={(e) => setEditingUsers({
+                                      ...editingUsers,
+                                      [u.uid]: { ...editingUsers[u.uid], bio: e.target.value }
+                                    })}
+                                    style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '3px', resize: 'vertical', minHeight: '50px' }}
+                                    placeholder="Short bio"
+                                  />
+                                ) : (
+                                  <span style={{ display: 'block', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {u.bio || <span style={{ color: '#888' }}>-</span>}
+                                  </span>
+                                )}
+                              </td>
                               {/* Action Buttons */}
                               <td style={{ padding: "8px", whiteSpace: 'nowrap' }}>
-                                <RetroButton
-                                  onClick={() => handleAdminPasswordReset(u.email)}
-                                  disabled={disablePasswordReset}
-                                  style={{ background: disablePasswordReset ? '#ccc':'#fff3e0', color: disablePasswordReset ? '#666':'#e65100', border: `1px solid ${disablePasswordReset ? '#bbb' : '#ffe0b2'}`, padding: '3px 8px', fontSize: '0.9em', marginRight: '5px' }}
-                                  title={disablePasswordReset ? "Cannot reset own password here" : `Send password reset to ${u.email}`}
-                                >
-                                  🔑 Reset Pwd {/* Added Emoji */}
-                                </RetroButton>
-                                <RetroButton
-                                  onClick={() => handleDeleteUser(u.uid, u.email)}
-                                  disabled={disableDelete}
-                                  style={{ background: disableDelete ? '#ccc' : '#ffebee', color: disableDelete ? '#666' : 'red', border: `1px solid ${disableDelete ? '#bbb' : '#ffcdd2'}`, padding: '3px 8px', fontSize: '0.9em' }}
-                                  title={disableDelete ? (isSelf ? "Cannot delete self" : "Permission denied") : `Delete portal profile data for ${u.email}`}
-                                >
-                                  🗑️ Delete {/* Added Emoji */}
-                                </RetroButton>
+                                {editingUsers[u.uid] ? (
+                                  <>
+                                    <RetroButton
+                                      onClick={async () => {
+                                        const updates = editingUsers[u.uid];
+                                        try {
+                                          await updateDoc(doc(db, "users", u.uid), {
+                                            linkedinUrl: updates.linkedinUrl || '',
+                                            professionalRole: updates.professionalRole || '',
+                                            bio: updates.bio || ''
+                                          });
+                                          showAppAlert("User profile updated successfully.");
+                                          const newEditingUsers = { ...editingUsers };
+                                          delete newEditingUsers[u.uid];
+                                          setEditingUsers(newEditingUsers);
+                                          loadAdminData(); // Refresh data
+                                        } catch (error) {
+                                          showAppAlert(`Error updating user: ${error.message}`);
+                                        }
+                                      }}
+                                      style={{ background: '#4CAF50', color: 'white', border: '1px solid #45a049', padding: '3px 8px', fontSize: '0.9em', marginRight: '5px' }}
+                                    >
+                                      💾 Save
+                                    </RetroButton>
+                                    <RetroButton
+                                      onClick={() => {
+                                        const newEditingUsers = { ...editingUsers };
+                                        delete newEditingUsers[u.uid];
+                                        setEditingUsers(newEditingUsers);
+                                      }}
+                                      style={{ background: '#f44336', color: 'white', border: '1px solid #da190b', padding: '3px 8px', fontSize: '0.9em', marginRight: '5px' }}
+                                    >
+                                      ❌ Cancel
+                                    </RetroButton>
+                                  </>
+                                ) : (
+                                  <>
+                                    <RetroButton
+                                      onClick={() => setEditingUsers({
+                                        ...editingUsers,
+                                        [u.uid]: {
+                                          linkedinUrl: u.linkedinUrl || '',
+                                          professionalRole: u.professionalRole || '',
+                                          bio: u.bio || ''
+                                        }
+                                      })}
+                                      style={{ background: '#2196F3', color: 'white', border: '1px solid #1976d2', padding: '3px 8px', fontSize: '0.9em', marginRight: '5px' }}
+                                    >
+                                      ✏️ Edit
+                                    </RetroButton>
+                                    <RetroButton
+                                      onClick={() => handleAdminPasswordReset(u.email)}
+                                      disabled={disablePasswordReset}
+                                      style={{ background: disablePasswordReset ? '#ccc':'#fff3e0', color: disablePasswordReset ? '#666':'#e65100', border: `1px solid ${disablePasswordReset ? '#bbb' : '#ffe0b2'}`, padding: '3px 8px', fontSize: '0.9em', marginRight: '5px' }}
+                                      title={disablePasswordReset ? "Cannot reset own password here" : `Send password reset to ${u.email}`}
+                                    >
+                                      🔑 Reset Pwd {/* Added Emoji */}
+                                    </RetroButton>
+                                    <RetroButton
+                                      onClick={() => handleDeleteUser(u.uid, u.email)}
+                                      disabled={disableDelete}
+                                      style={{ background: disableDelete ? '#ccc' : '#ffebee', color: disableDelete ? '#666' : 'red', border: `1px solid ${disableDelete ? '#bbb' : '#ffcdd2'}`, padding: '3px 8px', fontSize: '0.9em' }}
+                                      title={disableDelete ? (isSelf ? "Cannot delete self" : "Permission denied") : `Delete portal profile data for ${u.email}`}
+                                    >
+                                      🗑️ Delete {/* Added Emoji */}
+                                    </RetroButton>
+                                  </>
+                                )}
                               </td>
                             </tr>
                           );
@@ -2664,6 +2807,142 @@ return (
           userStats={userStats || {}}
         />
       )}
+      
+      {/* --- Chapter Members Tab Content --- */}
+      {activeTab === 'chapterMembers' && (
+        <div style={{ padding: '20px', overflow: 'auto' }}>
+          <h2 style={{ marginBottom: '20px' }}>
+            {user?.chapter} Chapter Members ({chapterMembers.length})
+          </h2>
+          
+          {chapterMembers.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#666', padding: '40px' }}>
+              No active members found in your chapter.
+            </p>
+          ) : (
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+              gap: '15px'
+            }}>
+              {chapterMembers
+                .sort((a, b) => {
+                  // Sort by role (superAdmin > admin > lp), then by name
+                  const roleOrder = { superAdmin: 0, admin: 1, lp: 2 };
+                  if (roleOrder[a.role] !== roleOrder[b.role]) {
+                    return roleOrder[a.role] - roleOrder[b.role];
+                  }
+                  return (a.name || '').localeCompare(b.name || '');
+                })
+                .map(member => {
+                  // Get member's two most recent badges
+                  const memberBadges = (member.badges || [])
+                    .filter(badge => badge.earnedAt || badge.earnedDate)
+                    .sort((a, b) => {
+                      const dateA = new Date(a.earnedAt || a.earnedDate || 0);
+                      const dateB = new Date(b.earnedAt || b.earnedDate || 0);
+                      return dateB - dateA;
+                    })
+                    .slice(0, 2);
+                  
+                  // Generate photo URL based on member name
+                  const photoUrl = member.name 
+                    ? `/assets/lps/${member.name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}.png`
+                    : null;
+                  
+                  return (
+                    <div key={member.id} style={{
+                      background: '#f9f9f9',
+                      border: '2px solid #ddd',
+                      borderRadius: '8px',
+                      padding: '15px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'start' }}>
+                          {photoUrl && (
+                            <img 
+                              src={photoUrl} 
+                              alt={member.name}
+                              style={{
+                                width: '50px',
+                                height: '50px',
+                                borderRadius: '50%',
+                                objectFit: 'cover',
+                                border: '2px solid #ddd'
+                              }}
+                              onError={(e) => e.target.style.display = 'none'}
+                            />
+                          )}
+                          <div>
+                            <h4 style={{ margin: '0 0 5px 0' }}>
+                              {member.name || 'Unknown'}
+                            </h4>
+                            <div style={{ fontSize: '13px', color: '#666' }}>{member.email}</div>
+                            {member.professionalRole && (
+                              <div style={{ fontSize: '12px', color: '#444', marginTop: '2px' }}>{member.professionalRole}</div>
+                            )}
+                            {member.linkedinUrl && (
+                              <a href={member.linkedinUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#0077B5', marginTop: '2px', display: 'inline-block' }}>
+                                LinkedIn Profile
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div style={{ fontSize: '12px', color: '#888', marginBottom: '10px' }}>
+                        <strong>Member Since:</strong> {
+                          member.anniversary 
+                            ? new Date(member.anniversary.seconds ? member.anniversary.seconds * 1000 : member.anniversary).toLocaleDateString()
+                            : 'Unknown'
+                        }
+                      </div>
+                      
+                      {memberBadges.length > 0 && (
+                        <div style={{ 
+                          borderTop: '1px solid #e0e0e0', 
+                          paddingTop: '10px',
+                          display: 'flex',
+                          gap: '8px',
+                          alignItems: 'center'
+                        }}>
+                          <span style={{ fontSize: '11px', color: '#666' }}>Recent:</span>
+                          {memberBadges.map((badge, idx) => {
+                            const badgeData = BADGES[badge.badgeId || badge.id];
+                            if (!badgeData) return null;
+                            
+                            return (
+                              <div key={idx} style={{
+                                background: 'linear-gradient(135deg, #FFE4F1, #FFD6EC)',
+                                border: '1px solid #FFB6D9',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                fontSize: '12px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }} title={badgeData.description}>
+                                <span>{badgeData.name.split(' ')[0]}</span>
+                                <span style={{ fontSize: '10px' }}>{badgeData.name.split(' ').slice(1).join(' ')}</span>
+                              </div>
+                            );
+                          })}
+                          {member.badges && member.badges.length > 2 && (
+                            <span style={{ fontSize: '11px', color: '#888' }}>
+                              +{member.badges.length - 2} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+      )}
+      
       </div> {/* End Main Content Area */}
     </div> {/* End Main Content Container */}
   </div> // End Logged-In Container

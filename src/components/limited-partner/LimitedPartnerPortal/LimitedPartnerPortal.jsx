@@ -95,13 +95,13 @@ const [hidePassedReviews, setHidePassedReviews] = useState(false);
 const [reviewSearchTerm, setReviewSearchTerm] = useState("");
 const [reviewFilter, setReviewFilter] = useState("all");
 const [reviewChapterFilter, setReviewChapterFilter] = useState(""); // State for review pitches chapter filter
-const [reviewQuarterFilter, setReviewQuarterFilter] = useState(""); // New state for review pitches quarter filter
+const [reviewQuarterFilter, setReviewQuarterFilter] = useState([]); // Multi-select quarter filter for review pitches
 const [adminPitches, setAdminPitches] = useState([]);
 const [users, setUsers] = useState([]);
 const [chapterMembers, setChapterMembers] = useState([]);
 const [allReviewsData, setAllReviewsData] = useState([]); // State for ALL reviews [{...reviewData}]
 const [adminChapterFilter, setAdminChapterFilter] = useState("");
-const [adminQuarterFilter, setAdminQuarterFilter] = useState("");
+const [adminQuarterFilter, setAdminQuarterFilter] = useState([]);
 const [adminSearch, setAdminSearch] = useState("");
 const [adminHidePassed, setAdminHidePassed] = useState(false); // State for admin hide passed filter
 const [adminFavoriteFilterMode, setAdminFavoriteFilterMode] = useState("all");
@@ -596,6 +596,163 @@ useEffect(() => {
       return () => clearTimeout(timer);
     }
 }, [selectedPitch, listScrollPosition]); 
+
+// --- Multi-Select Dropdown Component ---
+const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Select options" }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const toggleOption = (option) => {
+    if (selected.includes(option)) {
+      onChange(selected.filter(item => item !== option));
+    } else {
+      onChange([...selected, option]);
+    }
+  };
+
+  const selectAll = () => {
+    onChange(options);
+  };
+
+  const deselectAll = () => {
+    onChange([]);
+  };
+
+  const getDisplayText = () => {
+    if (selected.length === 0 || selected.length === options.length) {
+      return placeholder;
+    } else if (selected.length === 1) {
+      return selected[0];
+    } else {
+      return `${selected.length} selected`;
+    }
+  };
+
+  return (
+    <div ref={dropdownRef} style={{ position: 'relative', display: 'inline-block' }}>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        style={{
+          padding: '8px 12px',
+          height: '36px',
+          border: '1px solid #e0e0e0',
+          borderRadius: '6px',
+          fontFamily: 'inherit',
+          background: 'white',
+          fontSize: '14px',
+          outline: 'none',
+          transition: 'border-color 0.2s ease',
+          cursor: 'pointer',
+          minWidth: '150px',
+          textAlign: 'left',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}
+        onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
+        onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+      >
+        <span>{getDisplayText()}</span>
+        <span style={{ marginLeft: '8px' }}>▼</span>
+      </button>
+
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          marginTop: '4px',
+          background: 'white',
+          border: '1px solid #e0e0e0',
+          borderRadius: '6px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          minWidth: '200px',
+          maxHeight: '300px',
+          overflowY: 'auto',
+          zIndex: 1000
+        }}>
+          <div style={{
+            padding: '8px',
+            borderBottom: '1px solid #e0e0e0',
+            display: 'flex',
+            justifyContent: 'space-between'
+          }}>
+            <button
+              onClick={selectAll}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#FF69B4',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontFamily: 'inherit',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.background = '#FFE4F0'}
+              onMouseLeave={(e) => e.target.style.background = 'none'}
+            >
+              Select All
+            </button>
+            <button
+              onClick={deselectAll}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#666',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontFamily: 'inherit',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                transition: 'background 0.2s'
+              }}
+              onMouseEnter={(e) => e.target.style.background = '#f5f5f5'}
+              onMouseLeave={(e) => e.target.style.background = 'none'}
+            >
+              Clear All
+            </button>
+          </div>
+          {options.map((option) => (
+            <label
+              key={option}
+              style={{
+                display: 'block',
+                padding: '8px 12px',
+                cursor: 'pointer',
+                transition: 'background 0.2s',
+                fontSize: '14px'
+              }}
+              onMouseEnter={(e) => e.target.style.background = '#f5f5f5'}
+              onMouseLeave={(e) => e.target.style.background = 'none'}
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(option)}
+                onChange={() => toggleOption(option)}
+                style={{ marginRight: '8px' }}
+              />
+              {option}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 // --- Helper Functions ---
 
@@ -1254,7 +1411,7 @@ const handleAdminPitchExport = () => {
     // Generate filename based on filters (using new dropdown state)
     const timestamp = new Date().toISOString().slice(0, 10); // Matisse-MM-DD
     const chapterPart = adminChapterFilter || 'allChapters';
-    const quarterPart = adminQuarterFilter || 'allQuarters';
+    const quarterPart = adminQuarterFilter.length === 0 ? 'allQuarters' : adminQuarterFilter.join('-');
     const favFilterPart = adminFavoriteFilterMode === 'favsOnly' ? '_favsOnly' : (adminFavoriteFilterMode === 'favsAndCons' ? '_favsAndCons' : ''); // Updated logic
     const filename = `neighborhoodOS_pitches_${chapterPart}_${quarterPart}${favFilterPart}_${timestamp}.csv`;
 
@@ -1289,8 +1446,8 @@ const lpFilteredPitches = useMemo(() => {
     const matchesChapter = !reviewChapterFilter || p.chapter === reviewChapterFilter;
     if (!matchesChapter) return false;
 
-    // Filter by Quarter (added)
-    const matchesQuarter = !reviewQuarterFilter || p.quarter === reviewQuarterFilter;
+    // Filter by Quarter (multi-select)
+    const matchesQuarter = reviewQuarterFilter.length === 0 || reviewQuarterFilter.includes(p.quarter);
     if (!matchesQuarter) return false;
 
     // Filter by Review Status Dropdown
@@ -1376,7 +1533,7 @@ const adminFilteredSortedPitches = useMemo(() => {
     const groupedReviews = getGroupedReviewsForAdmin(p.id); // Get review summary once
 
     // Filter by Quarter
-    const matchesQuarter = !adminQuarterFilter || p.quarter === adminQuarterFilter;
+    const matchesQuarter = adminQuarterFilter.length === 0 || adminQuarterFilter.includes(p.quarter);
     if (!matchesQuarter) return false;
 
     // Filter by Chapter (only if SuperAdmin is filtering)
@@ -1834,24 +1991,19 @@ return (
                   {/* Dynamically get unique chapters from loaded LP pitches */}
                   {[...new Set(lpPitches.map((p) => p.chapter).filter(Boolean))].sort().map((c) => (<option key={c} value={c}>{c}</option>))}
                 </select>
-                 {/* Quarter Filter Added */}
-                 <select
-                    value={reviewQuarterFilter}
-                    onChange={(e) => setReviewQuarterFilter(e.target.value)}
-                    style={{ padding: "8px 12px", fontSize: "inherit", height: "36px", border: "1px solid #e0e0e0", borderRadius: "6px", backgroundColor: "white", boxSizing: "border-box", cursor: 'pointer', fontFamily: 'inherit', minWidth: '120px', outline: 'none', transition: 'border-color 0.2s ease' }}
-                    title="Filter by Quarter"
-                    onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
-                    onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-                 >
-                     <option value="">All Quarters</option>
-                     {[...new Set(lpPitches.map((p) => p.quarter).filter(q => q && q !== "Invalid Quarter"))]
-                        .sort((a, b) => {
-                            const [aQ, aY] = a.split(' '); const [bQ, bY] = b.split(' ');
-                            if (bY !== aY) return parseInt(bY) - parseInt(aY);
-                            return parseInt(bQ.substring(1)) - parseInt(aQ.substring(1));
-                        })
-                        .map((q) => (<option key={q} value={q}>{q}</option>))}
-                 </select>
+                 {/* Quarter Filter - Multi-Select */}
+                 <MultiSelectDropdown
+                   options={[...new Set(lpPitches.map((p) => p.quarter).filter(q => q && q !== "Invalid Quarter"))]
+                     .sort((a, b) => {
+                       const [aQ, aY] = a.split(' '); 
+                       const [bQ, bY] = b.split(' ');
+                       if (bY !== aY) return parseInt(bY) - parseInt(aY);
+                       return parseInt(bQ.substring(1)) - parseInt(aQ.substring(1));
+                     })}
+                   selected={reviewQuarterFilter}
+                   onChange={setReviewQuarterFilter}
+                   placeholder="All Quarters"
+                 />
                 <select
                   value={reviewFilter}
                   onChange={(e) => setReviewFilter(e.target.value)}
@@ -2443,16 +2595,18 @@ return (
                     {[...new Set(adminPitches.map((p) => p.chapter).filter(Boolean))].sort().map((c) => (<option key={c} value={c}>{c}</option>))}
                   </select>
                 )}
-                <select value={adminQuarterFilter} onChange={(e) => setAdminQuarterFilter(e.target.value)} style={{ padding: '8px 12px', height: '36px', border:'1px solid #e0e0e0', borderRadius: '6px', fontFamily:'inherit', background:'white', fontSize:'inherit', outline: 'none', transition: 'border-color 0.2s ease', cursor: 'pointer' }} onFocus={(e) => e.target.style.borderColor = '#FFB6D9'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}>
-                  <option value="">All Quarters</option>
-                  {[...new Set(adminPitches.map((p) => p.quarter).filter(Boolean))]
+                <MultiSelectDropdown
+                  options={[...new Set(adminPitches.map((p) => p.quarter).filter(Boolean))]
                     .sort((a, b) => {
-                      const [aQ, aY] = a.split(' '); const [bQ, bY] = b.split(' ');
+                      const [aQ, aY] = a.split(' '); 
+                      const [bQ, bY] = b.split(' ');
                       if (bY !== aY) return parseInt(bY) - parseInt(aY);
                       return parseInt(bQ.substring(1)) - parseInt(aQ.substring(1));
-                    })
-                    .map((q) => (<option key={q} value={q}>{q}</option>))}
-                </select>
+                    })}
+                  selected={adminQuarterFilter}
+                  onChange={setAdminQuarterFilter}
+                  placeholder="All Quarters"
+                />
                 {/* Favorite Filter Dropdown */}
                 <select value={adminFavoriteFilterMode} onChange={(e) => setAdminFavoriteFilterMode(e.target.value)} style={{ padding: '8px 12px', height: '36px', border:'1px solid #e0e0e0', borderRadius: '6px', fontFamily:'inherit', background:'white', fontSize:'inherit', outline: 'none', transition: 'border-color 0.2s ease', cursor: 'pointer' }} onFocus={(e) => e.target.style.borderColor = '#FFB6D9'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}>
                     <option value="all">All Ratings</option>

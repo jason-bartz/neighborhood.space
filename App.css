@@ -5,7 +5,7 @@
 body {
   margin: 0;
   font-family: "Comic Sans MS", "Pixelify Sans", sans-serif;
-  background: url("/assets/gnf-wallpaper.webp") no-repeat center center fixed;
+  background: url("/assets/gnf-wallpaper.webp?v=2") no-repeat center center fixed;
   background-size: cover;
   image-rendering: auto;
   color: #2d2d2d;

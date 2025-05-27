@@ -25,8 +25,8 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
     { count: 1, name: '👼 First Review' },
     { count: 10, name: '🏘️ New Kid on the Block' },
     { count: 25, name: '🔍 Neighborhood Watch' },
-    { count: 50, name: '⭐ Power User' },
-    { count: 75, name: '🏆 Elite Yelper' },
+    { count: 50, name: '⭐ Silver LP' },
+    { count: 75, name: '🏆 Review CHAMP' },
     { count: 100, name: '💿 Platinum Status' },
     { count: 200, name: '👑 Review Legend' },
     { count: 500, name: '⚡️ GodMode.exe' }
@@ -270,10 +270,10 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
           <span style={{ color: '#666' }}>Elite Status:</span>
           {badges.length >= 50 && <span>💎 Diamond LP</span>}
           {badges.length >= 30 && badges.length < 50 && <span>🥇 Gold LP</span>}
-          {badges.length >= 20 && badges.length < 30 && <span>🥈 Power User</span>}
+          {badges.length >= 20 && badges.length < 30 && <span>🥈 Silver LP</span>}
           {badges.length >= 10 && badges.length < 20 && <span>🥉 Bronze LP</span>}
           <span style={{ marginLeft: 'auto', color: '#888' }}>
-            {badges.length < 20 && `${20 - badges.length} badges until Power User`}
+            {badges.length < 20 && `${20 - badges.length} badges until Silver LP`}
             {badges.length >= 20 && badges.length < 30 && `${30 - badges.length} badges until Gold`}
             {badges.length >= 30 && badges.length < 50 && `${50 - badges.length} badges until Diamond`}
           </span>

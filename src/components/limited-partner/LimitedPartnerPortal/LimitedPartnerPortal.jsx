@@ -756,6 +756,67 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
 
 // --- Helper Functions ---
 
+const getNextUnreviewedPitch = () => {
+  if (!lpPitches || lpPitches.length === 0) return null;
+  
+  // Get currently filtered pitches (same logic as the main filter)
+  const filteredPitches = lpPitches.filter((p) => {
+    const review = reviews[p.id];
+    
+    // Filter by Chapter
+    const matchesChapter = !reviewChapterFilter || p.chapter === reviewChapterFilter;
+    if (!matchesChapter) return false;
+
+    // Filter by Quarter (multi-select)
+    const matchesQuarter = reviewQuarterFilter.length === 0 || reviewQuarterFilter.includes(p.quarter);
+    if (!matchesQuarter) return false;
+
+    // Filter by Review Status Dropdown
+    if (reviewFilter === "reviewed" && !review) return false;
+    if (reviewFilter === "notReviewed" && review) return false;
+
+    // Hide Passed Reviews Filter
+    if (hidePassedReviews && review && (review.overallLpRating === "Pass" || review.overallLpRating === "Ineligible")) {
+      return false;
+    }
+
+    // Search Term Filter
+    const searchLower = reviewSearchTerm.toLowerCase();
+    if (searchLower && !(
+      (p.businessName && p.businessName.toLowerCase().includes(searchLower)) ||
+      (p.founderName && p.founderName.toLowerCase().includes(searchLower)) ||
+      (p.email && p.email.toLowerCase().includes(searchLower))
+    )) {
+      return false;
+    }
+
+    return true;
+  });
+
+  // Find the current pitch index in filtered results
+  const currentIndex = filteredPitches.findIndex(p => p.id === selectedPitch?.id);
+  
+  // Look for next unreviewed pitch starting from current position
+  for (let i = currentIndex + 1; i < filteredPitches.length; i++) {
+    const pitch = filteredPitches[i];
+    if (!reviews[pitch.id]) {
+      return pitch;
+    }
+  }
+  
+  // If no unreviewed pitch found after current, wrap around to beginning
+  for (let i = 0; i < currentIndex; i++) {
+    const pitch = filteredPitches[i];
+    if (!reviews[pitch.id]) {
+      return pitch;
+    }
+  }
+  
+  return null; // No unreviewed pitches found
+};
+
+// --- Helper Functions ---
+
 const formatDate = (ts) => {
   if (!ts) return "No date";
   try {
@@ -2527,6 +2588,46 @@ return (
                       {/* Check user's review state `reviews` */}
                       {reviews[selectedPitch.id] ? '💾 Update Review' : '✨ Submit Review'} {/* Added Emojis */}
                     </button>
+                    
+                    {/* Next Unreviewed Pitch Button */}
+                    {(() => {
+                      const nextPitch = getNextUnreviewedPitch();
+                      return nextPitch ? (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedPitch(nextPitch)}
+                          style={{
+                            width: '100%',
+                            padding: '10px',
+                            backgroundColor: '#f8f8f8',
+                            color: '#666',
+                            border: '1px solid #e0e0e0',
+                            borderRadius: '6px',
+                            fontSize: '14px',
+                            fontWeight: '500',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            marginTop: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.backgroundColor = '#FFE4F0';
+                            e.target.style.borderColor = '#FFB6D9';
+                            e.target.style.color = '#FF69B4';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.backgroundColor = '#f8f8f8';
+                            e.target.style.borderColor = '#e0e0e0';
+                            e.target.style.color = '#666';
+                          }}
+                        >
+                          ⏭️ Next Unreviewed ({nextPitch.businessName})
+                        </button>
+                      ) : null;
+                    })()}
                   </form>
                 </div>
               </div>

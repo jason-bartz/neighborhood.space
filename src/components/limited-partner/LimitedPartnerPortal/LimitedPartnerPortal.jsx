@@ -538,29 +538,51 @@ const loadChapterMembers = useCallback(async () => {
   try {
     console.log(`LPPortal: Loading chapter members for ${user.chapter}...`);
     
-    // Query users from the same chapter who are active (lp, admin, or superAdmin)
+    // Query users from the same chapter - simplified to avoid index requirements
     const usersQuery = query(
       collection(db, "users"),
-      where("chapter", "==", user.chapter),
-      where("role", "in", ["lp", "admin", "superAdmin"]),
-      orderBy("name", "asc")
+      where("chapter", "==", user.chapter)
     );
     
     const usersSnap = await getDocs(usersQuery);
-    const chapterMembersList = usersSnap.docs.map(d => ({ 
-      id: d.id, 
-      ...d.data(), 
-      uid: d.id 
-    }));
+    
+    // Filter for active roles after fetching
+    const chapterMembersList = usersSnap.docs
+      .map(d => ({ 
+        id: d.id, 
+        ...d.data(), 
+        uid: d.id 
+      }))
+      .filter(u => ["lp", "admin", "superAdmin"].includes(u.role))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     
     setChapterMembers(chapterMembersList);
     console.log(`LPPortal: Chapter members loaded (${chapterMembersList.length}).`);
   } catch (error) {
     console.error(`LPPortal: Error loading chapter members:`, error);
+    console.error(`LPPortal: Error details - Code: ${error.code}, Message: ${error.message}`);
     setChapterMembers([]);
     
-    // If it's an index error, provide a helpful message
-    if (error.message?.includes('index')) {
+    // Provide specific error guidance
+    if (error.code === 'permission-denied') {
+      console.error("LPPortal: Permission denied - LP users may not have read access to users collection");
+      console.error("LPPortal: IMPORTANT - Update Firestore rules to allow LPs to read users in their chapter");
+      
+      // Temporary fallback: Show at least the current user
+      if (user) {
+        setChapterMembers([{
+          id: user.uid,
+          uid: user.uid,
+          name: user.name || user.email,
+          email: user.email,
+          role: user.role,
+          chapter: user.chapter,
+          badges: user.badges || [],
+          anniversary: user.anniversary
+        }]);
+        console.log("LPPortal: Showing current user only as fallback");
+      }
+    } else if (error.message?.includes('index')) {
       console.log("LPPortal: Firestore composite index may be required for chapter members query");
     }
   }

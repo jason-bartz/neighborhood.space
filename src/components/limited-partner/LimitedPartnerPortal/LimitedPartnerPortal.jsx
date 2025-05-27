@@ -1564,14 +1564,31 @@ return (
     )}
 
     {/* Header Bar */}
-    <div style={{ borderBottom: '2px outset #ccc', padding: '5px 15px', background: '#eee', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div style={{ borderBottom: '1px solid #e0e0e0', padding: '12px 20px', background: 'white', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <div>
-        <div style={{ fontWeight: 'bold', fontSize: '1.1em' }}>{(user?.chapter || "Neighborhood OS") + ": LP Portal"}</div>
-        <div style={{ fontSize: '0.9em', color: '#333' }}> Welcome, {user?.name || user?.email}! ({user?.role}) </div>
+        <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: '#333' }}>{(user?.chapter || "Neighborhood OS") + ": LP Portal"}</div>
+        <div style={{ fontSize: '0.9em', color: '#666' }}> Welcome, {user?.name || user?.email}!</div>
       </div>
-      <RetroButton onClick={handleSignOut} style={{ padding: "4px 10px", fontSize: "13px", background: "#f5f5f5", border: "1px outset #ccc", height: "28px", alignSelf: 'center' }}>
+      <button onClick={handleSignOut} style={{ 
+        padding: "6px 16px", 
+        fontSize: "13px", 
+        background: "white", 
+        color: '#666',
+        border: "1px solid #e0e0e0", 
+        borderRadius: '6px',
+        cursor: 'pointer',
+        transition: 'all 0.2s ease'
+      }}
+      onMouseEnter={(e) => {
+        e.target.style.background = '#f5f5f5';
+        e.target.style.borderColor = '#ccc';
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.background = 'white';
+        e.target.style.borderColor = '#e0e0e0';
+      }}>
         Logout
-      </RetroButton>
+      </button>
     </div>
     
     {/* Stats Bar */}
@@ -1580,6 +1597,36 @@ return (
         user={user}
         stats={userStats}
         badges={userBadges}
+        pitchStats={{
+          quarterlyPitches: (() => {
+            const quarterPitches = {};
+            const chapterPitches = user.chapter ? adminPitches.filter(p => p.chapter === user.chapter) : adminPitches;
+            chapterPitches.forEach(pitch => {
+              const quarter = pitch.quarter;
+              if (quarter) {
+                quarterPitches[quarter] = (quarterPitches[quarter] || 0) + 1;
+              }
+            });
+            return quarterPitches;
+          })(),
+          yearlyPitches: (() => {
+            const yearPitches = {};
+            const chapterPitches = user.chapter ? adminPitches.filter(p => p.chapter === user.chapter) : adminPitches;
+            chapterPitches.forEach(pitch => {
+              const quarter = pitch.quarter;
+              if (quarter) {
+                const year = quarter.split(' ')[1];
+                if (year) {
+                  yearPitches[year] = (yearPitches[year] || 0) + 1;
+                }
+              }
+            });
+            return yearPitches;
+          })(),
+          totalGrantWinners: user.chapter 
+            ? adminPitches.filter(p => p.isWinner && p.chapter === user.chapter).length
+            : adminPitches.filter(p => p.isWinner).length
+        }}
       />
     )}
 
@@ -1588,32 +1635,44 @@ return (
       {/* Sidebar Navigation */}
       <div style={{
         width: '200px',
-        background: '#e8e8e8',
-        borderRight: '2px solid #ccc',
+        background: '#f8f8f8',
+        borderRight: '1px solid #e0e0e0',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0
       }}>
-        <div style={{ padding: '10px', borderBottom: '1px solid #ccc' }}>
-          <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '5px' }}>Navigation</div>
+        <div style={{ padding: '15px', borderBottom: '1px solid #e0e0e0' }}>
+          <div style={{ fontSize: '12px', fontWeight: 'bold', color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Navigation</div>
         </div>
         
         {/* Review Pitches */}
         <button
           onClick={() => setActiveTab('reviewPitches')}
           style={{
-            padding: '12px 15px',
+            padding: '12px 20px',
             border: 'none',
-            background: activeTab === 'reviewPitches' ? '#FFD6EC' : 'transparent',
-            borderLeft: activeTab === 'reviewPitches' ? '4px solid #FF6B6B' : '4px solid transparent',
+            background: activeTab === 'reviewPitches' ? 'white' : 'transparent',
+            borderLeft: activeTab === 'reviewPitches' ? '3px solid #FFB6D9' : '3px solid transparent',
             cursor: 'pointer',
             fontFamily: 'inherit',
             fontSize: '14px',
-            fontWeight: activeTab === 'reviewPitches' ? 'bold' : 'normal',
+            fontWeight: activeTab === 'reviewPitches' ? '500' : 'normal',
+            color: activeTab === 'reviewPitches' ? '#333' : '#666',
             textAlign: 'left',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '10px',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            if (activeTab !== 'reviewPitches') {
+              e.currentTarget.style.background = '#f0f0f0';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeTab !== 'reviewPitches') {
+              e.currentTarget.style.background = 'transparent';
+            }
           }}>
           📋 Review Pitches
         </button>
@@ -1622,18 +1681,30 @@ return (
         <button
           onClick={() => setActiveTab('badges')}
           style={{
-            padding: '12px 15px',
+            padding: '12px 20px',
             border: 'none',
-            background: activeTab === 'badges' ? '#FFD6EC' : 'transparent',
-            borderLeft: activeTab === 'badges' ? '4px solid #FF6B6B' : '4px solid transparent',
+            background: activeTab === 'badges' ? 'white' : 'transparent',
+            borderLeft: activeTab === 'badges' ? '3px solid #FFB6D9' : '3px solid transparent',
             cursor: 'pointer',
             fontFamily: 'inherit',
             fontSize: '14px',
-            fontWeight: activeTab === 'badges' ? 'bold' : 'normal',
+            fontWeight: activeTab === 'badges' ? '500' : 'normal',
+            color: activeTab === 'badges' ? '#333' : '#666',
             textAlign: 'left',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '10px',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            if (activeTab !== 'badges') {
+              e.currentTarget.style.background = '#f0f0f0';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeTab !== 'badges') {
+              e.currentTarget.style.background = 'transparent';
+            }
           }}>
           🏆 Badges ({userBadges.length} Unlocked)
         </button>
@@ -1642,18 +1713,30 @@ return (
         <button
           onClick={() => setActiveTab('chapterMembers')}
           style={{
-            padding: '12px 15px',
+            padding: '12px 20px',
             border: 'none',
-            background: activeTab === 'chapterMembers' ? '#FFD6EC' : 'transparent',
-            borderLeft: activeTab === 'chapterMembers' ? '4px solid #FF6B6B' : '4px solid transparent',
+            background: activeTab === 'chapterMembers' ? 'white' : 'transparent',
+            borderLeft: activeTab === 'chapterMembers' ? '3px solid #FFB6D9' : '3px solid transparent',
             cursor: 'pointer',
             fontFamily: 'inherit',
             fontSize: '14px',
-            fontWeight: activeTab === 'chapterMembers' ? 'bold' : 'normal',
+            fontWeight: activeTab === 'chapterMembers' ? '500' : 'normal',
+            color: activeTab === 'chapterMembers' ? '#333' : '#666',
             textAlign: 'left',
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '10px',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            if (activeTab !== 'chapterMembers') {
+              e.currentTarget.style.background = '#f0f0f0';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeTab !== 'chapterMembers') {
+              e.currentTarget.style.background = 'transparent';
+            }
           }}>
           🏘️ Chapter Members
         </button>
@@ -1663,18 +1746,30 @@ return (
           <button
             onClick={() => setActiveTab('adminPanel')}
             style={{
-              padding: '12px 15px',
+              padding: '12px 20px',
               border: 'none',
-              background: activeTab === 'adminPanel' ? '#FFD6EC' : 'transparent',
-              borderLeft: activeTab === 'adminPanel' ? '4px solid #FF6B6B' : '4px solid transparent',
+              background: activeTab === 'adminPanel' ? 'white' : 'transparent',
+              borderLeft: activeTab === 'adminPanel' ? '3px solid #FFB6D9' : '3px solid transparent',
               cursor: 'pointer',
               fontFamily: 'inherit',
               fontSize: '14px',
-              fontWeight: activeTab === 'adminPanel' ? 'bold' : 'normal',
+              fontWeight: activeTab === 'adminPanel' ? '500' : 'normal',
+              color: activeTab === 'adminPanel' ? '#333' : '#666',
               textAlign: 'left',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: '10px',
+              transition: 'all 0.2s ease'
+            }}
+            onMouseEnter={(e) => {
+              if (activeTab !== 'adminPanel') {
+                e.currentTarget.style.background = '#f0f0f0';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activeTab !== 'adminPanel') {
+                e.currentTarget.style.background = 'transparent';
+              }
             }}>
             👥 Admin Panel
           </button>
@@ -1686,23 +1781,28 @@ return (
         {/* Chapter Info */}
         <div style={{
           padding: '15px',
-          borderTop: '1px solid #ccc',
-          fontSize: '12px',
-          color: '#666'
+          borderTop: '1px solid #e0e0e0',
+          fontSize: '11px',
+          color: '#999'
         }}>
-          <div style={{ marginBottom: '5px' }}>
-            <strong>Chapter:</strong><br />
+          <div style={{ marginBottom: '8px' }}>
+            <div style={{ fontWeight: '600', color: '#666', marginBottom: '2px' }}>Chapter</div>
             {user?.chapter || 'Unknown'}
           </div>
           <div>
-            <strong>Member Since:</strong><br />
-            {user?.anniversary ? new Date(user.anniversary.seconds * 1000).toLocaleDateString() : 'Unknown'}
+            <div style={{ fontWeight: '600', color: '#666', marginBottom: '2px' }}>Member Since</div>
+            {user?.anniversary ? (() => {
+              const date = new Date(user.anniversary.seconds * 1000);
+              const monthNames = ["January", "February", "March", "April", "May", "June", 
+                                 "July", "August", "September", "October", "November", "December"];
+              return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+            })() : 'Unknown'}
           </div>
         </div>
       </div>
 
       {/* Main Content Area (Scrollable) */}
-      <div ref={listScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '15px', background: '#f9f9f9' }}>
+      <div ref={listScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '20px', background: '#fafafa' }}>
 
       {/* --- Review Pitches Tab Content --- */}
       {activeTab === 'reviewPitches' && (
@@ -1711,20 +1811,24 @@ return (
           {!selectedPitch ? (
             <>
               {/* Filters and Controls - Added Quarter Filter */}
-              <div style={{ display: "flex", gap: "8px", marginBottom: "16px", alignItems: "center", flexWrap: "wrap", /* Allow wrap */ background: "#e0e0e0", padding: "8px", borderRadius: "0", border: "1px solid #aaa", fontSize: '13px' /* Reduced font for bar */ }}>
+              <div style={{ display: "flex", gap: "10px", marginBottom: "20px", alignItems: "center", flexWrap: "wrap", background: "white", padding: "15px", borderRadius: "8px", border: "1px solid #e0e0e0", boxShadow: '0 1px 3px rgba(0,0,0,0.05)', fontSize: '14px' }}>
                 <input
                   type="text"
                   placeholder="Search name/business"
                   value={reviewSearchTerm}
                   onChange={(e) => setReviewSearchTerm(e.target.value)}
-                  style={{ padding: "5px 8px", fontSize: "inherit", flexGrow: 1, minWidth: "140px", height: "26px", border: "1px inset #aaa", borderRadius: "0px", boxSizing: "border-box", fontFamily: 'inherit' }}
+                  style={{ padding: "8px 12px", fontSize: "inherit", flexGrow: 1, minWidth: "200px", height: "36px", border: "1px solid #e0e0e0", borderRadius: "6px", boxSizing: "border-box", fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s ease' }}
+                  onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
+                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                 />
                 {/* Chapter Filter */}
                 <select
                   value={reviewChapterFilter}
                   onChange={(e) => setReviewChapterFilter(e.target.value)}
-                  style={{ padding: "0 6px", fontSize: "inherit", height: "28px", border: "1px solid #aaa", borderRight: "2px outset #aaa", borderBottom: "2px outset #aaa", borderRadius: "0px", backgroundColor: "#fff", boxSizing: "border-box", cursor: 'pointer', fontFamily: 'inherit', appearance: 'none', maxWidth: '150px' }}
+                  style={{ padding: "8px 12px", fontSize: "inherit", height: "36px", border: "1px solid #e0e0e0", borderRadius: "6px", backgroundColor: "white", boxSizing: "border-box", cursor: 'pointer', fontFamily: 'inherit', minWidth: '150px', outline: 'none', transition: 'border-color 0.2s ease' }}
                   title="Filter by Chapter"
+                  onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
+                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                 >
                   <option value="">All Chapters</option> {/* Changed Text */}
                   {/* Dynamically get unique chapters from loaded LP pitches */}
@@ -1734,8 +1838,10 @@ return (
                  <select
                     value={reviewQuarterFilter}
                     onChange={(e) => setReviewQuarterFilter(e.target.value)}
-                    style={{ padding: "0 6px", fontSize: "inherit", height: "28px", border: "1px solid #aaa", borderRight: "2px outset #aaa", borderBottom: "2px outset #aaa", borderRadius: "0px", backgroundColor: "#fff", boxSizing: "border-box", cursor: 'pointer', fontFamily: 'inherit', appearance: 'none', maxWidth: '120px' }}
+                    style={{ padding: "8px 12px", fontSize: "inherit", height: "36px", border: "1px solid #e0e0e0", borderRadius: "6px", backgroundColor: "white", boxSizing: "border-box", cursor: 'pointer', fontFamily: 'inherit', minWidth: '120px', outline: 'none', transition: 'border-color 0.2s ease' }}
                     title="Filter by Quarter"
+                    onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
+                    onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                  >
                      <option value="">All Quarters</option>
                      {[...new Set(lpPitches.map((p) => p.quarter).filter(q => q && q !== "Invalid Quarter"))]
@@ -1749,8 +1855,10 @@ return (
                 <select
                   value={reviewFilter}
                   onChange={(e) => setReviewFilter(e.target.value)}
-                  style={{ padding: "0 6px", fontSize: "inherit", height: "28px", border: "1px solid #aaa", borderRight: "2px outset #aaa", borderBottom: "2px outset #aaa", borderRadius: "0px", backgroundColor: "#fff", boxSizing: "border-box", cursor: 'pointer', fontFamily: 'inherit', appearance: 'none', maxWidth: '130px' }}
+                  style={{ padding: "8px 12px", fontSize: "inherit", height: "36px", border: "1px solid #e0e0e0", borderRadius: "6px", backgroundColor: "white", boxSizing: "border-box", cursor: 'pointer', fontFamily: 'inherit', minWidth: '140px', outline: 'none', transition: 'border-color 0.2s ease' }}
                   title="Filter by Review Status"
+                  onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
+                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                 >
                   <option value="all">All Pitches</option>
                   <option value="reviewed">Reviewed</option>
@@ -1758,22 +1866,40 @@ return (
                   <option value="favorites">⭐ Favorites Only</option> {/* Added Emoji */}
                 </select>
                 {/* Hide Passed Button */}
-                <RetroButton
+                <button
                   onClick={() => setHidePassedReviews(!hidePassedReviews)}
                   title={hidePassedReviews ? "Show Passed/Ineligible Reviews" : "Hide Passed/Ineligible Reviews"}
                   style={{
-                    background: hidePassedReviews ? "#FFD6EC" : "#eee",
-                    padding: "0 12px",
-                    height: "28px",
-                    fontSize: "13px",
+                    background: hidePassedReviews ? "#FFB6D9" : "white",
+                    color: hidePassedReviews ? "white" : "#666",
+                    border: `1px solid ${hidePassedReviews ? '#FFB6D9' : '#e0e0e0'}`,
+                    borderRadius: '6px',
+                    padding: "0 16px",
+                    height: "36px",
+                    fontSize: "14px",
                     whiteSpace: "nowrap",
                     display: "flex",
                     alignItems: "center",
-                    gap: "4px"
+                    gap: "6px",
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    fontFamily: 'inherit'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!hidePassedReviews) {
+                      e.target.style.background = '#f5f5f5';
+                      e.target.style.borderColor = '#ccc';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!hidePassedReviews) {
+                      e.target.style.background = 'white';
+                      e.target.style.borderColor = '#e0e0e0';
+                    }
                   }}
                 >
                   {hidePassedReviews ? '👁️‍🗨️' : '👁️'} {hidePassedReviews ? 'Show' : 'Hide'} Passed/Ineligible
-                </RetroButton>
+                </button>
               </div>
 
               {/* --- DEBUG LOG --- */}
@@ -1866,78 +1992,326 @@ return (
             </>
           /* --- Pitch Detail and Review Form View --- */
           ) : (
-            <div style={{ display: "flex", flexDirection: 'column', gap: "20px", /* Removed fixed height */ }}>
+            <div style={{ display: "flex", flexDirection: 'column', gap: "20px" }}>
               {/* Back Button */}
-              {/* Changed onClick to use handleBackToList */}
-              <RetroButton onClick={handleBackToList} style={{ marginBottom: '0px', alignSelf: 'flex-start' }}> ← Back to List</RetroButton> {/* Added Emoji */}
+              <button 
+                onClick={handleBackToList} 
+                style={{ 
+                  alignSelf: 'flex-start',
+                  padding: '8px 16px',
+                  background: 'white',
+                  color: '#666',
+                  border: '1px solid #e0e0e0',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontFamily: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#f5f5f5';
+                  e.currentTarget.style.borderColor = '#ccc';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'white';
+                  e.currentTarget.style.borderColor = '#e0e0e0';
+                }}
+              >
+                ← Back to List
+              </button>
 
               {/* Layout for Details & Form (Flex wrap) */}
               <div style={{ display: "flex", gap: "20px", flexDirection: 'row', flexWrap: 'wrap' }}>
 
                 {/* Pitch Details Column */}
-                <div style={{ flex: '1 1 400px', /* Allow shrinking, basis 400px */ minWidth: '300px', background: '#fff', padding: '15px 20px', border: '1px solid #ccc', borderRadius: '4px', boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.1)', maxHeight: 'calc(100vh - 250px)', overflowY:'auto' }}>
-                  <h3 style={{marginTop: 0, borderBottom: '1px solid #eee', paddingBottom:'10px'}}>{selectedPitch.businessName || "N/A"}</h3>
-                  {selectedPitch.isWinner && <p style={{ color: 'green', fontWeight: 'bold', background: '#d4edda', padding: '5px 10px', borderRadius: '3px', border: '1px solid #c3e6cb', display:'inline-block', alignItems:'center', gap:'4px' }}> ✅ Grant Winner</p>} {/* Added Emoji */}
+                <div style={{ flex: '1 1 400px', minWidth: '300px', background: 'white', padding: '25px', border: '1px solid #e0e0e0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', maxHeight: 'calc(100vh - 250px)', overflowY:'auto' }}>
+                  <div style={{ marginBottom: '20px' }}>
+                    <h3 style={{ margin: '0 0 10px 0', fontSize: '20px', color: '#333' }}>{selectedPitch.businessName || "N/A"}</h3>
+                    {selectedPitch.isWinner && (
+                      <span style={{ 
+                        color: '#4CAF50', 
+                        fontWeight: '600', 
+                        background: '#E8F5E9', 
+                        padding: '6px 12px', 
+                        borderRadius: '4px', 
+                        fontSize: '13px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        ✅ Grant Winner
+                      </span>
+                    )}
+                  </div>
 
-                  <p><strong>Founder:</strong> {selectedPitch.founderName || "N/A"}</p>
-                  <p><strong>Email:</strong> {selectedPitch.email ? <a href={`mailto:${selectedPitch.email}`}>{selectedPitch.email}</a> : "N/A"}</p>
-                  <p><strong>Website:</strong> {selectedPitch.website ? <a href={selectedPitch.website.startsWith('http') ? selectedPitch.website : `//${selectedPitch.website}`} target="_blank" rel="noopener noreferrer">{selectedPitch.website}</a> : "N/A"}</p>
-                  <p><strong>Video:</strong> {selectedPitch.pitchVideoUrl ? <a href={selectedPitch.pitchVideoUrl} target="_blank" rel="noopener noreferrer" style={{color: 'blue', textDecoration:'underline'}}>🎬 Watch Pitch Video</a> : "Not provided"}</p> {/* Added Emoji */}
+                  {/* Contact Info Section */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ marginBottom: '12px' }}>
+                      <span style={{ color: '#999', fontSize: '13px', display: 'block', marginBottom: '3px' }}>Founder:</span>
+                      <span style={{ color: '#333', fontSize: '15px' }}>{selectedPitch.founderName || "N/A"}</span>
+                    </div>
+                    
+                    <div style={{ marginBottom: '12px' }}>
+                      <span style={{ color: '#999', fontSize: '13px', display: 'block', marginBottom: '3px' }}>Email:</span>
+                      <span style={{ color: '#333', fontSize: '15px' }}>
+                        {selectedPitch.email ? <a href={`mailto:${selectedPitch.email}`} style={{ color: '#0077B5' }}>{selectedPitch.email}</a> : "N/A"}
+                      </span>
+                    </div>
+                    
+                    <div style={{ marginBottom: '12px' }}>
+                      <span style={{ color: '#999', fontSize: '13px', display: 'block', marginBottom: '3px' }}>Website:</span>
+                      <span style={{ color: '#333', fontSize: '15px' }}>
+                        {selectedPitch.website ? (
+                          <a href={selectedPitch.website.startsWith('http') ? selectedPitch.website : `//${selectedPitch.website}`} 
+                             target="_blank" 
+                             rel="noopener noreferrer"
+                             style={{ color: '#0077B5' }}
+                          >
+                            {selectedPitch.website}
+                          </a>
+                        ) : "N/A"}
+                      </span>
+                    </div>
+                    
+                    <div style={{ marginBottom: '12px' }}>
+                      <span style={{ color: '#999', fontSize: '13px', display: 'block', marginBottom: '3px' }}>Video:</span>
+                      <span style={{ color: '#333', fontSize: '15px' }}>
+                        {selectedPitch.pitchVideoUrl ? (
+                          <a href={selectedPitch.pitchVideoUrl} 
+                             target="_blank" 
+                             rel="noopener noreferrer" 
+                             style={{ color: '#0077B5', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                          >
+                            🎬 Watch Pitch Video
+                          </a>
+                        ) : "Not provided"}
+                      </span>
+                    </div>
+                  </div>
 
-                  <hr style={{margin: '15px 0', borderTop: '1px solid #eee', borderBottom: 'none'}} />
+                  <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '20px', marginBottom: '20px' }}>
+                    {/* Business Details */}
+                    <div style={{ marginBottom: '15px' }}>
+                      <div style={{ color: '#999', fontSize: '13px', marginBottom: '5px', fontWeight: '500' }}>Value Prop:</div>
+                      <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{selectedPitch.valueProp || "N/A"}</div>
+                    </div>
+                    
+                    <div style={{ marginBottom: '15px' }}>
+                      <div style={{ color: '#999', fontSize: '13px', marginBottom: '5px', fontWeight: '500' }}>Problem:</div>
+                      <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{selectedPitch.problem || "N/A"}</div>
+                    </div>
+                    
+                    <div style={{ marginBottom: '15px' }}>
+                      <div style={{ color: '#999', fontSize: '13px', marginBottom: '5px', fontWeight: '500' }}>Solution:</div>
+                      <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{selectedPitch.solution || "N/A"}</div>
+                    </div>
+                    
+                    <div style={{ marginBottom: '15px' }}>
+                      <div style={{ color: '#999', fontSize: '13px', marginBottom: '5px', fontWeight: '500' }}>Business Model:</div>
+                      <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{selectedPitch.businessModel || "N/A"}</div>
+                    </div>
+                    
+                    <div style={{ marginBottom: '15px' }}>
+                      <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Paying Customers:</span>
+                      <span style={{ 
+                        color: selectedPitch.hasPayingCustomers ? '#4CAF50' : '#666', 
+                        fontSize: '14px',
+                        fontWeight: selectedPitch.hasPayingCustomers ? '600' : 'normal'
+                      }}>
+                        {selectedPitch.hasPayingCustomers ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+                    
+                    <div style={{ marginBottom: '15px' }}>
+                      <div style={{ color: '#999', fontSize: '13px', marginBottom: '5px', fontWeight: '500' }}>Grant Use:</div>
+                      <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{selectedPitch.grantUsePlan || "N/A"}</div>
+                    </div>
+                  </div>
 
-                  <p><strong>Value Prop:</strong> {selectedPitch.valueProp || "N/A"}</p>
-                  <p><strong>Problem:</strong> {selectedPitch.problem || "N/A"}</p>
-                  <p><strong>Solution:</strong> {selectedPitch.solution || "N/A"}</p>
-                  <p><strong>Business Model:</strong> {selectedPitch.businessModel || "N/A"}</p>
-                  <p><strong>Paying Customers:</strong> {selectedPitch.hasPayingCustomers ? 'Yes' : 'No'}</p>
-                  <p><strong>Grant Use:</strong> {selectedPitch.grantUsePlan || "N/A"}</p>
-
-                  <hr style={{margin: '15px 0', borderTop: '1px solid #eee', borderBottom: 'none'}} />
-
-                  <p><strong>Zip Code:</strong> {selectedPitch.zipCode || "N/A"}</p>
-                  <p><strong>Self Identification Tags:</strong> {selectedPitch.selfIdentification?.join(", ") || "N/A"}</p>
-                  {/* Add other fields if needed */}
-                  {/* <p><strong>Heard About:</strong> {selectedPitch.heardAbout || "N/A"}</p> */}
+                  <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '20px' }}>
+                    <div style={{ marginBottom: '12px' }}>
+                      <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Zip Code:</span>
+                      <span style={{ color: '#333', fontSize: '14px' }}>{selectedPitch.zipCode || "N/A"}</span>
+                    </div>
+                    
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ color: '#999', fontSize: '13px', marginBottom: '5px' }}>Self Identification Tags:</div>
+                      <div style={{ color: '#333', fontSize: '14px' }}>{selectedPitch.selfIdentification?.join(", ") || "N/A"}</div>
+                    </div>
+                    
+                    <div>
+                      <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Heard About:</span>
+                      <span style={{ color: '#333', fontSize: '14px' }}>{selectedPitch.heardAbout || "N/A"}</span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Review Form Column */}
-                <div style={{ flex: '1 1 350px', minWidth: '300px', background: '#fff', padding: '15px 20px', border: '1px solid #ccc', borderRadius: '4px', boxShadow: 'inset 1px 1px 3px rgba(0,0,0,0.1)', maxHeight: 'calc(100vh - 250px)', overflowY:'auto' }}>
-                  {/* Use user's review state `reviews` to check if editing */}
-                  <h4 style={{marginTop: 0, borderBottom: '1px solid #eee', paddingBottom:'10px'}}>{reviews[selectedPitch.id] ? '✏️ Edit Your Review' : '✍️ Submit Your Review'}</h4> {/* Added Emojis */}
+                <div style={{ 
+                  flex: '1 1 350px', 
+                  minWidth: '300px', 
+                  background: 'white', 
+                  padding: '25px', 
+                  border: '1px solid #e0e0e0', 
+                  borderRadius: '8px', 
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)', 
+                  maxHeight: 'calc(100vh - 250px)', 
+                  overflowY:'auto' 
+                }}>
+                  <h4 style={{ 
+                    margin: '0 0 20px 0', 
+                    fontSize: '18px', 
+                    color: '#333', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '8px' 
+                  }}>
+                    {reviews[selectedPitch.id] ? '✏️ Edit Your Review' : '✍️ Submit Your Review'}
+                  </h4>
                   {/* Ensure form populates correctly using reviewFormData */}
                   <form onSubmit={handleReviewSubmit}>
                     {/* Rating Selects */}
-                    <div style={{marginBottom: '15px'}}>
-                      <label style={{display: 'block', marginBottom: '5px', fontWeight: 'bold'}}> Pitch Video Clarity & Persuasiveness</label>
-                      <select name="pitchVideoRating" value={reviewFormData.pitchVideoRating || ""} onChange={handleReviewFormChange} required style={{width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '0px', fontFamily:'inherit', background:'#fff', fontSize:'1em'}}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ 
+                        display: 'block', 
+                        marginBottom: '6px', 
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        color: '#666'
+                      }}>
+                        Pitch Video Clarity & Persuasiveness
+                      </label>
+                      <select 
+                        name="pitchVideoRating" 
+                        value={reviewFormData.pitchVideoRating || ""} 
+                        onChange={handleReviewFormChange} 
+                        required 
+                        style={{
+                          width: '100%', 
+                          height: '36px',
+                          padding: '0 12px', 
+                          border: '1px solid #e0e0e0', 
+                          borderRadius: '6px', 
+                          fontFamily:'inherit', 
+                          background:'#fff', 
+                          fontSize:'14px',
+                          outline: 'none',
+                          transition: 'border-color 0.2s ease'
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
+                        onBlur={(e) => e.target.style.borderColor = '#E0E0E0'}
+                      >
                         <option value="" disabled>-- Rate Video --</option>
                         <option value="Strong">Strong</option>
                         <option value="Average">Average</option>
                         <option value="Poor">Poor</option>
                       </select>
                     </div>
-                    <div style={{marginBottom: '15px'}}>
-                      <label style={{display: 'block', marginBottom: '5px', fontWeight: 'bold'}}> Business Model Viability</label>
-                      <select name="businessModelRating" value={reviewFormData.businessModelRating || ""} onChange={handleReviewFormChange} required style={{width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '0px', fontFamily:'inherit', background:'#fff', fontSize:'1em'}}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ 
+                        display: 'block', 
+                        marginBottom: '6px', 
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        color: '#666'
+                      }}>
+                        Business Model Viability
+                      </label>
+                      <select 
+                        name="businessModelRating" 
+                        value={reviewFormData.businessModelRating || ""} 
+                        onChange={handleReviewFormChange} 
+                        required 
+                        style={{
+                          width: '100%', 
+                          height: '36px',
+                          padding: '0 12px', 
+                          border: '1px solid #e0e0e0', 
+                          borderRadius: '6px', 
+                          fontFamily:'inherit', 
+                          background:'#fff', 
+                          fontSize:'14px',
+                          outline: 'none',
+                          transition: 'border-color 0.2s ease'
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
+                        onBlur={(e) => e.target.style.borderColor = '#E0E0E0'}
+                      >
                         <option value="" disabled>-- Rate Model --</option>
                         <option value="Strong">Strong</option>
                         <option value="Average">Average</option>
                         <option value="Poor">Poor</option>
                       </select>
                     </div>
-                    <div style={{marginBottom: '15px'}}>
-                      <label style={{display: 'block', marginBottom: '5px', fontWeight: 'bold'}}> Product Market Fit Evidence</label>
-                      <select name="productMarketFitRating" value={reviewFormData.productMarketFitRating || ""} onChange={handleReviewFormChange} required style={{width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '0px', fontFamily:'inherit', background:'#fff', fontSize:'1em'}}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ 
+                        display: 'block', 
+                        marginBottom: '6px', 
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        color: '#666'
+                      }}>
+                        Product Market Fit Evidence
+                      </label>
+                      <select 
+                        name="productMarketFitRating" 
+                        value={reviewFormData.productMarketFitRating || ""} 
+                        onChange={handleReviewFormChange} 
+                        required 
+                        style={{
+                          width: '100%', 
+                          height: '36px',
+                          padding: '0 12px', 
+                          border: '1px solid #e0e0e0', 
+                          borderRadius: '6px', 
+                          fontFamily:'inherit', 
+                          background:'#fff', 
+                          fontSize:'14px',
+                          outline: 'none',
+                          transition: 'border-color 0.2s ease'
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
+                        onBlur={(e) => e.target.style.borderColor = '#E0E0E0'}
+                      >
                         <option value="" disabled>-- Rate Fit --</option>
                         <option value="Strong">Strong</option>
                         <option value="Average">Average</option>
                         <option value="Poor">Poor</option>
                       </select>
                     </div>
-                    <div style={{marginBottom: '15px'}}>
-                      <label style={{display: 'block', marginBottom: '5px', fontWeight: 'bold'}}> Overall LP Recommendation</label>
-                      <select name="overallLpRating" value={reviewFormData.overallLpRating || ""} onChange={handleReviewFormChange} required style={{width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '0px', fontFamily:'inherit', background:'#fff', fontSize:'1em'}}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ 
+                        display: 'block', 
+                        marginBottom: '6px', 
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        color: '#666'
+                      }}>
+                        Overall LP Recommendation
+                      </label>
+                      <select 
+                        name="overallLpRating" 
+                        value={reviewFormData.overallLpRating || ""} 
+                        onChange={handleReviewFormChange} 
+                        required 
+                        style={{
+                          width: '100%', 
+                          height: '36px',
+                          padding: '0 12px', 
+                          border: '1px solid #e0e0e0', 
+                          borderRadius: '6px', 
+                          fontFamily:'inherit', 
+                          background:'#fff', 
+                          fontSize:'14px',
+                          outline: 'none',
+                          transition: 'border-color 0.2s ease'
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
+                        onBlur={(e) => e.target.style.borderColor = '#E0E0E0'}
+                      >
                         <option value="" disabled>-- Select Overall Rating --</option>
                         {/* Added Emojis to options */}
                         <option value="Favorite"> ⭐ Favorite (Strongly Recommend)</option>
@@ -1947,22 +2321,60 @@ return (
                       </select>
                     </div>
                     {/* Comments Textarea */}
-                    <div style={{marginBottom: '20px'}}>
-                      <label style={{display: 'block', marginBottom: '5px', fontWeight: 'bold'}}> Private Comments (Optional, for GNF team)</label>
+                    <div style={{ marginBottom: '24px' }}>
+                      <label style={{ 
+                        display: 'block', 
+                        marginBottom: '6px', 
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        color: '#666'
+                      }}>
+                        Private Comments (Optional, for GNF team)
+                      </label>
                       <textarea
                         name="comments"
                         rows="5"
-                        style={{ width: "calc(100% - 18px)", padding: '8px', border: '1px solid #ccc', borderRadius: '0px', fontFamily:'inherit', fontSize:'1em' }}
+                        style={{ 
+                          width: '100%', 
+                          padding: '10px 12px', 
+                          border: '1px solid #e0e0e0', 
+                          borderRadius: '6px', 
+                          fontFamily:'inherit', 
+                          fontSize:'14px',
+                          resize: 'vertical',
+                          backgroundColor: '#FFFFFF',
+                          outline: 'none',
+                          transition: 'border-color 0.2s ease',
+                          boxSizing: 'border-box'
+                        }}
                         value={reviewFormData.comments || ""}
                         onChange={handleReviewFormChange}
                         placeholder="Your internal notes, strengths, weaknesses, questions..."
+                        onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
+                        onBlur={(e) => e.target.style.borderColor = '#E0E0E0'}
                       />
                     </div>
                     {/* Submit Button */}
-                    <RetroButton type="submit" primary style={{ minWidth: '150px' }}>
+                    <button
+                      type="submit"
+                      style={{
+                        width: '100%',
+                        padding: '12px',
+                        backgroundColor: '#FF69B4',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => e.target.style.backgroundColor = '#FF1493'}
+                      onMouseLeave={(e) => e.target.style.backgroundColor = '#FF69B4'}
+                    >
                       {/* Check user's review state `reviews` */}
                       {reviews[selectedPitch.id] ? '💾 Update Review' : '✨ Submit Review'} {/* Added Emojis */}
-                    </RetroButton>
+                    </button>
                   </form>
                 </div>
               </div>
@@ -1980,7 +2392,7 @@ return (
               onClick={() => setActiveAdminTab('pitchesAndReviews')}
               style={{ padding: '7px 12px', border: 'none', borderBottom: activeAdminTab === 'pitchesAndReviews' ? '3px solid #FFD6EC' : '3px solid transparent', background: 'transparent', cursor: 'pointer', fontWeight: activeAdminTab === 'pitchesAndReviews' ? 'bold' : 'normal', fontSize:'inherit', fontFamily:'inherit'}}
             >
-              Pitches / Reviews
+              Reviews
             </button>
             <button
               onClick={() => setActiveAdminTab('grantWinners')}
@@ -2022,16 +2434,16 @@ return (
           {/* Admin: Pitches & Reviews Sub-Tab Content */}
           {activeAdminTab === 'pitchesAndReviews' && (
             <>
-              <h4> Admin: Pitches + LP Reviews Summary</h4>
+              <h4> Admin: LP Reviews Summary</h4>
               {/* Filters for Admin Pitches - Styles adjusted, Fav filter changed to dropdown */}
-              <div style={{ display: "flex", flexWrap: 'wrap', gap: "8px", marginBottom: "20px", padding: '12px', border: '1px solid #eee', background: '#f8f8f8', borderRadius: '4px', alignItems: 'center', fontSize: '0.85em' /* Reduced font size */ }}>
+              <div style={{ display: "flex", flexWrap: 'wrap', gap: "10px", marginBottom: "20px", padding: '15px', border: '1px solid #e0e0e0', background: 'white', borderRadius: '8px', alignItems: 'center', fontSize: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
                 {isSuperAdmin && (
-                  <select value={adminChapterFilter} onChange={(e) => setAdminChapterFilter(e.target.value)} style={{ padding: '6px', height: '30px', border:'1px solid #ccc', fontFamily:'inherit', background:'#fff', fontSize:'inherit', marginRight: '4px' }}>
+                  <select value={adminChapterFilter} onChange={(e) => setAdminChapterFilter(e.target.value)} style={{ padding: '8px 12px', height: '36px', border:'1px solid #e0e0e0', borderRadius: '6px', fontFamily:'inherit', background:'white', fontSize:'inherit', outline: 'none', transition: 'border-color 0.2s ease', cursor: 'pointer' }} onFocus={(e) => e.target.style.borderColor = '#FFB6D9'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}>
                     <option value="">All Chapters</option>
                     {[...new Set(adminPitches.map((p) => p.chapter).filter(Boolean))].sort().map((c) => (<option key={c} value={c}>{c}</option>))}
                   </select>
                 )}
-                <select value={adminQuarterFilter} onChange={(e) => setAdminQuarterFilter(e.target.value)} style={{ padding: '6px', height: '30px', border:'1px solid #ccc', fontFamily:'inherit', background:'#fff', fontSize:'inherit', marginRight: '4px' }}>
+                <select value={adminQuarterFilter} onChange={(e) => setAdminQuarterFilter(e.target.value)} style={{ padding: '8px 12px', height: '36px', border:'1px solid #e0e0e0', borderRadius: '6px', fontFamily:'inherit', background:'white', fontSize:'inherit', outline: 'none', transition: 'border-color 0.2s ease', cursor: 'pointer' }} onFocus={(e) => e.target.style.borderColor = '#FFB6D9'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}>
                   <option value="">All Quarters</option>
                   {[...new Set(adminPitches.map((p) => p.quarter).filter(Boolean))]
                     .sort((a, b) => {
@@ -2042,7 +2454,7 @@ return (
                     .map((q) => (<option key={q} value={q}>{q}</option>))}
                 </select>
                 {/* Favorite Filter Dropdown */}
-                <select value={adminFavoriteFilterMode} onChange={(e) => setAdminFavoriteFilterMode(e.target.value)} style={{ padding: '6px', height: '30px', border:'1px solid #ccc', fontFamily:'inherit', background:'#fff', fontSize:'inherit', marginRight: '4px' }}>
+                <select value={adminFavoriteFilterMode} onChange={(e) => setAdminFavoriteFilterMode(e.target.value)} style={{ padding: '8px 12px', height: '36px', border:'1px solid #e0e0e0', borderRadius: '6px', fontFamily:'inherit', background:'white', fontSize:'inherit', outline: 'none', transition: 'border-color 0.2s ease', cursor: 'pointer' }} onFocus={(e) => e.target.style.borderColor = '#FFB6D9'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}>
                     <option value="all">All Ratings</option>
                     <option value="favsOnly">⭐ Favorites Only</option>
                     <option value="favsAndCons">⭐/💡 Favs & Considerations</option>
@@ -2051,18 +2463,70 @@ return (
                   type="text"
                   placeholder="Search name, business, email..."
                   value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)}
-                  style={{ flexGrow: 1, minWidth: '180px', padding: '6px', height: '16px', /* Adjusted */ border: '1px solid #ccc', fontFamily:'inherit', fontSize:'inherit', marginRight: '4px' }}
+                  style={{ flexGrow: 1, minWidth: '200px', padding: '8px 12px', height: '36px', border: '1px solid #e0e0e0', borderRadius: '6px', fontFamily:'inherit', fontSize:'inherit', outline: 'none', transition: 'border-color 0.2s ease', boxSizing: 'border-box' }}
+                  onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
+                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                 />
                 {/* Hide Pass Button */}
-                <RetroButton
+                <button
                     onClick={() => setAdminHidePassed(!adminHidePassed)}
                     title={adminHidePassed ? "Show pitches with only Pass/Ineligible reviews" : "Hide pitches with only Pass/Ineligible reviews"}
-                    style={{ height: '30px', fontSize: 'inherit', background: adminHidePassed ? '#ccc' : '#eee', padding: '0 10px', marginRight: '4px' }}
+                    style={{ 
+                      height: '36px', 
+                      fontSize: 'inherit', 
+                      background: adminHidePassed ? '#FFB6D9' : 'white', 
+                      color: adminHidePassed ? 'white' : '#666',
+                      border: `1px solid ${adminHidePassed ? '#FFB6D9' : '#e0e0e0'}`,
+                      borderRadius: '6px',
+                      padding: '0 16px', 
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      fontFamily: 'inherit'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!adminHidePassed) {
+                        e.target.style.background = '#f5f5f5';
+                        e.target.style.borderColor = '#ccc';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!adminHidePassed) {
+                        e.target.style.background = 'white';
+                        e.target.style.borderColor = '#e0e0e0';
+                      }
+                    }}
                 >
-                    {adminHidePassed ? 'Show All Pass' : 'Hide ❌/🚫'}
-                </RetroButton>
+                    {adminHidePassed ? '👁️ Show Pass/Ineligible' : '👁️ Hide Pass/Ineligible'}
+                </button>
                 {/* Export Button */}
-                <RetroButton onClick={handleAdminPitchExport} style={{height:'30px', fontSize: 'inherit', padding:'0 12px'}}> 💾 Export CSV</RetroButton> {/* Added Emoji */}
+                <button 
+                  onClick={handleAdminPitchExport} 
+                  style={{
+                    height:'36px', 
+                    fontSize: 'inherit', 
+                    padding:'0 16px',
+                    background: 'white',
+                    color: '#666',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    fontFamily: 'inherit',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = '#f5f5f5';
+                    e.target.style.borderColor = '#ccc';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = 'white';
+                    e.target.style.borderColor = '#e0e0e0';
+                  }}
+                > 
+                  💾 Export CSV
+                </button> {/* Added Emoji */}
               </div>
 
               {/* Admin Pitches List - Uses adminFilteredSortedPitches */}
@@ -2085,12 +2549,72 @@ return (
                       </div>
                       {/* Action Buttons - Reduced font, improved centering */}
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
-                        <RetroButton onClick={() => handleAssignWinner(p.id, p.isWinner)} style={{ background: p.isWinner ? '#ffcdd2' : '#c8e6c9', color: p.isWinner ? '#b71c1c' : '#1b5e20', border: p.isWinner ? '1px solid #ef9a9a' : '1px solid #a5d6a7', padding: '5px 10px', height: '30px', fontSize: '0.9em' }}>
-                          {p.isWinner ? '🏆 Remove Winner' : '🏆 Assign Winner'} {/* Added Emoji */}
-                        </RetroButton>
-                        <RetroButton onClick={() => setExpandedPitchId(expandedPitchId === p.id ? null : p.id)} style={{padding: '5px 10px', height: '30px', fontSize: '0.9em' }}>
-                          {expandedPitchId === p.id ? '🔼 Hide Details' : '🔽 View Details'} {/* Added Emojis */}
-                        </RetroButton>
+                        <button
+                          onClick={() => handleAssignWinner(p.id, p.isWinner)}
+                          style={{
+                            background: p.isWinner ? 'white' : '#B8E6B8',
+                            color: p.isWinner ? '#666' : '#2D5A2D',
+                            border: `1px solid ${p.isWinner ? '#e0e0e0' : '#A5D6A7'}`,
+                            borderRadius: '6px',
+                            padding: '6px 14px',
+                            height: '32px',
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            fontFamily: 'inherit',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                          onMouseEnter={(e) => {
+                            if (p.isWinner) {
+                              e.target.style.background = '#f5f5f5';
+                              e.target.style.borderColor = '#ccc';
+                            } else {
+                              e.target.style.background = '#A5D6A7';
+                              e.target.style.borderColor = '#81C784';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (p.isWinner) {
+                              e.target.style.background = 'white';
+                              e.target.style.borderColor = '#e0e0e0';
+                            } else {
+                              e.target.style.background = '#B8E6B8';
+                              e.target.style.borderColor = '#A5D6A7';
+                            }
+                          }}
+                        >
+                          {p.isWinner ? '🏆 Remove Winner' : '🏆 Assign Winner'}
+                        </button>
+                        <button
+                          onClick={() => setExpandedPitchId(expandedPitchId === p.id ? null : p.id)}
+                          style={{
+                            background: 'white',
+                            color: '#666',
+                            border: '1px solid #e0e0e0',
+                            borderRadius: '6px',
+                            padding: '6px 14px',
+                            height: '32px',
+                            fontSize: '13px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            fontFamily: 'inherit',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.target.style.background = '#f5f5f5';
+                            e.target.style.borderColor = '#ccc';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.target.style.background = 'white';
+                            e.target.style.borderColor = '#e0e0e0';
+                          }}
+                        >
+                          {expandedPitchId === p.id ? '📖 Hide Details' : '📖 View Details'}
+                        </button>
                       </div>
                     </div>
                     {/* Review Summary Section */}
@@ -2118,40 +2642,108 @@ return (
                     )}
                     {/* Expanded Details Section (Conditional) */}
                     {expandedPitchId === p.id && (
-                      <div style={{ marginTop: "15px", paddingTop: '15px', borderTop: '1px solid #eee', display: 'flex', gap: '20px', flexWrap:'wrap' }}>
+                      <div style={{ marginTop: "20px", paddingTop: '20px', borderTop: '1px solid #e0e0e0', display: 'flex', gap: '20px', flexWrap:'wrap' }}>
                         {/* Pitch Details */}
-                        <div style={{ flex: '1 1 50%', minWidth: '300px', fontSize: "13px", lineHeight: '1.7', background: '#fdfdfd', padding: '15px', borderRadius: '4px', whiteSpace: 'pre-wrap', fontFamily: 'monospace', maxHeight:'400px', overflowY:'auto', border:'1px solid #f0f0f0' }}>
-                            <strong>Full Pitch Details:</strong><br />
-                            ----------------<br />
-                            Name: {p.founderName || "N/A"}<br />
-                            Email: {p.email || "N/A"}<br />
-                            Zip Code: {p.zipCode || "N/A"}<br />
-                            Website: {p.website || "N/A"}<br />
-                            Video URL: {p.pitchVideoUrl || "N/A"}<br />
-                            Video File: {p.pitchVideoFile || "N/A"} {/* Added */} <br />
-                            Heard About: {p.heardAbout || "N/A"}<br />
-                            Paying Customers: {p.hasPayingCustomers ? 'Yes':'No'}<br />
-                            Self ID Tags: {p.selfIdentification?.join(", ") || "N/A"}<br />
-                            ----------------<br />
-                            Value Proposition: {p.valueProp || "N/A"}<br />
-                            Problem: {p.problem || "N/A"}<br />
-                            Solution: {p.solution || "N/A"}<br />
-                            Business Model: {p.businessModel || "N/A"}<br />
-                            Use of Grant Funds: {p.grantUsePlan || "N/A"}<br />
-                            Founder Bio: {p.bio || "N/A"} {/* Added */} <br />
+                        <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
+                          <h5 style={{ marginBottom: '15px', color: '#333', fontSize: '16px', fontWeight: '600' }}>Full Pitch Details</h5>
+                          <div style={{ background: 'white', padding: '25px', borderRadius: '8px', border: '1px solid #e0e0e0', maxHeight:'500px', overflowY:'auto' }}>
+                            {/* Basic Info */}
+                            <div style={{ marginBottom: '12px' }}>
+                              <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Founder:</span>
+                              <span style={{ color: '#333', fontSize: '14px', fontWeight: '500' }}>{p.founderName || "N/A"}</span>
+                            </div>
+                            
+                            <div style={{ marginBottom: '12px' }}>
+                              <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Email:</span>
+                              <span style={{ color: '#333', fontSize: '14px' }}>{p.email || "N/A"}</span>
+                            </div>
+                            
+                            <div style={{ marginBottom: '12px' }}>
+                              <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Website:</span>
+                              <span style={{ color: '#333', fontSize: '14px' }}>{p.website || "N/A"}</span>
+                            </div>
+                            
+                            <div style={{ marginBottom: '12px' }}>
+                              <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Paying Customers:</span>
+                              <span style={{ color: p.hasPayingCustomers ? '#4CAF50' : '#666', fontSize: '14px', fontWeight: p.hasPayingCustomers ? '600' : 'normal' }}>
+                                {p.hasPayingCustomers ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+
+                            <div style={{ marginBottom: '20px' }}>
+                              <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Heard About:</span>
+                              <span style={{ color: '#333', fontSize: '14px' }}>{p.heardAbout || "N/A"}</span>
+                            </div>
+
+                            {/* Business Details - Less sectioned */}
+                            <div style={{ marginBottom: '16px' }}>
+                              <div style={{ color: '#999', fontSize: '13px', marginBottom: '6px' }}>Value Proposition</div>
+                              <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{p.valueProp || "N/A"}</div>
+                            </div>
+
+                            <div style={{ marginBottom: '16px' }}>
+                              <div style={{ color: '#999', fontSize: '13px', marginBottom: '6px' }}>Problem</div>
+                              <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{p.problem || "N/A"}</div>
+                            </div>
+
+                            <div style={{ marginBottom: '16px' }}>
+                              <div style={{ color: '#999', fontSize: '13px', marginBottom: '6px' }}>Solution</div>
+                              <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{p.solution || "N/A"}</div>
+                            </div>
+
+                            <div style={{ marginBottom: '16px' }}>
+                              <div style={{ color: '#999', fontSize: '13px', marginBottom: '6px' }}>Business Model</div>
+                              <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{p.businessModel || "N/A"}</div>
+                            </div>
+
+                            <div style={{ marginBottom: '16px' }}>
+                              <div style={{ color: '#999', fontSize: '13px', marginBottom: '6px' }}>Grant Fund Use</div>
+                              <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{p.grantUsePlan || "N/A"}</div>
+                            </div>
+
+                            <div style={{ marginBottom: '16px' }}>
+                              <div style={{ color: '#999', fontSize: '13px', marginBottom: '6px' }}>Founder Bio</div>
+                              <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{p.bio || "N/A"}</div>
+                            </div>
+
+                            <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '16px', marginTop: '20px' }}>
+                              <div style={{ marginBottom: '12px' }}>
+                                <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Zip Code:</span>
+                                <span style={{ color: '#333', fontSize: '14px' }}>{p.zipCode || "N/A"}</span>
+                              </div>
+                              
+                              <div style={{ marginBottom: '12px' }}>
+                                <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Video URL:</span>
+                                <span style={{ color: '#333', fontSize: '14px' }}>{p.pitchVideoUrl || "N/A"}</span>
+                              </div>
+                              
+                              <div>
+                                <div style={{ color: '#999', fontSize: '13px', marginBottom: '6px' }}>Self Identification Tags:</div>
+                                <div style={{ color: '#333', fontSize: '14px' }}>{p.selfIdentification?.join(", ") || "N/A"}</div>
+                              </div>
+                            </div>
+                          </div>
                         </div>
                         {/* Aggregated Comments Added */}
-                        <div style={{ flex: '1 1 40%', minWidth: '250px', fontSize: "13px", lineHeight: '1.6', background: '#fff8e1', padding: '15px', borderRadius: '4px', maxHeight:'400px', overflowY:'auto', border:'1px solid #eee' }}>
-                            <strong>Aggregated LP Comments ({groupedReviews.comments.length}):</strong><br />
+                        <div style={{ flex: '1 1 40%', minWidth: '250px' }}>
+                          <h5 style={{ marginBottom: '15px', color: '#333', fontSize: '16px', fontWeight: '600' }}>LP Review Comments ({groupedReviews.comments.length})</h5>
+                          <div style={{ background: 'white', padding: '20px', borderRadius: '8px', border: '1px solid #e0e0e0', maxHeight:'500px', overflowY:'auto' }}>
                             {groupedReviews.comments.length > 0 ? (
                                 groupedReviews.comments.map((comment, index) => (
-                                    <div key={index} style={{ borderBottom: '1px dashed #ccc', padding: '8px 0', marginTop: '8px' }}>
-                                        "{comment}"
+                                    <div key={index} style={{ 
+                                      padding: '12px 0', 
+                                      borderBottom: index < groupedReviews.comments.length - 1 ? '1px solid #f0f0f0' : 'none',
+                                      fontSize: '14px',
+                                      lineHeight: '1.6',
+                                      color: '#333'
+                                    }}>
+                                      {comment}
                                     </div>
                                 ))
                             ) : (
-                                <p style={{ fontStyle: 'italic', color: '#666', marginTop: '10px' }}>No comments provided in reviews.</p>
+                                <p style={{ fontStyle: 'italic', color: '#999', textAlign: 'center', padding: '20px' }}>No comments provided in reviews.</p>
                             )}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -2852,49 +3444,109 @@ return (
                   
                   return (
                     <div key={member.id} style={{
-                      background: '#f9f9f9',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      padding: '15px',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'start' }}>
-                          {photoUrl && (
-                            <img 
-                              src={photoUrl} 
-                              alt={member.name}
-                              style={{
-                                width: '50px',
-                                height: '50px',
-                                borderRadius: '50%',
-                                objectFit: 'cover',
-                                border: '2px solid #ddd'
-                              }}
-                              onError={(e) => e.target.style.display = 'none'}
-                            />
+                      background: 'white',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '12px',
+                      padding: '20px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                      transition: 'box-shadow 0.2s ease',
+                      cursor: 'default'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'}
+                    onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)'}
+                    >
+                      <div style={{ display: 'flex', gap: '15px', alignItems: 'start', marginBottom: '12px' }}>
+                        {photoUrl && (
+                          <img 
+                            src={photoUrl} 
+                            alt={member.name}
+                            style={{
+                              width: '60px',
+                              height: '60px',
+                              borderRadius: '50%',
+                              objectFit: 'cover',
+                              border: '3px solid #FFD6EC'
+                            }}
+                            onError={(e) => e.target.style.display = 'none'}
+                          />
+                        )}
+                        <div style={{ flex: 1 }}>
+                          <h4 style={{ margin: '0 0 4px 0', fontSize: '16px', color: '#333' }}>
+                            {member.name || 'Unknown'}
+                          </h4>
+                          {member.professionalRole && (
+                            <div style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>{member.professionalRole}</div>
                           )}
-                          <div>
-                            <h4 style={{ margin: '0 0 5px 0' }}>
-                              {member.name || 'Unknown'}
-                            </h4>
-                            <div style={{ fontSize: '13px', color: '#666' }}>{member.email}</div>
-                            {member.professionalRole && (
-                              <div style={{ fontSize: '12px', color: '#444', marginTop: '2px' }}>{member.professionalRole}</div>
-                            )}
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <button
+                              onClick={() => window.open(`mailto:${member.email}`, '_self')}
+                              style={{
+                                background: 'white',
+                                color: '#666',
+                                border: '1px solid #e0e0e0',
+                                borderRadius: '6px',
+                                padding: '5px 12px',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif',
+                                transition: 'all 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.target.style.background = '#f5f5f5';
+                                e.target.style.borderColor = '#ccc';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.background = 'white';
+                                e.target.style.borderColor = '#e0e0e0';
+                              }}
+                            >
+                              Email
+                            </button>
                             {member.linkedinUrl && (
-                              <a href={member.linkedinUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#0077B5', marginTop: '2px', display: 'inline-block' }}>
-                                LinkedIn Profile
-                              </a>
+                              <button
+                                onClick={() => window.open(member.linkedinUrl, '_blank')}
+                                style={{
+                                  background: 'white',
+                                  color: '#0077B5',
+                                  border: '1px solid #e0e0e0',
+                                  borderRadius: '6px',
+                                  padding: '5px 12px',
+                                  fontSize: '12px',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif',
+                                  transition: 'all 0.2s ease'
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.target.style.background = '#f5f5f5';
+                                  e.target.style.borderColor = '#0077B5';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.target.style.background = 'white';
+                                  e.target.style.borderColor = '#e0e0e0';
+                                }}
+                              >
+                                LinkedIn
+                              </button>
                             )}
                           </div>
                         </div>
                       </div>
                       
-                      <div style={{ fontSize: '12px', color: '#888', marginBottom: '10px' }}>
-                        <strong>Member Since:</strong> {
+                      <div style={{ fontSize: '11px', color: '#999', paddingTop: '8px', borderTop: '1px solid #f0f0f0' }}>
+                        Member Since: {
                           member.anniversary 
-                            ? new Date(member.anniversary.seconds ? member.anniversary.seconds * 1000 : member.anniversary).toLocaleDateString()
+                            ? (() => {
+                                const date = new Date(member.anniversary.seconds ? member.anniversary.seconds * 1000 : member.anniversary);
+                                const monthNames = ["January", "February", "March", "April", "May", "June", 
+                                                   "July", "August", "September", "October", "November", "December"];
+                                return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+                              })()
                             : 'Unknown'
                         }
                       </div>

@@ -3,7 +3,7 @@ import React from 'react';
 import { getCurrentQuarter } from '../services/statsTracking';
 import { BADGES } from '../data/badgeDefinitions';
 
-export default function StatsBar({ user, stats, badges = [] }) {
+export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) {
   // Calculate success rate
   const successRate = stats?.totalPredictions > 0 
     ? Math.round((stats.correctPredictions / stats.totalPredictions) * 100)
@@ -12,6 +12,13 @@ export default function StatsBar({ user, stats, badges = [] }) {
   // Get current quarter reviews
   const currentQuarter = getCurrentQuarter();
   const quarterReviews = stats?.quarterlyReviews?.[currentQuarter] || 0;
+  
+  // Calculate chapter stats
+  const currentYear = new Date().getFullYear();
+  const pitchesThisQuarter = pitchStats?.quarterlyPitches?.[currentQuarter] || 0;
+  const pitchesThisYear = pitchStats?.yearlyPitches?.[currentYear] || 0;
+  const totalGrantWinners = pitchStats?.totalGrantWinners || 0;
+  const totalDollarsAwarded = totalGrantWinners * 1000;
 
   // Find next milestone badge
   const milestoneBadges = [
@@ -31,12 +38,9 @@ export default function StatsBar({ user, stats, badges = [] }) {
 
   return (
     <div style={{
-      background: 'linear-gradient(to bottom, #FFE4F1, #FFD6EC)',
-      border: '2px solid #FFB6D9',
-      borderRadius: '8px',
+      background: 'white',
+      borderBottom: '1px solid #e0e0e0',
       padding: '12px 20px',
-      margin: '10px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
       fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif'
     }}>
       <div style={{
@@ -46,42 +50,78 @@ export default function StatsBar({ user, stats, badges = [] }) {
         flexWrap: 'wrap',
         gap: '15px'
       }}>
-        {/* Stats Section */}
-        <div style={{ display: 'flex', gap: '25px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>This Quarter</div>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>{quarterReviews}</div>
-            <div style={{ fontSize: '10px', color: '#888' }}>{currentQuarter}</div>
-          </div>
-          
-          <div style={{ width: '1px', height: '40px', background: '#FFB6D9' }} />
-          
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>All Time</div>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>{totalReviews}</div>
-            <div style={{ fontSize: '10px', color: '#888' }}>Reviews</div>
-          </div>
-          
-          <div style={{ width: '1px', height: '40px', background: '#FFB6D9' }} />
-          
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>Success Rate</div>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: successRate >= 70 ? '#4CAF50' : '#333' }}>
-              {successRate}%
+        {/* Stats Sections */}
+        <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          {/* LP Stats */}
+          <div>
+            <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px', fontWeight: '600' }}>LP Stats</div>
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>{currentQuarter}</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>{quarterReviews}</div>
+                <div style={{ fontSize: '10px', color: '#888' }}>Reviews</div>
+              </div>
+              
+              <div style={{ width: '1px', height: '40px', background: '#e0e0e0' }} />
+              
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>All Time</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>{totalReviews}</div>
+                <div style={{ fontSize: '10px', color: '#888' }}>Reviews</div>
+              </div>
+              
+              <div style={{ width: '1px', height: '40px', background: '#e0e0e0' }} />
+              
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>Success Rate</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: successRate >= 70 ? '#4CAF50' : '#333' }}>
+                  {successRate}%
+                </div>
+                <div style={{ fontSize: '10px', color: '#888' }}>
+                  {stats?.correctPredictions || 0}/{stats?.totalPredictions || 0}
+                </div>
+              </div>
+              
+              <div style={{ width: '1px', height: '40px', background: '#e0e0e0' }} />
+              
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>Current Streak</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#FF6B6B' }}>
+                  🔥 {stats?.currentStreak || 0}
+                </div>
+                <div style={{ fontSize: '10px', color: '#888' }}>weeks</div>
+              </div>
             </div>
-            <div style={{ fontSize: '10px', color: '#888' }}>
-              {stats?.correctPredictions || 0}/{stats?.totalPredictions || 0}
-            </div>
           </div>
-          
-          <div style={{ width: '1px', height: '40px', background: '#FFB6D9' }} />
-          
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>Current Streak</div>
-            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#FF6B6B' }}>
-              🔥 {stats?.currentStreak || 0}
+
+          {/* Chapter Stats */}
+          <div>
+            <div style={{ fontSize: '12px', color: '#999', marginBottom: '8px', fontWeight: '600' }}>Chapter Stats</div>
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>{currentQuarter}</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>{pitchesThisQuarter}</div>
+                <div style={{ fontSize: '10px', color: '#888' }}>Pitches</div>
+              </div>
+              
+              <div style={{ width: '1px', height: '40px', background: '#e0e0e0' }} />
+              
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>{currentYear}</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>{pitchesThisYear}</div>
+                <div style={{ fontSize: '10px', color: '#888' }}>Pitches</div>
+              </div>
+              
+              <div style={{ width: '1px', height: '40px', background: '#e0e0e0' }} />
+              
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '11px', color: '#666', marginBottom: '2px' }}>Total Awarded</div>
+                <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#4CAF50' }}>
+                  ${totalDollarsAwarded.toLocaleString()}
+                </div>
+                <div style={{ fontSize: '10px', color: '#888' }}>{totalGrantWinners} winners</div>
+              </div>
             </div>
-            <div style={{ fontSize: '10px', color: '#888' }}>weeks</div>
           </div>
         </div>
 
@@ -117,10 +157,10 @@ export default function StatsBar({ user, stats, badges = [] }) {
               
               return (
                 <div key={badge.id || badge.badgeId} style={{
-                  background: 'rgba(255,255,255,0.7)',
-                  borderRadius: '6px',
+                  background: '#f8f8f8',
+                  borderRadius: '8px',
                   padding: '8px 12px',
-                  border: '1px solid #FFB6D9',
+                  border: '1px solid #e0e0e0',
                   textAlign: 'center',
                   display: 'flex',
                   flexDirection: 'column',
@@ -128,7 +168,7 @@ export default function StatsBar({ user, stats, badges = [] }) {
                   minHeight: '80px',
                   minWidth: '80px',
                   position: 'relative',
-                  filter: isRecent ? 'drop-shadow(0 0 6px gold)' : 'none'
+                  filter: 'none'
                 }} title={`${badgeData.name}${isRecent ? ' (Recently Earned!)' : ''}\nEarned: ${earnedDate && !isNaN(earnedDate.getTime()) ? earnedDate.toLocaleDateString() : 'Date unknown'}`}>
                   <div style={{ fontSize: '24px', marginBottom: '2px' }}>{badgeData.name.split(' ')[0]}</div>
                   <div style={{ fontSize: '9px', color: '#666', lineHeight: '1.2' }}>
@@ -137,17 +177,9 @@ export default function StatsBar({ user, stats, badges = [] }) {
                   {isRecent && (
                     <div style={{
                       position: 'absolute',
-                      top: '4px',
-                      right: '4px',
-                      fontSize: '10px',
-                      background: 'gold',
-                      borderRadius: '50%',
-                      width: '16px',
-                      height: '16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                      top: '2px',
+                      right: '2px',
+                      fontSize: '14px'
                     }}>✨</div>
                   )}
                   {isRecent && (
@@ -157,9 +189,8 @@ export default function StatsBar({ user, stats, badges = [] }) {
                       left: '50%',
                       transform: 'translateX(-50%)',
                       fontSize: '8px',
-                      color: 'gold',
-                      fontWeight: 'bold',
-                      textShadow: '0 0 2px rgba(0,0,0,0.5)'
+                      color: '#FF6B6B',
+                      fontWeight: 'bold'
                     }}>NEW!</div>
                   )}
                 </div>
@@ -171,10 +202,10 @@ export default function StatsBar({ user, stats, badges = [] }) {
           {/* Next Badge Progress */}
           {nextMilestone && (
             <div style={{
-              background: 'rgba(255,255,255,0.7)',
-              borderRadius: '6px',
+              background: '#f8f8f8',
+              borderRadius: '8px',
               padding: '8px 12px',
-              border: '1px solid #FFB6D9',
+              border: '1px solid #e0e0e0',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
@@ -186,15 +217,15 @@ export default function StatsBar({ user, stats, badges = [] }) {
                 <div style={{
                   width: '100px',
                   height: '6px',
-                  background: '#FFE4F1',
+                  background: '#f0f0f0',
                   borderRadius: '3px',
                   overflow: 'hidden',
-                  border: '1px solid #FFB6D9'
+                  border: '1px solid #e0e0e0'
                 }}>
                   <div style={{
                     width: `${(totalReviews / nextMilestone.count) * 100}%`,
                     height: '100%',
-                    background: 'linear-gradient(to right, #FF6B6B, #FFB6D9)',
+                    background: '#FFB6D9',
                     transition: 'width 0.3s ease'
                   }} />
                 </div>
@@ -230,7 +261,7 @@ export default function StatsBar({ user, stats, badges = [] }) {
         <div style={{
           marginTop: '10px',
           paddingTop: '10px',
-          borderTop: '1px solid #FFB6D9',
+          borderTop: '1px solid #e0e0e0',
           display: 'flex',
           alignItems: 'center',
           gap: '10px',

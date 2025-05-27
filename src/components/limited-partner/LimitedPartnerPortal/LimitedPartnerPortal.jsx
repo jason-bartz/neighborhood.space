@@ -2918,7 +2918,9 @@ return (
         pitchStats={{
           quarterlyPitches: (() => {
             const quarterPitches = {};
-            const chapterPitches = user.chapter ? adminPitches.filter(p => p.chapter === user.chapter) : adminPitches;
+            // Use adminPitches for admin/superadmin, lpPitches for regular LPs
+            const pitchesToUse = isAdmin ? adminPitches : lpPitches;
+            const chapterPitches = user.chapter ? pitchesToUse.filter(p => p.chapter === user.chapter) : pitchesToUse;
             chapterPitches.forEach(pitch => {
               const quarter = pitch.quarter;
               if (quarter) {
@@ -2929,7 +2931,9 @@ return (
           })(),
           yearlyPitches: (() => {
             const yearPitches = {};
-            const chapterPitches = user.chapter ? adminPitches.filter(p => p.chapter === user.chapter) : adminPitches;
+            // Use adminPitches for admin/superadmin, lpPitches for regular LPs
+            const pitchesToUse = isAdmin ? adminPitches : lpPitches;
+            const chapterPitches = user.chapter ? pitchesToUse.filter(p => p.chapter === user.chapter) : pitchesToUse;
             chapterPitches.forEach(pitch => {
               const quarter = pitch.quarter;
               if (quarter) {
@@ -2941,9 +2945,13 @@ return (
             });
             return yearPitches;
           })(),
-          totalGrantWinners: user.chapter 
-            ? adminPitches.filter(p => p.isWinner && p.chapter === user.chapter).length
-            : adminPitches.filter(p => p.isWinner).length
+          totalGrantWinners: (() => {
+            // Use adminPitches for admin/superadmin, lpPitches for regular LPs
+            const pitchesToUse = isAdmin ? adminPitches : lpPitches;
+            return user.chapter 
+              ? pitchesToUse.filter(p => p.isWinner && p.chapter === user.chapter).length
+              : pitchesToUse.filter(p => p.isWinner).length;
+          })()
         }}
       />
     )}

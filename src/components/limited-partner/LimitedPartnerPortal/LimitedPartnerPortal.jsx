@@ -276,6 +276,7 @@ useEffect(() => {
       setReviewFormData({});
       setUsers([]);
       setAllReviewsData([]);
+      setChapterMembers([]); // Clear chapter members on logout
       setActiveTab("reviewPitches"); // Reset to default tab on logout
       setActiveAdminTab("userManagement");
     }
@@ -528,6 +529,42 @@ const loadAdminData = useCallback(async () => {
 
 }, [user, isAdmin, isSuperAdmin, userChapter]); // Dependencies for loadAdminData
 
+const loadChapterMembers = useCallback(async () => {
+  if (!user || !user.chapter) {
+    console.log("LPPortal: loadChapterMembers skipped, no user or chapter.");
+    return;
+  }
+
+  try {
+    console.log(`LPPortal: Loading chapter members for ${user.chapter}...`);
+    
+    // Query users from the same chapter who are active (lp, admin, or superAdmin)
+    const usersQuery = query(
+      collection(db, "users"),
+      where("chapter", "==", user.chapter),
+      where("role", "in", ["lp", "admin", "superAdmin"]),
+      orderBy("name", "asc")
+    );
+    
+    const usersSnap = await getDocs(usersQuery);
+    const chapterMembersList = usersSnap.docs.map(d => ({ 
+      id: d.id, 
+      ...d.data(), 
+      uid: d.id 
+    }));
+    
+    setChapterMembers(chapterMembersList);
+    console.log(`LPPortal: Chapter members loaded (${chapterMembersList.length}).`);
+  } catch (error) {
+    console.error(`LPPortal: Error loading chapter members:`, error);
+    setChapterMembers([]);
+    
+    // If it's an index error, provide a helpful message
+    if (error.message?.includes('index')) {
+      console.log("LPPortal: Firestore composite index may be required for chapter members query");
+    }
+  }
+}, [user]);
 
 
 useEffect(() => {
@@ -535,6 +572,7 @@ useEffect(() => {
   if (!isLoadingAuth && user && user.uid && user.role) {
     console.log("LPPortal: User authenticated and ready, triggering data load...");
     loadLPData(); // Load data relevant to LPs (pitches for their chapter, their reviews)
+    loadChapterMembers(); // Load chapter members for all authenticated users
     if (isAdmin) {
       loadAdminData(); // Load additional data if user is admin/superAdmin
     }
@@ -548,10 +586,11 @@ useEffect(() => {
     setReviewFormData({});
     setUsers([]);
     setAllReviewsData([]);
+    setChapterMembers([]);
   }
 
   // This effect runs when user or isLoadingAuth changes.
-}, [user, isLoadingAuth, isAdmin, loadLPData, loadAdminData]);
+}, [user, isLoadingAuth, isAdmin, loadLPData, loadAdminData, loadChapterMembers]);
 
 useEffect(() => {
   if (selectedPitch && selectedPitch.id) {

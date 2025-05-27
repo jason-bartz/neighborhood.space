@@ -43,7 +43,18 @@ export const initializeUserStats = async (userId) => {
         yearLongStreak: 0,
         exactly50WordComments: 0,
         maxReviewEdits: 0,
-        firstToReview: 0
+        firstToReview: 0,
+        christmasReview: 0,
+        anniversaryReview: 0,
+        asAMomComment: 0,
+        perfectQuarters: 0,
+        communityBusinessReviews: 0,
+        detailedReviews: 0,
+        transportationBusinessReviews: 0,
+        lateNightReviews: 0,
+        passWithDetailedComments: 0,
+        quarterCompletionRate: 0,
+        perfectQuarterCompletion: 0
       };
       
       await updateDoc(userRef, { 
@@ -122,6 +133,11 @@ export const trackReviewSubmission = async (userId, reviewData, pitchData, isEdi
       updates['stats.nightReviews'] = increment(1);
     }
     
+    // Track late night reviews (2-4 AM)
+    if (hour >= 2 && hour < 4) {
+      updates['stats.lateNightReviews'] = increment(1);
+    }
+    
     // Track weekend reviews
     if (isWeekend) {
       updates['stats.weekendReviews'] = increment(1);
@@ -160,6 +176,11 @@ export const trackReviewSubmission = async (userId, reviewData, pitchData, isEdi
       updates['stats.longComments'] = increment(1);
     }
     
+    // Track detailed reviews (300+ characters)
+    if (comment.length >= 300) {
+      updates['stats.detailedReviews'] = increment(1);
+    }
+    
     // Track exactly 50 word comments
     const wordCount = comment.split(/\s+/).filter(word => word.length > 0).length;
     if (wordCount === 50) {
@@ -169,12 +190,22 @@ export const trackReviewSubmission = async (userId, reviewData, pitchData, isEdi
     // Track pass with comments
     if (reviewData.overallLpRating === 'Pass') {
       updates['stats.passWithComments'] = increment(1);
+      
+      // Track pass with detailed comments (50+ characters)
+      if (comment.length >= 50) {
+        updates['stats.passWithDetailedComments'] = increment(1);
+      }
     }
     
     // Track "neighbor" word count
     const neighborCount = (comment.toLowerCase().match(/neighbor/g) || []).length;
     if (neighborCount > 0) {
       updates['stats.neighborWordCount'] = increment(neighborCount);
+    }
+    
+    // Track "as a mom" phrase
+    if (comment.toLowerCase().includes('as a mom')) {
+      updates['stats.asAMomComment'] = increment(1);
     }
   }
   
@@ -183,9 +214,38 @@ export const trackReviewSubmission = async (userId, reviewData, pitchData, isEdi
     updates['stats.fourTwentyReview'] = increment(1);
   }
   
+  // Track Christmas review
+  if (now.getMonth() === 11 && now.getDate() === 25) {
+    updates['stats.christmasReview'] = increment(1);
+  }
+  
+  // Track anniversary review
+  if (userData.anniversary) {
+    const anniversaryDate = userData.anniversary.toDate ? userData.anniversary.toDate() : new Date(userData.anniversary);
+    if (now.getMonth() === anniversaryDate.getMonth() && now.getDate() === anniversaryDate.getDate()) {
+      updates['stats.anniversaryReview'] = increment(1);
+    }
+  }
+  
   // Track business with website
   if (pitchData.website && pitchData.website.trim().length > 0) {
     updates['stats.businessesWithWebsites'] = increment(1);
+  }
+  
+  // Track community/event businesses (simple keyword check)
+  const businessName = (pitchData.businessName || '').toLowerCase();
+  const businessDescription = (pitchData.businessDescription || '').toLowerCase();
+  const communityKeywords = ['event', 'community', 'nonprofit', 'charity', 'festival', 'gathering', 'workshop', 'class', 'social'];
+  
+  if (communityKeywords.some(keyword => businessName.includes(keyword) || businessDescription.includes(keyword))) {
+    updates['stats.communityBusinessReviews'] = increment(1);
+  }
+  
+  // Track transportation businesses
+  const transportKeywords = ['auto', 'car', 'vehicle', 'transport', 'logistics', 'delivery', 'trucking', 'automotive', 'mechanic', 'dealership', 'ride', 'taxi', 'uber', 'lyft'];
+  
+  if (transportKeywords.some(keyword => businessName.includes(keyword) || businessDescription.includes(keyword))) {
+    updates['stats.transportationBusinessReviews'] = increment(1);
   }
   
   // Apply updates
@@ -383,6 +443,95 @@ export const checkFirstToReview = async (userId, pitchId) => {
   }
 };
 
+// Calculate quarterly completion rate
+export const calculateQuarterlyCompletion = async (userId) => {
+  const userRef = doc(db, "users", userId);
+  const userDoc = await getDoc(userRef);
+  
+  if (!userDoc.exists()) return;
+  
+  const userData = userDoc.data();
+  const userChapter = userData.chapter;
+  const currentQuarter = getCurrentQuarter();
+  
+  // Get all pitches for this quarter in user's chapter
+  const pitchesQuery = query(
+    collection(db, "pitches"),
+    where("chapter", "==", userChapter),
+    where("quarter", "==", currentQuarter)
+  );
+  
+  const pitchesSnapshot = await getDocs(pitchesQuery);
+  const totalPitches = pitchesSnapshot.size;
+  
+  // Get user's reviews for this quarter
+  const reviewsQuery = query(
+    collection(db, "reviews"),
+    where("reviewerId", "==", userId),
+    where("quarter", "==", currentQuarter)
+  );
+  
+  const reviewsSnapshot = await getDocs(reviewsQuery);
+  const completedReviews = reviewsSnapshot.size;
+  
+  const completionRate = totalPitches > 0 ? Math.round((completedReviews / totalPitches) * 100) : 0;
+  
+  const updates = {
+    'stats.quarterCompletionRate': completionRate
+  };
+  
+  // Check for perfect quarter completion
+  if (completionRate === 100 && totalPitches > 0) {
+    updates['stats.perfectQuarterCompletion'] = increment(1);
+  }
+  
+  await updateDoc(userRef, updates);
+  
+  return { completionRate, totalPitches, completedReviews };
+};
+
+// Check and update perfect quarters for winner predictions
+export const checkPerfectQuarter = async (userId, quarter) => {
+  const userRef = doc(db, "users", userId);
+  
+  // Get all user's predictions for this quarter
+  const reviewsQuery = query(
+    collection(db, "reviews"),
+    where("reviewerId", "==", userId),
+    where("quarter", "==", quarter),
+    where("overallLpRating", "in", ["Favorite", "Consideration"])
+  );
+  
+  const reviewsSnapshot = await getDocs(reviewsQuery);
+  
+  if (reviewsSnapshot.empty) return;
+  
+  let allCorrect = true;
+  let totalPredictions = 0;
+  
+  // Check each prediction
+  for (const reviewDoc of reviewsSnapshot.docs) {
+    const review = reviewDoc.data();
+    const pitchRef = doc(db, "pitches", review.pitchId);
+    const pitchDoc = await getDoc(pitchRef);
+    
+    if (pitchDoc.exists()) {
+      totalPredictions++;
+      if (!pitchDoc.data().isWinner) {
+        allCorrect = false;
+        break;
+      }
+    }
+  }
+  
+  // If all predictions were correct and there were predictions
+  if (allCorrect && totalPredictions > 0) {
+    await updateDoc(userRef, {
+      'stats.perfectQuarters': increment(1)
+    });
+  }
+};
+
 // Calculate retroactive stats for existing users
 export const calculateRetroactiveStats = async (userId) => {
   const userRef = doc(db, "users", userId);
@@ -421,7 +570,23 @@ export const calculateRetroactiveStats = async (userId) => {
     accuracyRate: 0,
     changedRatings: 0,
     firstToReview: 0,
-    favoriteWinners: 0
+    favoriteWinners: 0,
+    detailedReviews: 0,
+    passWithDetailedComments: 0,
+    transportationBusinessReviews: 0,
+    communityBusinessReviews: 0,
+    lateNightReviews: 0,
+    nightReviews: 0,
+    weekendReviews: 0,
+    earlyReviews: 0,
+    longComments: 0,
+    exactly50WordComments: 0,
+    neighborWordCount: 0,
+    asAMomComment: 0,
+    christmasReview: 0,
+    anniversaryReview: 0,
+    fourTwentyReview: 0,
+    businessesWithWebsites: 0
   };
   
   // Get all pitches to check for winners

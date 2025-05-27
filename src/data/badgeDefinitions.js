@@ -17,7 +17,7 @@ export const BADGES = {
   first_review: {
     id: 'first_review',
     category: BADGE_CATEGORIES.MILESTONES,
-    name: '🌱 First Review',
+    name: '👼 First Review',
     description: 'Complete your first pitch review',
     checkFunction: (stats) => stats?.totalReviews >= 1,
     progress: (stats) => Math.min(stats?.totalReviews || 0, 1)
@@ -25,7 +25,7 @@ export const BADGES = {
   welcome_neighborhood: {
     id: 'welcome_neighborhood',
     category: BADGE_CATEGORIES.MILESTONES,
-    name: '🏘️ Welcome to the Neighborhood',
+    name: '🏘️ New Kid on the Block',
     description: 'Review 10 applications',
     checkFunction: (stats) => stats?.totalReviews >= 10,
     progress: (stats) => Math.min((stats?.totalReviews || 0) / 10, 1)
@@ -33,7 +33,7 @@ export const BADGES = {
   block_captain: {
     id: 'block_captain',
     category: BADGE_CATEGORIES.MILESTONES,
-    name: '🔍 Block Captain',
+    name: '🔍 Neighborhood Watch',
     description: 'Review 25 applications',
     checkFunction: (stats) => stats?.totalReviews >= 25,
     progress: (stats) => Math.min((stats?.totalReviews || 0) / 25, 1)
@@ -41,7 +41,7 @@ export const BADGES = {
   super_reviewer: {
     id: 'super_reviewer',
     category: BADGE_CATEGORIES.MILESTONES,
-    name: '⭐ Super Reviewer',
+    name: '⭐ Power User',
     description: 'Review 50 applications',
     checkFunction: (stats) => stats?.totalReviews >= 50,
     progress: (stats) => Math.min((stats?.totalReviews || 0) / 50, 1)
@@ -49,7 +49,7 @@ export const BADGES = {
   review_champion: {
     id: 'review_champion',
     category: BADGE_CATEGORIES.MILESTONES,
-    name: '🏆 Review Champion',
+    name: '🏆 Elite Yelper',
     description: 'Review 75 applications',
     checkFunction: (stats) => stats?.totalReviews >= 75,
     progress: (stats) => Math.min((stats?.totalReviews || 0) / 75, 1)
@@ -57,7 +57,7 @@ export const BADGES = {
   going_platinum: {
     id: 'going_platinum',
     category: BADGE_CATEGORIES.MILESTONES,
-    name: '💿 Going Platinum',
+    name: '💿 Platinum Status',
     description: 'Review 100 applications',
     checkFunction: (stats) => stats?.totalReviews >= 100,
     progress: (stats) => Math.min((stats?.totalReviews || 0) / 100, 1)
@@ -91,7 +91,7 @@ export const BADGES = {
   feedback_guru: {
     id: 'feedback_guru',
     category: BADGE_CATEGORIES.ENGAGEMENT,
-    name: '📝 Feedback Guru',
+    name: '📝 LiveJournal Addict',
     description: 'Add comments to 25 reviews',
     checkFunction: (stats) => stats?.totalComments >= 25,
     progress: (stats) => Math.min((stats?.totalComments || 0) / 25, 1)
@@ -99,7 +99,7 @@ export const BADGES = {
   comment_champion: {
     id: 'comment_champion',
     category: BADGE_CATEGORIES.ENGAGEMENT,
-    name: '🗣️ Comment Champion',
+    name: '🧑‍💻 Keyboard Warrior',
     description: 'Add comments to 50 reviews',
     checkFunction: (stats) => stats?.totalComments >= 50,
     progress: (stats) => Math.min((stats?.totalComments || 0) / 50, 1)
@@ -117,7 +117,7 @@ export const BADGES = {
   eye_for_talent: {
     id: 'eye_for_talent',
     category: BADGE_CATEGORIES.ACCURACY,
-    name: '👁️ Eye for Talent',
+    name: '👁️ Angel Eye',
     description: 'Correctly identify your first winner',
     checkFunction: (stats) => stats?.correctPredictions >= 1,
     progress: (stats) => Math.min(stats?.correctPredictions || 0, 1)
@@ -126,22 +126,22 @@ export const BADGES = {
     id: 'talent_scout',
     category: BADGE_CATEGORIES.ACCURACY,
     name: '🔎 Talent Scout',
-    description: 'Correctly identify 3 winners',
-    checkFunction: (stats) => stats?.correctPredictions >= 3,
-    progress: (stats) => Math.min((stats?.correctPredictions || 0) / 3, 1)
-  },
-  winner_whisperer: {
-    id: 'winner_whisperer',
-    category: BADGE_CATEGORIES.ACCURACY,
-    name: '🎪 Winner Whisperer',
     description: 'Correctly identify 5 winners',
     checkFunction: (stats) => stats?.correctPredictions >= 5,
     progress: (stats) => Math.min((stats?.correctPredictions || 0) / 5, 1)
   },
+  winner_whisperer: {
+    id: 'winner_whisperer',
+    category: BADGE_CATEGORIES.ACCURACY,
+    name: '🔮 Oracle',
+    description: 'Correctly identify 20 winners',
+    checkFunction: (stats) => stats?.correctPredictions >= 20,
+    progress: (stats) => Math.min((stats?.correctPredictions || 0) / 20, 1)
+  },
   miss_cleo: {
     id: 'miss_cleo',
     category: BADGE_CATEGORIES.ACCURACY,
-    name: '🔮 Miss Cleo',
+    name: '🃏 Miss Cleo',
     description: 'Achieve 80%+ accuracy score',
     checkFunction: (stats) => {
       const accuracy = stats?.totalPredictions > 0 
@@ -159,7 +159,7 @@ export const BADGES = {
   perfect_quarter: {
     id: 'perfect_quarter',
     category: BADGE_CATEGORIES.ACCURACY,
-    name: '💯 Perfect Quarter',
+    name: '💛 Midas Touch',
     description: 'Correctly predict all winners in a quarter',
     checkFunction: (stats) => stats?.perfectQuarters >= 1,
     progress: (stats) => Math.min(stats?.perfectQuarters || 0, 1)
@@ -169,7 +169,7 @@ export const BADGES = {
   early_bird: {
     id: 'early_bird',
     category: BADGE_CATEGORIES.TIMING,
-    name: '🐦 Early Bird',
+    name: '🏄‍♀️ First!',
     description: 'Review applications within 48 hours of release',
     checkFunction: (stats) => stats?.earlyReviews >= 1,
     progress: (stats) => Math.min(stats?.earlyReviews || 0, 1)
@@ -177,7 +177,7 @@ export const BADGES = {
   night_owl: {
     id: 'night_owl',
     category: BADGE_CATEGORIES.TIMING,
-    name: '🦉 Night Owl',
+    name: '🦉 3AM Grinder',
     description: 'Submit reviews after 10 PM (5 times)',
     checkFunction: (stats) => stats?.nightReviews >= 5,
     progress: (stats) => Math.min((stats?.nightReviews || 0) / 5, 1)
@@ -185,7 +185,7 @@ export const BADGES = {
   lan_party_regular: {
     id: 'lan_party_regular',
     category: BADGE_CATEGORIES.TIMING,
-    name: '💻 LAN Party Regular',
+    name: '💻 Weekend Warrior',
     description: 'Review applications on weekends (10 times)',
     checkFunction: (stats) => stats?.weekendReviews >= 10,
     progress: (stats) => Math.min((stats?.weekendReviews || 0) / 10, 1)
@@ -193,7 +193,7 @@ export const BADGES = {
   quarterly_regular: {
     id: 'quarterly_regular',
     category: BADGE_CATEGORIES.TIMING,
-    name: '📅 Quarterly Regular',
+    name: '📅 Four Seasons',
     description: 'Review in all 4 quarters of a year',
     checkFunction: (stats) => {
       const currentYear = new Date().getFullYear();
@@ -213,7 +213,7 @@ export const BADGES = {
   dsl_speed: {
     id: 'dsl_speed',
     category: BADGE_CATEGORIES.TIMING,
-    name: '⚡ DSL Speed',
+    name: '⚡ Cable Modem',
     description: 'Complete 5 reviews in one day',
     checkFunction: (stats) => stats?.maxReviewsInDay >= 5,
     progress: (stats) => Math.min((stats?.maxReviewsInDay || 0) / 5, 1)
@@ -221,7 +221,7 @@ export const BADGES = {
   top_8_material: {
     id: 'top_8_material',
     category: BADGE_CATEGORIES.TIMING,
-    name: '🌟 Top 8 Material',
+    name: '🔥 Hot Streak',
     description: 'Review every week for a month',
     checkFunction: (stats) => stats?.longestWeeklyStreak >= 4,
     progress: (stats) => Math.min((stats?.longestWeeklyStreak || 0) / 4, 1)
@@ -239,7 +239,7 @@ export const BADGES = {
   consideration_expert: {
     id: 'consideration_expert',
     category: BADGE_CATEGORIES.PATTERNS,
-    name: '💡 Consideration Expert',
+    name: '💡 V Considerate',
     description: 'Give 15 "Consideration" ratings',
     checkFunction: (stats) => (stats?.ratingDistribution?.Consideration || 0) >= 15,
     progress: (stats) => Math.min((stats?.ratingDistribution?.Consideration || 0) / 15, 1)
@@ -248,14 +248,14 @@ export const BADGES = {
     id: 'tough_love',
     category: BADGE_CATEGORIES.PATTERNS,
     name: '😢 Tough Love',
-    description: 'Give 10 "Pass" ratings with helpful comments',
-    checkFunction: (stats) => stats?.passWithComments >= 10,
-    progress: (stats) => Math.min((stats?.passWithComments || 0) / 10, 1)
+    description: 'Give 10 "Pass" ratings with comments over 50 characters',
+    checkFunction: (stats) => stats?.passWithDetailedComments >= 10,
+    progress: (stats) => Math.min((stats?.passWithDetailedComments || 0) / 10, 1)
   },
   wild_card: {
     id: 'wild_card',
     category: BADGE_CATEGORIES.PATTERNS,
-    name: '🎲 Wild Card',
+    name: '🎲 Pivot Master',
     description: 'Change your rating on a re-review (3 times)',
     checkFunction: (stats) => stats?.changedRatings >= 3,
     progress: (stats) => Math.min((stats?.changedRatings || 0) / 3, 1)
@@ -265,7 +265,7 @@ export const BADGES = {
   neighborhood_watch: {
     id: 'neighborhood_watch',
     category: BADGE_CATEGORIES.GENERAL,
-    name: '🏅 Neighborhood Watch',
+    name: '🏅 Chapter MVP',
     description: 'Most reviews in your chapter this quarter',
     checkFunction: (stats, userData) => userData?.isChapterLeaderThisQuarter,
     progress: () => 0 // Binary achievement
@@ -337,13 +337,13 @@ export const BADGES = {
   mentor: {
     id: 'mentor',
     category: BADGE_CATEGORIES.GENERAL,
-    name: '🧑‍🏫 Mentor',
-    description: 'Your favorites have 75%+ success rate',
+    name: '👑 Kingmaker',
+    description: 'Your favorites have 75%+ success rate (minimum 8 favorites)',
     checkFunction: (stats) => {
       const favoriteSuccessRate = stats?.favoriteWinners > 0 && stats?.totalFavorites > 0
         ? (stats?.favoriteWinners / stats?.totalFavorites) * 100
         : 0;
-      return favoriteSuccessRate >= 75 && stats?.totalFavorites >= 4;
+      return favoriteSuccessRate >= 75 && stats?.totalFavorites >= 8;
     },
     progress: (stats) => {
       const favoriteSuccessRate = stats?.favoriteWinners > 0 && stats?.totalFavorites > 0
@@ -355,7 +355,7 @@ export const BADGES = {
   good_neighbor: {
     id: 'good_neighbor',
     category: BADGE_CATEGORIES.GENERAL,
-    name: '🤝 Good Neighbor',
+    name: '🎓 Perfect Attendance',
     description: '100% review completion rate for a quarter',
     checkFunction: (stats) => stats?.perfectQuarterCompletion >= 1,
     progress: (stats) => Math.min(stats?.perfectQuarterCompletion || 0, 1)
@@ -374,33 +374,33 @@ export const BADGES = {
     id: 'bronze_lp',
     category: BADGE_CATEGORIES.ELITE,
     name: '🥉 Bronze LP',
-    description: 'Unlock 5 achievements',
-    checkFunction: (stats, userData) => (userData?.badges?.length || 0) >= 5,
-    progress: (stats, userData) => Math.min((userData?.badges?.length || 0) / 5, 1)
+    description: 'Unlock 10 achievements',
+    checkFunction: (stats, userData) => (userData?.badges?.length || 0) >= 10,
+    progress: (stats, userData) => Math.min((userData?.badges?.length || 0) / 10, 1)
   },
   silver_lp: {
     id: 'silver_lp',
     category: BADGE_CATEGORIES.ELITE,
-    name: '🥈 Silver LP',
-    description: 'Unlock 10 achievements',
-    checkFunction: (stats, userData) => (userData?.badges?.length || 0) >= 10,
-    progress: (stats, userData) => Math.min((userData?.badges?.length || 0) / 10, 1)
+    name: '🥈 Power User',
+    description: 'Unlock 20 achievements',
+    checkFunction: (stats, userData) => (userData?.badges?.length || 0) >= 20,
+    progress: (stats, userData) => Math.min((userData?.badges?.length || 0) / 20, 1)
   },
   gold_lp: {
     id: 'gold_lp',
     category: BADGE_CATEGORIES.ELITE,
     name: '🥇 Gold LP',
-    description: 'Unlock 20 achievements',
-    checkFunction: (stats, userData) => (userData?.badges?.length || 0) >= 20,
-    progress: (stats, userData) => Math.min((userData?.badges?.length || 0) / 20, 1)
+    description: 'Unlock 30 achievements',
+    checkFunction: (stats, userData) => (userData?.badges?.length || 0) >= 30,
+    progress: (stats, userData) => Math.min((userData?.badges?.length || 0) / 30, 1)
   },
   diamond_lp: {
     id: 'diamond_lp',
     category: BADGE_CATEGORIES.ELITE,
     name: '💎 Diamond LP',
-    description: 'Unlock 30 achievements',
-    checkFunction: (stats, userData) => (userData?.badges?.length || 0) >= 30,
-    progress: (stats, userData) => Math.min((userData?.badges?.length || 0) / 30, 1)
+    description: 'Unlock 50 achievements',
+    checkFunction: (stats, userData) => (userData?.badges?.length || 0) >= 50,
+    progress: (stats, userData) => Math.min((userData?.badges?.length || 0) / 50, 1)
   },
 
   // 📈 Streak Achievements
@@ -427,7 +427,7 @@ export const BADGES = {
   directors_cut: {
     id: 'directors_cut',
     category: BADGE_CATEGORIES.EASTER_EGG,
-    name: '🎬 Director\'s Cut',
+    name: '🎬 Save As... Final_FINAL_v2',
     description: 'Edit a review 3+ times for perfection',
     hiddenDescription: '???',
     hidden: true,
@@ -437,7 +437,7 @@ export const BADGES = {
   youve_got_mail: {
     id: 'youve_got_mail',
     category: BADGE_CATEGORIES.EASTER_EGG,
-    name: '📞 You\'ve Got Mail',
+    name: '💌 You\'ve Got Mail',
     description: 'First to review when new batch drops',
     hiddenDescription: '???',
     hidden: true,
@@ -447,7 +447,7 @@ export const BADGES = {
   completionist: {
     id: 'completionist',
     category: BADGE_CATEGORIES.EASTER_EGG,
-    name: '💯 Completionist',
+    name: '💯 100% Run',
     description: 'Review every single application in your chapter',
     hiddenDescription: '???',
     hidden: true,
@@ -457,7 +457,7 @@ export const BADGES = {
   geocities_architect: {
     id: 'geocities_architect',
     category: BADGE_CATEGORIES.EASTER_EGG,
-    name: '🏗️ GeoCities Architect',
+    name: '🏗️ Webmaster',
     description: 'Review 10 businesses with websites',
     hiddenDescription: '???',
     hidden: true,
@@ -467,12 +467,12 @@ export const BADGES = {
   napster_ninja: {
     id: 'napster_ninja',
     category: BADGE_CATEGORIES.EASTER_EGG,
-    name: '🎵 Napster Ninja',
-    description: 'Review while listening to all 5 GNF mixtape songs',
+    name: '🎵 Winamp Warrior',
+    description: 'Submit 5 reviews between 2-4 AM (peak coding hours)',
     hiddenDescription: '???',
     hidden: true,
-    checkFunction: (stats) => stats?.mixtapeListeningWhileReviewing >= 5,
-    progress: (stats) => Math.min((stats?.mixtapeListeningWhileReviewing || 0) / 5, 1)
+    checkFunction: (stats) => stats?.lateNightReviews >= 5,
+    progress: (stats) => Math.min((stats?.lateNightReviews || 0) / 5, 1)
   },
   block_party_planner: {
     id: 'block_party_planner',
@@ -487,17 +487,17 @@ export const BADGES = {
   kazaa_kid: {
     id: 'kazaa_kid',
     category: BADGE_CATEGORIES.EASTER_EGG,
-    name: '💿 Kazaa Kid',
-    description: 'Download and review all exported pitch data',
+    name: '💿 You Wouldn\'t Download a Car',
+    description: 'Review 5 businesses in the automotive or transportation industry',
     hiddenDescription: '???',
     hidden: true,
-    checkFunction: (stats) => stats?.dataExportsDownloaded >= 3,
-    progress: (stats) => Math.min((stats?.dataExportsDownloaded || 0) / 3, 1)
+    checkFunction: (stats) => stats?.transportationBusinessReviews >= 5,
+    progress: (stats) => Math.min((stats?.transportationBusinessReviews || 0) / 5, 1)
   },
   limewire_legend: {
     id: 'limewire_legend',
     category: BADGE_CATEGORIES.EASTER_EGG,
-    name: '🍋 LimeWire Legend',
+    name: '🍁 420 Blaze It',
     description: 'Submit a review at exactly 4:20',
     hiddenDescription: '???',
     hidden: true,
@@ -507,7 +507,7 @@ export const BADGES = {
   aol_keyword_neighbor: {
     id: 'aol_keyword_neighbor',
     category: BADGE_CATEGORIES.EASTER_EGG,
-    name: '🔑 AOL Keyword: Neighbor',
+    name: '🔑 Keyword Champion',
     description: 'Use the word "neighbor" in 10 comments',
     hiddenDescription: '???',
     hidden: true,
@@ -517,8 +517,8 @@ export const BADGES = {
   winamp_whipper: {
     id: 'winamp_whipper',
     category: BADGE_CATEGORIES.EASTER_EGG,
-    name: '🦙 Winamp Whipper',
-    description: 'Really whips the llama\'s ass (100+ reviews)',
+    name: '🦙 It Really Whips',
+    description: 'Really whips the llama\'s butt (100+ reviews)',
     hiddenDescription: '???',
     hidden: true,
     checkFunction: (stats) => stats?.totalReviews >= 100,
@@ -527,7 +527,7 @@ export const BADGES = {
   friendster_founder: {
     id: 'friendster_founder',
     category: BADGE_CATEGORIES.EASTER_EGG,
-    name: '👥 Friendster Founder',
+    name: '👥 Nostradamus',
     description: 'Have all your favorites become winners',
     hiddenDescription: '???',
     hidden: true,
@@ -540,12 +540,98 @@ export const BADGES = {
   ask_jeeves_answer: {
     id: 'ask_jeeves_answer',
     category: BADGE_CATEGORIES.EASTER_EGG,
-    name: '🎩 Ask Jeeves Answer',
-    description: 'Answer every question in a pitch perfectly',
+    name: '🎩 Google Before Google',
+    description: 'Submit 10 detailed reviews (300+ characters)',
     hiddenDescription: '???',
     hidden: true,
-    checkFunction: (stats) => stats?.perfectPitchReviews >= 3,
-    progress: (stats) => Math.min((stats?.perfectPitchReviews || 0) / 3, 1)
+    checkFunction: (stats) => stats?.detailedReviews >= 10,
+    progress: (stats) => Math.min((stats?.detailedReviews || 0) / 10, 1)
+  },
+
+  // New Milestones
+  god_mode: {
+    id: 'god_mode',
+    category: BADGE_CATEGORIES.MILESTONES,
+    name: '⚡️ GodMode.exe',
+    description: 'Review 500 applications',
+    checkFunction: (stats) => stats?.totalReviews >= 500,
+    progress: (stats) => Math.min((stats?.totalReviews || 0) / 500, 1)
+  },
+
+  // New Rating Patterns
+  back_to_next_bus: {
+    id: 'back_to_next_bus',
+    category: BADGE_CATEGORIES.PATTERNS,
+    name: '❌ Back to the NEXT bus',
+    description: 'Give 20 "Ineligible" ratings',
+    checkFunction: (stats) => (stats?.ratingDistribution?.Ineligible || 0) >= 20,
+    progress: (stats) => Math.min((stats?.ratingDistribution?.Ineligible || 0) / 20, 1)
+  },
+  weakest_link: {
+    id: 'weakest_link',
+    category: BADGE_CATEGORIES.PATTERNS,
+    name: '⛓️‍💥 You Are the Weakest Link',
+    description: 'Give 50 "Ineligible" ratings',
+    checkFunction: (stats) => (stats?.ratingDistribution?.Ineligible || 0) >= 50,
+    progress: (stats) => Math.min((stats?.ratingDistribution?.Ineligible || 0) / 50, 1)
+  },
+  accept_this_rose: {
+    id: 'accept_this_rose',
+    category: BADGE_CATEGORIES.PATTERNS,
+    name: '🌹 Will You Accept this Rose?',
+    description: 'Give 25 "Favorite" ratings',
+    checkFunction: (stats) => (stats?.ratingDistribution?.Favorite || 0) >= 25,
+    progress: (stats) => Math.min((stats?.ratingDistribution?.Favorite || 0) / 25, 1)
+  },
+  you_me_everyone: {
+    id: 'you_me_everyone',
+    category: BADGE_CATEGORIES.PATTERNS,
+    name: '😘 You Me and Everyone We Know',
+    description: 'Give 30 "Consideration" ratings',
+    checkFunction: (stats) => (stats?.ratingDistribution?.Consideration || 0) >= 30,
+    progress: (stats) => Math.min((stats?.ratingDistribution?.Consideration || 0) / 30, 1)
+  },
+
+  // New Engagement Achievement
+  grade_a_yapper: {
+    id: 'grade_a_yapper',
+    category: BADGE_CATEGORIES.ENGAGEMENT,
+    name: '🗣️ Grade A Yapper',
+    description: 'Add comments to 100 reviews',
+    checkFunction: (stats) => stats?.totalComments >= 100,
+    progress: (stats) => Math.min((stats?.totalComments || 0) / 100, 1)
+  },
+
+  // New Easter Egg Achievements
+  merry_xmas: {
+    id: 'merry_xmas',
+    category: BADGE_CATEGORIES.EASTER_EGG,
+    name: '🎅 Merry X-Mas You Filthy Animal',
+    description: 'Review an application on Christmas Day',
+    hiddenDescription: '???',
+    hidden: true,
+    checkFunction: (stats) => stats?.christmasReview >= 1,
+    progress: (stats) => Math.min(stats?.christmasReview || 0, 1)
+  },
+  serendipitous: {
+    id: 'serendipitous',
+    category: BADGE_CATEGORIES.EASTER_EGG,
+    name: '✨ Serendipitous',
+    description: 'Review an application on your anniversary date',
+    hiddenDescription: '???',
+    hidden: true,
+    checkFunction: (stats) => stats?.anniversaryReview >= 1,
+    progress: (stats) => Math.min(stats?.anniversaryReview || 0, 1)
+  },
+  cool_mom: {
+    id: 'cool_mom',
+    category: BADGE_CATEGORIES.EASTER_EGG,
+    name: '💁‍♀️ I\'m not a regular mom, I\'m a cool mom',
+    description: 'Include the phrase "as a mom" in a comment',
+    hiddenDescription: '???',
+    hidden: true,
+    checkFunction: (stats) => stats?.asAMomComment >= 1,
+    progress: (stats) => Math.min(stats?.asAMomComment || 0, 1)
   }
 };
 

@@ -104,8 +104,6 @@ const [adminSearch, setAdminSearch] = useState("");
 const [adminHidePassed, setAdminHidePassed] = useState(false); // State for admin hide passed filter
 const [adminFavoriteFilterMode, setAdminFavoriteFilterMode] = useState("all");
 const [aboutById, setAboutById] = useState({});
-const [latById, setLatById] = useState({});
-const [lngById, setLngById] = useState({});
 const [websiteById, setWebsiteById] = useState({});
 const [winnerChapterFilter, setWinnerChapterFilter] = useState("");
 const [photosById, setPhotosById] = useState({});
@@ -2138,10 +2136,6 @@ return (
                 setAboutById(prev => ({ ...prev, [pitchId]: value }));
               } else if (field === "website") {
                 setWebsiteById(prev => ({ ...prev, [pitchId]: value }));
-              } else if (field === "latitude") {
-                setLatById(prev => ({ ...prev, [pitchId]: value }));
-              } else if (field === "longitude") {
-                setLngById(prev => ({ ...prev, [pitchId]: value }));
               } else if (field === "pitch-photo") {
                 setPhotosById(prev => ({ ...prev, [pitchId]: value }));
               }
@@ -2321,30 +2315,6 @@ return (
                         style={{ width: '100%', padding: '6px', fontFamily: 'inherit', fontSize: '0.95em' }}
                         placeholder="Write a short public description about this founder or business..."
                       />
-                    </div>
-
-                    {/* Coordinates */}
-                    <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                      <div style={{ flex: 1 }}>
-                        <label><strong>Latitude:</strong></label><br />
-                        <input
-                          type="number"
-                          step="any"
-                          value={latById[p.id] ?? p.latitude ?? ""}
-                          onChange={(e) => handleFieldChange(p.id, "latitude", e.target.value)}
-                          style={{ width: '100%', padding: '6px', fontFamily: 'inherit' }}
-                        />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <label><strong>Longitude:</strong></label><br />
-                        <input
-                          type="number"
-                          step="any"
-                          value={lngById[p.id] ?? p.longitude ?? ""}
-                          onChange={(e) => handleFieldChange(p.id, "longitude", e.target.value)}
-                          style={{ width: '100%', padding: '6px', fontFamily: 'inherit' }}
-                        />
-                      </div>
                     </div>
 
                     {/* Pitch Photo (Text Input instead of upload) */}

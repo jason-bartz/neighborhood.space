@@ -15,13 +15,14 @@ export default function StatsBar({ user, stats, badges = [] }) {
 
   // Find next milestone badge
   const milestoneBadges = [
-    { count: 1, name: '🌱 First Review' },
-    { count: 10, name: '🏘️ Welcome to the Neighborhood' },
-    { count: 25, name: '🔍 Block Captain' },
-    { count: 50, name: '⭐ Super Reviewer' },
-    { count: 75, name: '🏆 Review Champion' },
-    { count: 100, name: '💿 Going Platinum' },
-    { count: 200, name: '👑 Review Legend' }
+    { count: 1, name: '👼 First Review' },
+    { count: 10, name: '🏘️ New Kid on the Block' },
+    { count: 25, name: '🔍 Neighborhood Watch' },
+    { count: 50, name: '⭐ Power User' },
+    { count: 75, name: '🏆 Elite Yelper' },
+    { count: 100, name: '💿 Platinum Status' },
+    { count: 200, name: '👑 Review Legend' },
+    { count: 500, name: '⚡️ GodMode.exe' }
   ];
 
   const totalReviews = stats?.totalReviews || 0;
@@ -84,84 +85,88 @@ export default function StatsBar({ user, stats, badges = [] }) {
           </div>
         </div>
 
-        {/* Recent Badges & Next Badge Section */}
-        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+        {/* Badges Section - All together on the right */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'stretch' }}>
           {/* Recent Badges */}
-          {badges.length > 0 && (
-            <div style={{
-              background: 'rgba(255,255,255,0.7)',
-              borderRadius: '6px',
-              padding: '8px 12px',
-              border: '1px solid #FFB6D9'
-            }}>
-              <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>Recent Badges</div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {badges
-                  .filter(badge => badge.earnedAt || badge.earnedDate)
-                  .sort((a, b) => {
-                    const dateA = new Date(a.earnedAt || a.earnedDate || 0);
-                    const dateB = new Date(b.earnedAt || b.earnedDate || 0);
-                    return dateB - dateA;
-                  })
-                  .slice(0, 2)
-                  .map((badge) => {
-                    const badgeData = BADGES[badge.id || badge.badgeId];
-                    if (!badgeData) return null;
-                    
-                    // Handle different date formats
-                    let earnedDate;
-                    const dateValue = badge.earnedAt || badge.earnedDate;
-                    if (dateValue?.toDate) {
-                      earnedDate = dateValue.toDate();
-                    } else if (dateValue instanceof Date) {
-                      earnedDate = dateValue;
-                    } else if (dateValue) {
-                      earnedDate = new Date(dateValue);
-                    } else {
-                      earnedDate = null;
-                    }
-                    
-                    const isRecent = earnedDate && !isNaN(earnedDate.getTime()) && (Date.now() - earnedDate.getTime()) < 7 * 24 * 60 * 60 * 1000; // 7 days
-                    
-                    return (
-                      <div key={badge.id || badge.badgeId} style={{
-                        background: 'linear-gradient(135deg, #FFE4F1, #FFD6EC)',
-                        border: '2px solid #FFB6D9',
-                        borderRadius: '6px',
-                        padding: '6px 8px',
-                        position: 'relative',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        filter: isRecent ? 'drop-shadow(0 0 4px gold)' : 'none'
-                      }} title={`${badgeData.name}${isRecent ? ' (Recently Earned!)' : ''}\nEarned: ${earnedDate && !isNaN(earnedDate.getTime()) ? earnedDate.toLocaleDateString() : 'Date unknown'}`}>
-                        <span style={{ fontSize: '16px' }}>{badgeData.name.split(' ')[0]}</span>
-                        <span style={{ fontSize: '10px', fontWeight: 'bold' }}>
-                          {badgeData.name.split(' ').slice(1).join(' ')}
-                        </span>
-                        {isRecent && (
-                          <div style={{
-                            position: 'absolute',
-                            top: '-3px',
-                            right: '-3px',
-                            fontSize: '10px',
-                            background: 'gold',
-                            borderRadius: '50%',
-                            width: '10px',
-                            height: '10px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}>✨</div>
-                        )}
-                      </div>
-                    );
-                  })
-                  .filter(Boolean)
-                }
-              </div>
-            </div>
-          )}
+          {badges.length > 0 && badges
+            .filter(badge => badge.earnedAt || badge.earnedDate)
+            .sort((a, b) => {
+              const dateA = new Date(a.earnedAt || a.earnedDate || 0);
+              const dateB = new Date(b.earnedAt || b.earnedDate || 0);
+              return dateB - dateA;
+            })
+            .slice(0, 2)
+            .map((badge) => {
+              const badgeData = BADGES[badge.id || badge.badgeId];
+              if (!badgeData) return null;
+              
+              // Handle different date formats
+              let earnedDate;
+              const dateValue = badge.earnedAt || badge.earnedDate;
+              if (dateValue?.toDate) {
+                earnedDate = dateValue.toDate();
+              } else if (dateValue instanceof Date) {
+                earnedDate = dateValue;
+              } else if (dateValue) {
+                earnedDate = new Date(dateValue);
+              } else {
+                earnedDate = null;
+              }
+              
+              const isRecent = earnedDate && !isNaN(earnedDate.getTime()) && (Date.now() - earnedDate.getTime()) < 7 * 24 * 60 * 60 * 1000; // 7 days
+              
+              return (
+                <div key={badge.id || badge.badgeId} style={{
+                  background: 'rgba(255,255,255,0.7)',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  border: '1px solid #FFB6D9',
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  minHeight: '80px',
+                  minWidth: '80px',
+                  position: 'relative',
+                  filter: isRecent ? 'drop-shadow(0 0 6px gold)' : 'none'
+                }} title={`${badgeData.name}${isRecent ? ' (Recently Earned!)' : ''}\nEarned: ${earnedDate && !isNaN(earnedDate.getTime()) ? earnedDate.toLocaleDateString() : 'Date unknown'}`}>
+                  <div style={{ fontSize: '24px', marginBottom: '2px' }}>{badgeData.name.split(' ')[0]}</div>
+                  <div style={{ fontSize: '9px', color: '#666', lineHeight: '1.2' }}>
+                    {badgeData.name.split(' ').slice(1).join(' ')}
+                  </div>
+                  {isRecent && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '4px',
+                      right: '4px',
+                      fontSize: '10px',
+                      background: 'gold',
+                      borderRadius: '50%',
+                      width: '16px',
+                      height: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                    }}>✨</div>
+                  )}
+                  {isRecent && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '2px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      fontSize: '8px',
+                      color: 'gold',
+                      fontWeight: 'bold',
+                      textShadow: '0 0 2px rgba(0,0,0,0.5)'
+                    }}>NEW!</div>
+                  )}
+                </div>
+              );
+            })
+            .filter(Boolean)
+          }
 
           {/* Next Badge Progress */}
           {nextMilestone && (
@@ -169,16 +174,20 @@ export default function StatsBar({ user, stats, badges = [] }) {
               background: 'rgba(255,255,255,0.7)',
               borderRadius: '6px',
               padding: '8px 12px',
-              border: '1px solid #FFB6D9'
+              border: '1px solid #FFB6D9',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              minHeight: '80px'
             }}>
-              <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>Next Badge</div>
-              <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '4px' }}>{nextMilestone.name}</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>Next Badge Goal</div>
+              <div style={{ fontSize: '12px', fontWeight: 'bold' }}>{nextMilestone.name}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
                 <div style={{
-                  width: '120px',
-                  height: '8px',
+                  width: '100px',
+                  height: '6px',
                   background: '#FFE4F1',
-                  borderRadius: '4px',
+                  borderRadius: '3px',
                   overflow: 'hidden',
                   border: '1px solid #FFB6D9'
                 }}>
@@ -189,30 +198,35 @@ export default function StatsBar({ user, stats, badges = [] }) {
                     transition: 'width 0.3s ease'
                   }} />
                 </div>
-                <span style={{ fontSize: '11px', color: '#666' }}>
-                  {reviewsUntilNext} to go
+                <span style={{ fontSize: '10px', color: '#666', whiteSpace: 'nowrap' }}>
+                  {reviewsUntilNext} left
                 </span>
               </div>
             </div>
           )}
-        </div>
 
-        {/* Trophy Count */}
-        <div style={{
-          background: 'rgba(255,255,255,0.7)',
-          borderRadius: '6px',
-          padding: '8px 12px',
-          border: '1px solid #FFB6D9',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '24px', marginBottom: '2px' }}>🏆</div>
-          <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#333' }}>{badges.length}</div>
-          <div style={{ fontSize: '10px', color: '#666' }}>Badges Unlocked</div>
+          {/* Trophy Count */}
+          <div style={{
+            background: 'rgba(255,255,255,0.7)',
+            borderRadius: '6px',
+            padding: '8px 12px',
+            border: '1px solid #FFB6D9',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            minHeight: '80px',
+            minWidth: '90px'
+          }}>
+            <div style={{ fontSize: '24px', marginBottom: '2px' }}>🏆</div>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#333' }}>{badges.length}</div>
+            <div style={{ fontSize: '10px', color: '#666' }}>Badges Unlocked</div>
+          </div>
         </div>
       </div>
 
       {/* Tier Status */}
-      {badges.length >= 5 && (
+      {badges.length >= 10 && (
         <div style={{
           marginTop: '10px',
           paddingTop: '10px',
@@ -223,14 +237,14 @@ export default function StatsBar({ user, stats, badges = [] }) {
           fontSize: '12px'
         }}>
           <span style={{ color: '#666' }}>Elite Status:</span>
-          {badges.length >= 30 && <span>💎 Diamond LP</span>}
-          {badges.length >= 20 && badges.length < 30 && <span>🥇 Gold LP</span>}
-          {badges.length >= 10 && badges.length < 20 && <span>🥈 Silver LP</span>}
-          {badges.length >= 5 && badges.length < 10 && <span>🥉 Bronze LP</span>}
+          {badges.length >= 50 && <span>💎 Diamond LP</span>}
+          {badges.length >= 30 && badges.length < 50 && <span>🥇 Gold LP</span>}
+          {badges.length >= 20 && badges.length < 30 && <span>🥈 Power User</span>}
+          {badges.length >= 10 && badges.length < 20 && <span>🥉 Bronze LP</span>}
           <span style={{ marginLeft: 'auto', color: '#888' }}>
-            {badges.length < 10 && `${10 - badges.length} badges until Silver`}
-            {badges.length >= 10 && badges.length < 20 && `${20 - badges.length} badges until Gold`}
-            {badges.length >= 20 && badges.length < 30 && `${30 - badges.length} badges until Diamond`}
+            {badges.length < 20 && `${20 - badges.length} badges until Power User`}
+            {badges.length >= 20 && badges.length < 30 && `${30 - badges.length} badges until Gold`}
+            {badges.length >= 30 && badges.length < 50 && `${50 - badges.length} badges until Diamond`}
           </span>
         </div>
       )}

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"; 
 import {
   collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc,
-  orderBy, addDoc, getDoc, Timestamp
+  orderBy, addDoc, getDoc, Timestamp, serverTimestamp
 } from "firebase/firestore";
 import {
   onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, 
@@ -16,6 +16,7 @@ import Confetti from "react-confetti";
 import StatsBar from "../../StatsBar";
 import { BadgeNotification, TrophyCase } from "../../BadgeDisplay";
 import { BADGES } from "../../../data/badgeDefinitions";
+import PitchMap from "../../PitchMap";
 import { 
   trackReviewSubmission, 
   trackRatingChange, 
@@ -134,6 +135,11 @@ const [newUserData, setNewUserData] = useState({
 
 // User editing state
 const [editingUsers, setEditingUsers] = useState({}); // { userId: { linkedinUrl: '', professionalRole: '', bio: '' } }
+
+// Bulletin board state
+const [bulletinMessages, setBulletinMessages] = useState([]);
+const [newBulletinSubject, setNewBulletinSubject] = useState('');
+const [newBulletinMessage, setNewBulletinMessage] = useState('');
 
 // --- Refs ---
 const listScrollRef = useRef(null); // Ref for the scrollable list container
@@ -588,6 +594,43 @@ const loadChapterMembers = useCallback(async () => {
   }
 }, [user]);
 
+const loadBulletinMessages = useCallback(async () => {
+  if (!user || !user.chapter) {
+    console.log("LPPortal: Cannot load bulletin messages without user or chapter");
+    return;
+  }
+
+  try {
+    console.log(`LPPortal: Loading bulletin messages for chapter ${user.chapter}...`);
+    
+    // Query bulletin messages for the user's chapter
+    const messagesQuery = query(
+      collection(db, "bulletinMessages"),
+      where("chapter", "==", user.chapter),
+      orderBy("createdAt", "desc")
+    );
+    
+    const messagesSnap = await getDocs(messagesQuery);
+    
+    const messagesList = messagesSnap.docs.map(d => ({
+      id: d.id,
+      ...d.data(),
+      createdAt: d.data().createdAt?.toDate ? d.data().createdAt.toDate() : new Date(d.data().createdAt)
+    }));
+    
+    setBulletinMessages(messagesList);
+    console.log(`LPPortal: Loaded ${messagesList.length} bulletin messages.`);
+  } catch (error) {
+    console.error(`LPPortal: Error loading bulletin messages:`, error);
+    setBulletinMessages([]);
+    
+    // Handle index error
+    if (error.message?.includes('index')) {
+      console.log("LPPortal: Firestore composite index may be required for bulletin messages query");
+      showAppAlert("Please create a Firestore index for bulletinMessages with chapter and createdAt fields.");
+    }
+  }
+}, [user]);
 
 useEffect(() => {
   // Only load data if auth check is done AND we have a valid user object
@@ -595,6 +638,7 @@ useEffect(() => {
     console.log("LPPortal: User authenticated and ready, triggering data load...");
     loadLPData(); // Load data relevant to LPs (pitches for their chapter, their reviews)
     loadChapterMembers(); // Load chapter members for all authenticated users
+    loadBulletinMessages(); // Load bulletin messages for all authenticated users
     if (isAdmin) {
       loadAdminData(); // Load additional data if user is admin/superAdmin
     }
@@ -609,10 +653,11 @@ useEffect(() => {
     setUsers([]);
     setAllReviewsData([]);
     setChapterMembers([]);
+    setBulletinMessages([]);
   }
 
   // This effect runs when user or isLoadingAuth changes.
-}, [user, isLoadingAuth, isAdmin, loadLPData, loadAdminData, loadChapterMembers]);
+}, [user, isLoadingAuth, isAdmin, loadLPData, loadAdminData, loadChapterMembers, loadBulletinMessages]);
 
 useEffect(() => {
   if (selectedPitch && selectedPitch.id) {
@@ -1569,6 +1614,68 @@ const handleTabChange = (tab) => {
   }
 };
 
+// Bulletin board functions
+const handleCreateBulletinMessage = async () => {
+  if (!newBulletinSubject.trim() || !newBulletinMessage.trim()) {
+    showAppAlert("Please enter both subject and message.");
+    return;
+  }
+
+  try {
+    const messageData = {
+      subject: newBulletinSubject.trim(),
+      message: newBulletinMessage.trim(),
+      chapter: user.chapter,
+      authorId: user.uid,
+      authorName: user.name || user.email,
+      authorRole: user.role,
+      createdAt: serverTimestamp(),
+      isPinned: false
+    };
+
+    await addDoc(collection(db, "bulletinMessages"), messageData);
+    
+    // Clear form
+    setNewBulletinSubject('');
+    setNewBulletinMessage('');
+    
+    // Reload messages
+    await loadBulletinMessages();
+    
+    showAppAlert("Message posted successfully!");
+  } catch (error) {
+    console.error("Error creating bulletin message:", error);
+    showAppAlert("Failed to post message. Please try again.");
+  }
+};
+
+const handleDeleteBulletinMessage = async (messageId) => {
+  if (!window.confirm("Are you sure you want to delete this message?")) {
+    return;
+  }
+
+  try {
+    await deleteDoc(doc(db, "bulletinMessages", messageId));
+    await loadBulletinMessages();
+    showAppAlert("Message deleted successfully!");
+  } catch (error) {
+    console.error("Error deleting bulletin message:", error);
+    showAppAlert("Failed to delete message. Please try again.");
+  }
+};
+
+const handlePinBulletinMessage = async (messageId, isPinned) => {
+  try {
+    await updateDoc(doc(db, "bulletinMessages", messageId), {
+      isPinned: !isPinned
+    });
+    await loadBulletinMessages();
+  } catch (error) {
+    console.error("Error pinning/unpinning bulletin message:", error);
+    showAppAlert("Failed to update message. Please try again.");
+  }
+};
+
 // Navigation items component (shared between desktop and mobile)
 const NavigationItems = () => (
   <>
@@ -1634,6 +1741,72 @@ const NavigationItems = () => (
         }
       }}>
       📋 Review Pitches
+    </button>
+    
+    {/* Pitch Map */}
+    <button
+      onClick={() => handleTabChange('pitchMap')}
+      style={{
+        padding: '12px 20px',
+        border: 'none',
+        background: activeTab === 'pitchMap' ? 'white' : 'transparent',
+        borderLeft: activeTab === 'pitchMap' ? '3px solid #FFB6D9' : '3px solid transparent',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: '14px',
+        fontWeight: activeTab === 'pitchMap' ? '500' : 'normal',
+        color: activeTab === 'pitchMap' ? '#333' : '#666',
+        textAlign: 'left',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        transition: 'all 0.2s ease',
+        width: '100%'
+      }}
+      onMouseEnter={(e) => {
+        if (activeTab !== 'pitchMap') {
+          e.currentTarget.style.background = '#f0f0f0';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (activeTab !== 'pitchMap') {
+          e.currentTarget.style.background = 'transparent';
+        }
+      }}>
+      📍 Pitch Map
+    </button>
+    
+    {/* Bulletin Board */}
+    <button
+      onClick={() => handleTabChange('bulletinBoard')}
+      style={{
+        padding: '12px 20px',
+        border: 'none',
+        background: activeTab === 'bulletinBoard' ? 'white' : 'transparent',
+        borderLeft: activeTab === 'bulletinBoard' ? '3px solid #FFB6D9' : '3px solid transparent',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        fontSize: '14px',
+        fontWeight: activeTab === 'bulletinBoard' ? '500' : 'normal',
+        color: activeTab === 'bulletinBoard' ? '#333' : '#666',
+        textAlign: 'left',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        transition: 'all 0.2s ease',
+        width: '100%'
+      }}
+      onMouseEnter={(e) => {
+        if (activeTab !== 'bulletinBoard') {
+          e.currentTarget.style.background = '#f0f0f0';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (activeTab !== 'bulletinBoard') {
+          e.currentTarget.style.background = 'transparent';
+        }
+      }}>
+      📋 Bulletin Board
     </button>
     
     {/* Badges */}
@@ -4986,6 +5159,270 @@ return (
                 })}
             </div>
           )}
+        </div>
+      )}
+      
+      {/* --- Pitch Map Tab Content --- */}
+      {activeTab === 'pitchMap' && (
+        <div style={{ padding: '20px', overflow: 'auto', height: '100%' }}>
+          <h2 style={{ marginBottom: '10px' }}>Pitch Map</h2>
+          <p style={{ 
+            marginBottom: '20px', 
+            fontSize: '14px', 
+            color: '#666', 
+            fontStyle: 'italic',
+            lineHeight: '1.4'
+          }}>
+            This map displays approximate locations based on zip codes we began collecting in late 2023. 
+            Pin locations represent general areas, not exact addresses. Earlier pitches without zip code data are not shown.
+          </p>
+          <PitchMap 
+            pitches={isAdmin ? adminPitches : lpPitches}
+            currentUserChapter={user?.chapter}
+          />
+        </div>
+      )}
+      
+      {/* --- Bulletin Board Tab Content --- */}
+      {activeTab === 'bulletinBoard' && (
+        <div style={{ padding: '20px', overflow: 'auto', height: '100%' }}>
+          <h2 style={{ marginBottom: '20px' }}>Chapter Bulletin Board</h2>
+          
+          {/* Create New Message Form */}
+          <div style={{
+            background: '#f8f9fa',
+            border: '1px solid #e0e0e0',
+            borderRadius: '8px',
+            padding: '20px',
+            marginBottom: '30px'
+          }}>
+            <h3 style={{ marginBottom: '15px', fontSize: '16px', color: '#333' }}>Post New Message</h3>
+            
+            <input
+              type="text"
+              placeholder="Subject..."
+              value={newBulletinSubject}
+              onChange={(e) => setNewBulletinSubject(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px',
+                marginBottom: '10px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px',
+                fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif'
+              }}
+            />
+            
+            <textarea
+              placeholder="Message..."
+              value={newBulletinMessage}
+              onChange={(e) => setNewBulletinMessage(e.target.value)}
+              rows={4}
+              style={{
+                width: '100%',
+                padding: '10px',
+                marginBottom: '10px',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                fontSize: '14px',
+                fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif',
+                resize: 'vertical'
+              }}
+            />
+            
+            <button
+              onClick={handleCreateBulletinMessage}
+              style={{
+                background: '#FFB6D9',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                padding: '8px 16px',
+                fontSize: '14px',
+                cursor: 'pointer',
+                fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif',
+                transition: 'background 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.background = '#ff9fc9'}
+              onMouseLeave={(e) => e.target.style.background = '#FFB6D9'}
+            >
+              Post Message
+            </button>
+          </div>
+          
+          {/* Messages List */}
+          <div>
+            {bulletinMessages.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '40px',
+                color: '#999',
+                fontSize: '14px'
+              }}>
+                No messages yet. Be the first to post!
+              </div>
+            ) : (
+              <>
+                {/* Pinned Messages */}
+                {bulletinMessages.filter(msg => msg.isPinned).map(message => (
+                  <div
+                    key={message.id}
+                    style={{
+                      background: '#fff9e6',
+                      border: '2px solid #ffd700',
+                      borderRadius: '8px',
+                      padding: '15px',
+                      marginBottom: '15px',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
+                          <span style={{ fontSize: '16px' }}>📌</span>
+                          <h4 style={{ margin: 0, fontSize: '16px', color: '#333' }}>{message.subject}</h4>
+                        </div>
+                        <p style={{
+                          margin: '10px 0',
+                          fontSize: '14px',
+                          color: '#666',
+                          whiteSpace: 'pre-wrap'
+                        }}>
+                          {message.message}
+                        </p>
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#999',
+                          display: 'flex',
+                          gap: '15px',
+                          alignItems: 'center'
+                        }}>
+                          <span>{message.authorName}</span>
+                          <span>•</span>
+                          <span>{message.createdAt.toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Admin Actions */}
+                      {(isAdmin || message.authorId === user.uid) && (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handlePinBulletinMessage(message.id, message.isPinned)}
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                                color: '#666'
+                              }}
+                              title="Unpin message"
+                            >
+                              Unpin
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteBulletinMessage(message.id)}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              padding: '4px 8px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              color: '#d9534f'
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Regular Messages */}
+                {bulletinMessages.filter(msg => !msg.isPinned).map(message => (
+                  <div
+                    key={message.id}
+                    style={{
+                      background: 'white',
+                      border: '1px solid #e0e0e0',
+                      borderRadius: '8px',
+                      padding: '15px',
+                      marginBottom: '15px',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', color: '#333' }}>{message.subject}</h4>
+                        <p style={{
+                          margin: '10px 0',
+                          fontSize: '14px',
+                          color: '#666',
+                          whiteSpace: 'pre-wrap'
+                        }}>
+                          {message.message}
+                        </p>
+                        <div style={{
+                          fontSize: '12px',
+                          color: '#999',
+                          display: 'flex',
+                          gap: '15px',
+                          alignItems: 'center'
+                        }}>
+                          <span>{message.authorName}</span>
+                          <span>•</span>
+                          <span>{message.createdAt.toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      
+                      {/* Admin Actions */}
+                      {(isAdmin || message.authorId === user.uid) && (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handlePinBulletinMessage(message.id, message.isPinned)}
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid #ddd',
+                                borderRadius: '4px',
+                                padding: '4px 8px',
+                                fontSize: '12px',
+                                cursor: 'pointer',
+                                color: '#666'
+                              }}
+                              title="Pin message"
+                            >
+                              Pin
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleDeleteBulletinMessage(message.id)}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid #ddd',
+                              borderRadius: '4px',
+                              padding: '4px 8px',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              color: '#d9534f'
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
         </div>
       )}
       

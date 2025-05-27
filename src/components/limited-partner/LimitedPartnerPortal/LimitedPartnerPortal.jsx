@@ -15,6 +15,7 @@ import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Confetti from "react-confetti";
 import StatsBar from "../../StatsBar";
 import { BadgeNotification, TrophyCase } from "../../BadgeDisplay";
+import { BADGES } from "../../../data/badgeDefinitions";
 import { 
   trackReviewSubmission, 
   trackRatingChange, 
@@ -753,6 +754,253 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
     </div>
   );
 };
+
+// --- Social Card Functions ---
+
+const drawWelcomeCard = async (canvas) => {
+  const ctx = canvas.getContext('2d');
+  
+  // Background gradient
+  const gradient = ctx.createLinearGradient(0, 0, 0, 1080);
+  gradient.addColorStop(0, '#FFE4F0');
+  gradient.addColorStop(1, '#FFB6D9');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 1080, 1080);
+  
+  // White card background
+  ctx.fillStyle = 'white';
+  ctx.shadowColor = 'rgba(0,0,0,0.1)';
+  ctx.shadowBlur = 20;
+  ctx.fillRect(90, 90, 900, 900);
+  ctx.shadowBlur = 0;
+  
+  // User photo
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(540, 300, 80, 0, Math.PI * 2);
+  ctx.clip();
+  
+  // Try to load user photo
+  const photoUrl = user.name 
+    ? `/assets/lps/${user.name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}.png`
+    : null;
+    
+  if (photoUrl) {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = photoUrl;
+      });
+      ctx.drawImage(img, 460, 220, 160, 160);
+    } catch (error) {
+      // Fallback to placeholder
+      ctx.fillStyle = '#FFB6D9';
+      ctx.fillRect(460, 220, 160, 160);
+      ctx.restore();
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(540, 300, 80, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.font = '60px Arial';
+      ctx.fillStyle = 'white';
+      ctx.textAlign = 'center';
+      ctx.fillText('👤', 540, 320);
+    }
+  } else {
+    // No photo URL, use placeholder
+    ctx.fillStyle = '#FFB6D9';
+    ctx.fillRect(460, 220, 160, 160);
+    ctx.restore();
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(540, 300, 80, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.font = '60px Arial';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.fillText('👤', 540, 320);
+  }
+  ctx.restore();
+  
+  // User name
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 48px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(user.name || 'Limited Partner', 540, 450);
+  
+  // Title
+  ctx.fillStyle = '#666';
+  ctx.font = '36px Arial';
+  ctx.fillText('Limited Partner', 540, 500);
+  
+  // Chapter
+  ctx.fillStyle = '#FF69B4';
+  ctx.font = '32px Arial';
+  ctx.fillText(user.chapter || 'Good Neighbor Fund', 540, 550);
+  
+  // Main message
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 42px Arial';
+  ctx.fillText("I've joined Good Neighbor Fund", 540, 650);
+  ctx.fillText("as a Limited Partner!", 540, 700);
+  
+  // Description
+  ctx.fillStyle = '#666';
+  ctx.font = '28px Arial';
+  const description = [
+    "Good Neighbor Fund is a micro-grant program",
+    "that gives $1,000 in belief capital to",
+    "under-resourced founders with new business ideas.",
+    "",
+    "We're powered by people, not institutions.",
+    "Our funding comes from neighbors."
+  ];
+  
+  description.forEach((line, i) => {
+    ctx.fillText(line, 540, 780 + (i * 35));
+  });
+  
+  // Website
+  ctx.fillStyle = '#FF69B4';
+  ctx.font = 'bold 32px Arial';
+  ctx.fillText('goodneighborfund.org', 540, 980);
+};
+
+const drawBadgeCard = (canvas) => {
+  const ctx = canvas.getContext('2d');
+  
+  // Background
+  ctx.fillStyle = '#2D2D2D';
+  ctx.fillRect(0, 0, 1080, 1080);
+  
+  // Retro computer frame
+  ctx.strokeStyle = '#FFB6D9';
+  ctx.lineWidth = 8;
+  ctx.strokeRect(40, 40, 1000, 1000);
+  
+  // Title bar
+  ctx.fillStyle = '#FFB6D9';
+  ctx.fillRect(40, 40, 1000, 80);
+  
+  // Title
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 48px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('ACHIEVEMENT UNLOCKED', 540, 95);
+  
+  // Main content area
+  ctx.fillStyle = '#f0f0f0';
+  ctx.fillRect(40, 120, 1000, 880);
+  
+  // User info
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 42px Arial';
+  ctx.fillText(user.name || 'Limited Partner', 540, 220);
+  
+  // Stats
+  ctx.fillStyle = '#666';
+  ctx.font = '32px Arial';
+  ctx.fillText(`${userStats?.totalReviews || 0} Reviews • ${userBadges.length} Badges`, 540, 270);
+  
+  // Recent badges title
+  ctx.fillStyle = '#333';
+  ctx.font = 'bold 36px Arial';
+  ctx.fillText('Recent Achievements', 540, 350);
+  
+  // Display recent badges (up to 6)
+  const recentBadges = userBadges
+    .filter(badge => badge.earnedAt || badge.earnedDate)
+    .sort((a, b) => {
+      const dateA = new Date(a.earnedAt || a.earnedDate || 0);
+      const dateB = new Date(b.earnedAt || b.earnedDate || 0);
+      return dateB - dateA;
+    })
+    .slice(0, 6);
+  
+  // Badge grid
+  const badgeSize = 140;
+  const badgeGap = 30;
+  const badgesPerRow = 3;
+  const startX = 540 - ((badgesPerRow * badgeSize + (badgesPerRow - 1) * badgeGap) / 2) + badgeSize / 2;
+  const startY = 420;
+  
+  recentBadges.forEach((badge, index) => {
+    const row = Math.floor(index / badgesPerRow);
+    const col = index % badgesPerRow;
+    const x = startX + col * (badgeSize + badgeGap);
+    const y = startY + row * (badgeSize + badgeGap + 40);
+    
+    // Badge background
+    ctx.fillStyle = '#FFE4F0';
+    ctx.fillRect(x - badgeSize/2, y - badgeSize/2, badgeSize, badgeSize);
+    
+    // Get badge data
+    const badgeData = BADGES[badge.id || badge.badgeId];
+    if (badgeData) {
+      // Badge emoji
+      ctx.font = '60px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(badgeData.name.split(' ')[0], x, y + 20);
+      
+      // Badge name
+      ctx.fillStyle = '#666';
+      ctx.font = '18px Arial';
+      const badgeName = badgeData.name.split(' ').slice(1).join(' ');
+      ctx.fillText(badgeName, x, y + badgeSize/2 + 20);
+    }
+  });
+  
+  // Footer
+  ctx.fillStyle = '#FF69B4';
+  ctx.font = 'bold 32px Arial';
+  ctx.fillText('Good Neighbor Fund', 540, 920);
+  
+  ctx.fillStyle = '#666';
+  ctx.font = '28px Arial';
+  ctx.fillText('goodneighborfund.org', 540, 960);
+};
+
+const downloadCard = async (type) => {
+  const canvasId = type === 'welcome' ? 'welcome-canvas' : 'badge-canvas';
+  const canvas = document.getElementById(canvasId);
+  
+  if (!canvas) return;
+  
+  // Draw the appropriate card
+  if (type === 'welcome') {
+    await drawWelcomeCard(canvas);
+  } else {
+    drawBadgeCard(canvas);
+  }
+  
+  // Download the image
+  canvas.toBlob((blob) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `gnf-${type}-card-${Date.now()}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+};
+
+// Draw cards when Social Cards tab is active
+useEffect(() => {
+  if (activeTab === 'socialCards') {
+    setTimeout(async () => {
+      const welcomeCanvas = document.getElementById('welcome-canvas');
+      const badgeCanvas = document.getElementById('badge-canvas');
+      
+      if (welcomeCanvas) await drawWelcomeCard(welcomeCanvas);
+      if (badgeCanvas) drawBadgeCard(badgeCanvas);
+    }, 100);
+  }
+}, [activeTab, user, userStats, userBadges]);
 
 // --- Helper Functions ---
 
@@ -1959,6 +2207,38 @@ return (
           🏘️ Chapter Members
         </button>
         
+        {/* Social Cards */}
+        <button
+          onClick={() => setActiveTab('socialCards')}
+          style={{
+            padding: '12px 20px',
+            border: 'none',
+            background: activeTab === 'socialCards' ? 'white' : 'transparent',
+            borderLeft: activeTab === 'socialCards' ? '3px solid #FFB6D9' : '3px solid transparent',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            fontSize: '14px',
+            fontWeight: activeTab === 'socialCards' ? '500' : 'normal',
+            color: activeTab === 'socialCards' ? '#333' : '#666',
+            textAlign: 'left',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseEnter={(e) => {
+            if (activeTab !== 'socialCards') {
+              e.currentTarget.style.background = '#f0f0f0';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (activeTab !== 'socialCards') {
+              e.currentTarget.style.background = 'transparent';
+            }
+          }}>
+          🎨 Social Cards
+        </button>
+        
         {/* Admin Panel (Conditional) */}
         {isAdmin && (
           <button
@@ -2634,6 +2914,95 @@ return (
             </div>
           )}
         </>
+      )}
+
+      {/* --- Social Cards Tab Content --- */}
+      {activeTab === 'socialCards' && (
+        <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto' }}>
+          <h2 style={{ marginBottom: '20px', fontSize: '24px', color: '#333' }}>Share Your Impact</h2>
+          <p style={{ marginBottom: '30px', color: '#666', fontSize: '16px' }}>
+            Create beautiful social media cards to share your involvement with Good Neighbor Fund. 
+            Click on a card to download it as an image.
+          </p>
+          
+          <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            {/* Welcome Card */}
+            <div style={{ textAlign: 'center' }}>
+              <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333' }}>Welcome to GNF Card</h3>
+              <canvas
+                id="welcome-canvas"
+                width="1080"
+                height="1080"
+                style={{ 
+                  width: '350px', 
+                  height: '350px', 
+                  border: '2px solid #e0e0e0', 
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}
+                onClick={() => downloadCard('welcome')}
+              />
+              <button
+                onClick={() => downloadCard('welcome')}
+                style={{
+                  marginTop: '15px',
+                  padding: '10px 20px',
+                  backgroundColor: '#FF69B4',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#FF1493'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#FF69B4'}
+              >
+                📥 Download Welcome Card
+              </button>
+            </div>
+            
+            {/* Badge Achievement Card */}
+            <div style={{ textAlign: 'center' }}>
+              <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333' }}>Badge Achievement Card</h3>
+              <canvas
+                id="badge-canvas"
+                width="1080"
+                height="1080"
+                style={{ 
+                  width: '350px', 
+                  height: '350px', 
+                  border: '2px solid #e0e0e0', 
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                }}
+                onClick={() => downloadCard('badge')}
+              />
+              <button
+                onClick={() => downloadCard('badge')}
+                style={{
+                  marginTop: '15px',
+                  padding: '10px 20px',
+                  backgroundColor: '#FF69B4',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#FF1493'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = '#FF69B4'}
+              >
+                📥 Download Badge Card
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* --- Admin Panel Tab Content --- */}

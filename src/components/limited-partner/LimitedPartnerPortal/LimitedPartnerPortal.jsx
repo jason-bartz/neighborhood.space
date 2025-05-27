@@ -760,24 +760,49 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
 const drawWelcomeCard = async (canvas) => {
   const ctx = canvas.getContext('2d');
   
-  // Background gradient
-  const gradient = ctx.createLinearGradient(0, 0, 0, 1080);
-  gradient.addColorStop(0, '#FFE4F0');
-  gradient.addColorStop(1, '#FFB6D9');
+  // Vibrant gradient background
+  const gradient = ctx.createRadialGradient(540, 540, 0, 540, 540, 800);
+  gradient.addColorStop(0, '#FF69B4');
+  gradient.addColorStop(0.5, '#FFB6D9');
+  gradient.addColorStop(1, '#8A2BE2');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 1080, 1080);
   
-  // White card background
+  // Add some fun geometric shapes
+  ctx.globalAlpha = 0.1;
   ctx.fillStyle = 'white';
-  ctx.shadowColor = 'rgba(0,0,0,0.1)';
-  ctx.shadowBlur = 20;
-  ctx.fillRect(90, 90, 900, 900);
-  ctx.shadowBlur = 0;
-  
-  // User photo
-  ctx.save();
   ctx.beginPath();
-  ctx.arc(540, 300, 80, 0, Math.PI * 2);
+  ctx.arc(200, 200, 150, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(880, 880, 200, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  
+  // Large emoji at top
+  ctx.font = '120px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('🎉', 540, 150);
+  
+  // User photo with fun border
+  const photoSize = 180;
+  const photoX = 540;
+  const photoY = 280;
+  
+  // Photo border gradient
+  ctx.save();
+  const borderGrad = ctx.createLinearGradient(photoX - photoSize/2, photoY - photoSize/2, photoX + photoSize/2, photoY + photoSize/2);
+  borderGrad.addColorStop(0, '#FFD700');
+  borderGrad.addColorStop(1, '#FF69B4');
+  ctx.strokeStyle = borderGrad;
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.arc(photoX, photoY, photoSize/2 + 4, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  // Photo circle
+  ctx.beginPath();
+  ctx.arc(photoX, photoY, photoSize/2, 0, Math.PI * 2);
   ctx.clip();
   
   // Try to load user photo
@@ -785,6 +810,7 @@ const drawWelcomeCard = async (canvas) => {
     ? `/assets/lps/${user.name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}.png`
     : null;
     
+  let photoLoaded = false;
   if (photoUrl) {
     try {
       const img = new Image();
@@ -794,123 +820,113 @@ const drawWelcomeCard = async (canvas) => {
         img.onerror = reject;
         img.src = photoUrl;
       });
-      ctx.drawImage(img, 460, 220, 160, 160);
+      ctx.drawImage(img, photoX - photoSize/2, photoY - photoSize/2, photoSize, photoSize);
+      photoLoaded = true;
     } catch (error) {
-      // Fallback to placeholder
-      ctx.fillStyle = '#FFB6D9';
-      ctx.fillRect(460, 220, 160, 160);
-      ctx.restore();
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(540, 300, 80, 0, Math.PI * 2);
-      ctx.clip();
-      ctx.font = '60px Arial';
-      ctx.fillStyle = 'white';
-      ctx.textAlign = 'center';
-      ctx.fillText('👤', 540, 320);
+      console.log('Photo load error:', error);
     }
-  } else {
-    // No photo URL, use placeholder
-    ctx.fillStyle = '#FFB6D9';
-    ctx.fillRect(460, 220, 160, 160);
-    ctx.restore();
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(540, 300, 80, 0, Math.PI * 2);
-    ctx.clip();
-    ctx.font = '60px Arial';
+  }
+  
+  if (!photoLoaded) {
+    // Fun gradient placeholder
+    const placeholderGrad = ctx.createLinearGradient(photoX - photoSize/2, photoY - photoSize/2, photoX + photoSize/2, photoY + photoSize/2);
+    placeholderGrad.addColorStop(0, '#FF69B4');
+    placeholderGrad.addColorStop(1, '#FFD700');
+    ctx.fillStyle = placeholderGrad;
+    ctx.fillRect(photoX - photoSize/2, photoY - photoSize/2, photoSize, photoSize);
+    ctx.font = '80px Arial';
     ctx.fillStyle = 'white';
     ctx.textAlign = 'center';
-    ctx.fillText('👤', 540, 320);
+    ctx.fillText('✨', photoX, photoY + 25);
   }
   ctx.restore();
   
-  // User name
-  ctx.fillStyle = '#333';
-  ctx.font = 'bold 48px Arial';
+  // Name with shadow
+  ctx.shadowColor = 'rgba(0,0,0,0.3)';
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 72px Arial';
   ctx.textAlign = 'center';
-  ctx.fillText(user.name || 'Limited Partner', 540, 450);
+  ctx.fillText(user.name || 'New LP', 540, 480);
+  ctx.shadowBlur = 0;
   
-  // Title
-  ctx.fillStyle = '#666';
-  ctx.font = '36px Arial';
-  ctx.fillText('Limited Partner', 540, 500);
-  
-  // Chapter
-  ctx.fillStyle = '#FF69B4';
-  ctx.font = '32px Arial';
-  ctx.fillText(user.chapter || 'Good Neighbor Fund', 540, 550);
-  
-  // Main message
-  ctx.fillStyle = '#333';
-  ctx.font = 'bold 42px Arial';
-  ctx.fillText("I've joined Good Neighbor Fund", 540, 650);
-  ctx.fillText("as a Limited Partner!", 540, 700);
-  
-  // Description
-  ctx.fillStyle = '#666';
-  ctx.font = '28px Arial';
-  const description = [
-    "Good Neighbor Fund is a micro-grant program",
-    "that gives $1,000 in belief capital to",
-    "under-resourced founders with new business ideas.",
-    "",
-    "We're powered by people, not institutions.",
-    "Our funding comes from neighbors."
-  ];
-  
-  description.forEach((line, i) => {
-    ctx.fillText(line, 540, 780 + (i * 35));
-  });
-  
-  // Website
+  // Fun badge-style label
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillRect(340, 510, 400, 60);
   ctx.fillStyle = '#FF69B4';
   ctx.font = 'bold 32px Arial';
-  ctx.fillText('goodneighborfund.org', 540, 980);
+  ctx.fillText('✨ LIMITED PARTNER ✨', 540, 548);
+  
+  // Chapter
+  ctx.fillStyle = 'white';
+  ctx.font = '36px Arial';
+  ctx.fillText(user.chapter || 'Good Neighbor Fund', 540, 620);
+  
+  // Main message with emojis
+  ctx.font = 'bold 52px Arial';
+  ctx.fillText("I'm backing founders", 540, 720);
+  ctx.fillText("in my neighborhood! 🏘️", 540, 780);
+  
+  // Tagline
+  ctx.font = '32px Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillText("$1,000 grants • Powered by neighbors", 540, 860);
+  
+  // Website with emoji
+  ctx.font = 'bold 36px Arial';
+  ctx.fillStyle = 'white';
+  ctx.fillText('🌐 neighborhood.space', 540, 950);
 };
 
 const drawBadgeCard = (canvas) => {
   const ctx = canvas.getContext('2d');
   
-  // Background
-  ctx.fillStyle = '#2D2D2D';
+  // Cool gradient background
+  const gradient = ctx.createLinearGradient(0, 0, 1080, 1080);
+  gradient.addColorStop(0, '#667eea');
+  gradient.addColorStop(0.5, '#764ba2');
+  gradient.addColorStop(1, '#f093fb');
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 1080, 1080);
   
-  // Retro computer frame
-  ctx.strokeStyle = '#FFB6D9';
-  ctx.lineWidth = 8;
-  ctx.strokeRect(40, 40, 1000, 1000);
+  // Fun patterns
+  ctx.globalAlpha = 0.1;
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 3;
+  for (let i = 0; i < 20; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, i * 60);
+    ctx.lineTo(1080, i * 60 + 200);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
   
-  // Title bar
-  ctx.fillStyle = '#FFB6D9';
-  ctx.fillRect(40, 40, 1000, 80);
-  
-  // Title
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 48px Courier New';
+  // Trophy emoji at top
+  ctx.font = '100px Arial';
   ctx.textAlign = 'center';
-  ctx.fillText('ACHIEVEMENT UNLOCKED', 540, 95);
+  ctx.fillText('🏆', 540, 120);
   
-  // Main content area
-  ctx.fillStyle = '#f0f0f0';
-  ctx.fillRect(40, 120, 1000, 880);
+  // User name with glow
+  ctx.shadowColor = 'rgba(255,255,255,0.5)';
+  ctx.shadowBlur = 20;
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 64px Arial';
+  ctx.fillText(user.name || 'Achievement Hunter', 540, 220);
+  ctx.shadowBlur = 0;
   
-  // User info
-  ctx.fillStyle = '#333';
-  ctx.font = 'bold 42px Arial';
-  ctx.fillText(user.name || 'Limited Partner', 540, 220);
+  // Limited Partner & Chapter
+  ctx.font = '36px Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillText(`Limited Partner • ${user.chapter || 'GNF'}`, 540, 270);
   
-  // Stats
-  ctx.fillStyle = '#666';
-  ctx.font = '32px Arial';
-  ctx.fillText(`${userStats?.totalReviews || 0} Reviews • ${userBadges.length} Badges`, 540, 270);
+  // Badge count in fun style
+  ctx.fillStyle = 'rgba(255,255,255,0.2)';
+  ctx.fillRect(390, 310, 300, 80);
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 48px Arial';
+  ctx.fillText(`${userBadges.length} BADGES`, 540, 360);
   
-  // Recent badges title
-  ctx.fillStyle = '#333';
-  ctx.font = 'bold 36px Arial';
-  ctx.fillText('Recent Achievements', 540, 350);
-  
-  // Display recent badges (up to 6)
+  // Recent badges with better layout
   const recentBadges = userBadges
     .filter(badge => badge.earnedAt || badge.earnedDate)
     .sort((a, b) => {
@@ -920,47 +936,77 @@ const drawBadgeCard = (canvas) => {
     })
     .slice(0, 6);
   
-  // Badge grid
-  const badgeSize = 140;
-  const badgeGap = 30;
-  const badgesPerRow = 3;
-  const startX = 540 - ((badgesPerRow * badgeSize + (badgesPerRow - 1) * badgeGap) / 2) + badgeSize / 2;
-  const startY = 420;
-  
-  recentBadges.forEach((badge, index) => {
-    const row = Math.floor(index / badgesPerRow);
-    const col = index % badgesPerRow;
-    const x = startX + col * (badgeSize + badgeGap);
-    const y = startY + row * (badgeSize + badgeGap + 40);
+  if (recentBadges.length > 0) {
+    // Badge showcase area
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(140, 420, 800, 480);
     
-    // Badge background
-    ctx.fillStyle = '#FFE4F0';
-    ctx.fillRect(x - badgeSize/2, y - badgeSize/2, badgeSize, badgeSize);
+    // Badge grid
+    const badgeSize = 200;
+    const badgeGap = 50;
+    const badgesPerRow = 3;
+    const totalRows = Math.ceil(recentBadges.length / badgesPerRow);
+    const startX = 540 - ((Math.min(recentBadges.length, badgesPerRow) * badgeSize + (Math.min(recentBadges.length, badgesPerRow) - 1) * badgeGap) / 2) + badgeSize / 2;
+    const startY = 540;
     
-    // Get badge data
-    const badgeData = BADGES[badge.id || badge.badgeId];
-    if (badgeData) {
-      // Badge emoji
-      ctx.font = '60px Arial';
-      ctx.textAlign = 'center';
-      ctx.fillText(badgeData.name.split(' ')[0], x, y + 20);
+    recentBadges.forEach((badge, index) => {
+      const row = Math.floor(index / badgesPerRow);
+      const col = index % badgesPerRow;
+      const x = startX + col * (badgeSize + badgeGap);
+      const y = startY + row * (badgeSize + badgeGap);
       
-      // Badge name
-      ctx.fillStyle = '#666';
-      ctx.font = '18px Arial';
-      const badgeName = badgeData.name.split(' ').slice(1).join(' ');
-      ctx.fillText(badgeName, x, y + badgeSize/2 + 20);
-    }
-  });
+      // Badge circle with gradient
+      const badgeGrad = ctx.createRadialGradient(x, y - 30, 0, x, y - 30, badgeSize/2);
+      badgeGrad.addColorStop(0, 'rgba(255,255,255,0.9)');
+      badgeGrad.addColorStop(1, 'rgba(255,182,217,0.9)');
+      ctx.fillStyle = badgeGrad;
+      ctx.beginPath();
+      ctx.arc(x, y - 30, badgeSize/2 - 10, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Get badge data
+      const badgeData = BADGES[badge.id || badge.badgeId];
+      if (badgeData) {
+        // Badge emoji
+        ctx.font = '80px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#333';
+        const emoji = badgeData.name.split(' ')[0];
+        ctx.fillText(emoji, x, y);
+        
+        // Badge name with better formatting
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 20px Arial';
+        const badgeName = badgeData.name.split(' ').slice(1).join(' ');
+        
+        // Word wrap for long names
+        const words = badgeName.split(' ');
+        let line = '';
+        let lines = [];
+        
+        words.forEach(word => {
+          const testLine = line + word + ' ';
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > badgeSize - 20 && line !== '') {
+            lines.push(line.trim());
+            line = word + ' ';
+          } else {
+            line = testLine;
+          }
+        });
+        lines.push(line.trim());
+        
+        lines.forEach((textLine, i) => {
+          ctx.fillText(textLine, x, y + 70 + (i * 25));
+        });
+      }
+    });
+  }
   
-  // Footer
-  ctx.fillStyle = '#FF69B4';
-  ctx.font = 'bold 32px Arial';
-  ctx.fillText('Good Neighbor Fund', 540, 920);
-  
-  ctx.fillStyle = '#666';
-  ctx.font = '28px Arial';
-  ctx.fillText('goodneighborfund.org', 540, 960);
+  // Website at bottom
+  ctx.font = 'bold 36px Arial';
+  ctx.fillStyle = 'white';
+  ctx.fillText('🌐 neighborhood.space', 540, 980);
 };
 
 const downloadCard = async (type) => {
@@ -2925,10 +2971,10 @@ return (
             Click on a card to download it as an image.
           </p>
           
-          <div style={{ display: 'flex', gap: '30px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
             {/* Welcome Card */}
-            <div style={{ textAlign: 'center' }}>
-              <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333' }}>Welcome to GNF Card</h3>
+            <div>
+              <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333', textAlign: 'center' }}>Welcome to GNF</h3>
               <canvas
                 id="welcome-canvas"
                 width="1080"
@@ -2936,37 +2982,22 @@ return (
                 style={{ 
                   width: '350px', 
                   height: '350px', 
-                  border: '2px solid #e0e0e0', 
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                  transition: 'transform 0.2s ease',
+                  display: 'block'
                 }}
                 onClick={() => downloadCard('welcome')}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
               />
-              <button
-                onClick={() => downloadCard('welcome')}
-                style={{
-                  marginTop: '15px',
-                  padding: '10px 20px',
-                  backgroundColor: '#FF69B4',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#FF1493'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#FF69B4'}
-              >
-                📥 Download Welcome Card
-              </button>
+              <p style={{ marginTop: '10px', fontSize: '13px', color: '#666', textAlign: 'center' }}>Click to download</p>
             </div>
             
             {/* Badge Achievement Card */}
-            <div style={{ textAlign: 'center' }}>
-              <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333' }}>Badge Achievement Card</h3>
+            <div>
+              <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333', textAlign: 'center' }}>Badge Achievements</h3>
               <canvas
                 id="badge-canvas"
                 width="1080"
@@ -2974,32 +3005,17 @@ return (
                 style={{ 
                   width: '350px', 
                   height: '350px', 
-                  border: '2px solid #e0e0e0', 
-                  borderRadius: '8px',
+                  borderRadius: '12px',
                   cursor: 'pointer',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                  transition: 'transform 0.2s ease',
+                  display: 'block'
                 }}
                 onClick={() => downloadCard('badge')}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
               />
-              <button
-                onClick={() => downloadCard('badge')}
-                style={{
-                  marginTop: '15px',
-                  padding: '10px 20px',
-                  backgroundColor: '#FF69B4',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '6px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#FF1493'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = '#FF69B4'}
-              >
-                📥 Download Badge Card
-              </button>
+              <p style={{ marginTop: '10px', fontSize: '13px', color: '#666', textAlign: 'center' }}>Click to download</p>
             </div>
           </div>
         </div>

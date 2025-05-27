@@ -23,7 +23,6 @@ import {
   calculateRetroactiveStats,
   updateWinnerPredictions
 } from "../../../services/statsTracking";
-import { BADGES } from "../../../data/badgeDefinitions";
 
 // --- Constants ---
 const provider = new GoogleAuthProvider();
@@ -768,15 +767,7 @@ const drawWelcomeCard = async (canvas) => {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, 1080, 1080);
   
-  // Add some fun geometric shapes
-  ctx.globalAlpha = 0.1;
-  ctx.fillStyle = 'white';
-  ctx.beginPath();
-  ctx.arc(200, 200, 150, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.arc(880, 880, 200, 0, Math.PI * 2);
-  ctx.fill();
+  // No bokeh effect - keep it clean
   ctx.globalAlpha = 1;
   
   // Large emoji at top
@@ -850,35 +841,55 @@ const drawWelcomeCard = async (canvas) => {
   ctx.fillText(user.name || 'New LP', 540, 480);
   ctx.shadowBlur = 0;
   
+  // Good Neighbor Fund text
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = '36px Arial';
+  ctx.fillText('Good Neighbor Fund', 540, 530);
+  
   // Fun badge-style label
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.fillRect(340, 510, 400, 60);
+  ctx.fillRect(340, 560, 400, 60);
   ctx.fillStyle = '#FF69B4';
   ctx.font = 'bold 32px Arial';
-  ctx.fillText('✨ LIMITED PARTNER ✨', 540, 548);
+  ctx.fillText('✨ LIMITED PARTNER ✨', 540, 598);
   
   // Chapter
   ctx.fillStyle = 'white';
   ctx.font = '36px Arial';
-  ctx.fillText(user.chapter || 'Good Neighbor Fund', 540, 620);
+  ctx.fillText(user.chapter || 'Chapter', 540, 670);
   
   // Main message with emojis
   ctx.font = 'bold 52px Arial';
-  ctx.fillText("I'm backing founders", 540, 720);
-  ctx.fillText("in my neighborhood! 🏘️", 540, 780);
+  ctx.fillText("I'm backing founders", 540, 770);
+  ctx.fillText("in my neighborhood! 🏘️", 540, 830);
   
   // Tagline
   ctx.font = '32px Arial';
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.fillText("$1,000 grants • Powered by neighbors", 540, 860);
+  ctx.fillText("$1,000 grants • Powered by people, not institutions", 540, 900);
   
   // Website with emoji
   ctx.font = 'bold 36px Arial';
   ctx.fillStyle = 'white';
-  ctx.fillText('🌐 neighborhood.space', 540, 950);
+  ctx.fillText('🌐 www.neighborhoods.space', 540, 950);
+  
+  // GNF Logo
+  try {
+    const logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
+    await new Promise((resolve, reject) => {
+      logoImg.onload = resolve;
+      logoImg.onerror = reject;
+      logoImg.src = '/assets/gnf-logo.webp';
+    });
+    const logoSize = 80;
+    ctx.drawImage(logoImg, 540 - logoSize/2, 980, logoSize, logoSize);
+  } catch (error) {
+    console.log('Logo load error:', error);
+  }
 };
 
-const drawBadgeCard = (canvas) => {
+const drawBadgeCard = async (canvas) => {
   const ctx = canvas.getContext('2d');
   
   // Cool gradient background
@@ -901,30 +912,85 @@ const drawBadgeCard = (canvas) => {
   }
   ctx.globalAlpha = 1;
   
-  // Trophy emoji at top
-  ctx.font = '100px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('🏆', 540, 120);
+  // User photo with fun border
+  const photoSize = 100;
+  const photoX = 540;
+  const photoY = 100;
+  
+  // Photo border gradient
+  ctx.save();
+  const borderGrad = ctx.createLinearGradient(photoX - photoSize/2, photoY - photoSize/2, photoX + photoSize/2, photoY + photoSize/2);
+  borderGrad.addColorStop(0, '#FFD700');
+  borderGrad.addColorStop(1, '#FF69B4');
+  ctx.strokeStyle = borderGrad;
+  ctx.lineWidth = 6;
+  ctx.beginPath();
+  ctx.arc(photoX, photoY, photoSize/2 + 3, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  // Photo circle
+  ctx.beginPath();
+  ctx.arc(photoX, photoY, photoSize/2, 0, Math.PI * 2);
+  ctx.clip();
+  
+  // Try to load user photo
+  const photoUrl = user.name 
+    ? `/assets/lps/${user.name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}.png`
+    : null;
+    
+  let photoLoaded = false;
+  if (photoUrl) {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = photoUrl;
+      });
+      ctx.drawImage(img, photoX - photoSize/2, photoY - photoSize/2, photoSize, photoSize);
+      photoLoaded = true;
+    } catch (error) {
+      console.log('Photo load error:', error);
+    }
+  }
+  
+  if (!photoLoaded) {
+    // Fun gradient placeholder
+    const placeholderGrad = ctx.createLinearGradient(photoX - photoSize/2, photoY - photoSize/2, photoX + photoSize/2, photoY + photoSize/2);
+    placeholderGrad.addColorStop(0, '#FF69B4');
+    placeholderGrad.addColorStop(1, '#FFD700');
+    ctx.fillStyle = placeholderGrad;
+    ctx.fillRect(photoX - photoSize/2, photoY - photoSize/2, photoSize, photoSize);
+    ctx.font = '60px Arial';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.fillText('✨', photoX, photoY + 20);
+  }
+  ctx.restore();
   
   // User name with glow
   ctx.shadowColor = 'rgba(255,255,255,0.5)';
   ctx.shadowBlur = 20;
   ctx.fillStyle = 'white';
-  ctx.font = 'bold 64px Arial';
+  ctx.font = 'bold 48px Arial';
+  ctx.textAlign = 'center';
   ctx.fillText(user.name || 'Achievement Hunter', 540, 220);
   ctx.shadowBlur = 0;
   
-  // Limited Partner & Chapter
-  ctx.font = '36px Arial';
+  // Good Neighbor Fund
+  ctx.font = '28px Arial';
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.fillText(`Limited Partner • ${user.chapter || 'GNF'}`, 540, 270);
+  ctx.fillText('Good Neighbor Fund', 540, 255);
   
-  // Badge count in fun style
-  ctx.fillStyle = 'rgba(255,255,255,0.2)';
-  ctx.fillRect(390, 310, 300, 80);
+  // Limited Partner & Chapter
+  ctx.font = '24px Arial';
+  ctx.fillText(`Limited Partner • ${user.chapter || 'Chapter'}`, 540, 285);
+  
+  // Badge count without background
   ctx.fillStyle = 'white';
-  ctx.font = 'bold 48px Arial';
-  ctx.fillText(`${userBadges.length} BADGES`, 540, 360);
+  ctx.font = 'bold 42px Arial';
+  ctx.fillText(`${userBadges.length} Badges Unlocked!`, 540, 340);
   
   // Recent badges with better layout
   const recentBadges = userBadges
@@ -937,9 +1003,26 @@ const drawBadgeCard = (canvas) => {
     .slice(0, 6);
   
   if (recentBadges.length > 0) {
-    // Badge showcase area
+    // Badge showcase area with rounded corners
+    const showcaseX = 140;
+    const showcaseY = 380;
+    const showcaseWidth = 800;
+    const showcaseHeight = 480;
+    const showcaseRadius = 20;
+    
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.fillRect(140, 420, 800, 480);
+    ctx.beginPath();
+    ctx.moveTo(showcaseX + showcaseRadius, showcaseY);
+    ctx.lineTo(showcaseX + showcaseWidth - showcaseRadius, showcaseY);
+    ctx.quadraticCurveTo(showcaseX + showcaseWidth, showcaseY, showcaseX + showcaseWidth, showcaseY + showcaseRadius);
+    ctx.lineTo(showcaseX + showcaseWidth, showcaseY + showcaseHeight - showcaseRadius);
+    ctx.quadraticCurveTo(showcaseX + showcaseWidth, showcaseY + showcaseHeight, showcaseX + showcaseWidth - showcaseRadius, showcaseY + showcaseHeight);
+    ctx.lineTo(showcaseX + showcaseRadius, showcaseY + showcaseHeight);
+    ctx.quadraticCurveTo(showcaseX, showcaseY + showcaseHeight, showcaseX, showcaseY + showcaseHeight - showcaseRadius);
+    ctx.lineTo(showcaseX, showcaseY + showcaseRadius);
+    ctx.quadraticCurveTo(showcaseX, showcaseY, showcaseX + showcaseRadius, showcaseY);
+    ctx.closePath();
+    ctx.fill();
     
     // Badge grid
     const badgeSize = 200;
@@ -947,7 +1030,7 @@ const drawBadgeCard = (canvas) => {
     const badgesPerRow = 3;
     const totalRows = Math.ceil(recentBadges.length / badgesPerRow);
     const startX = 540 - ((Math.min(recentBadges.length, badgesPerRow) * badgeSize + (Math.min(recentBadges.length, badgesPerRow) - 1) * badgeGap) / 2) + badgeSize / 2;
-    const startY = 540;
+    const startY = 500;
     
     recentBadges.forEach((badge, index) => {
       const row = Math.floor(index / badgesPerRow);
@@ -955,28 +1038,19 @@ const drawBadgeCard = (canvas) => {
       const x = startX + col * (badgeSize + badgeGap);
       const y = startY + row * (badgeSize + badgeGap);
       
-      // Badge circle with gradient
-      const badgeGrad = ctx.createRadialGradient(x, y - 30, 0, x, y - 30, badgeSize/2);
-      badgeGrad.addColorStop(0, 'rgba(255,255,255,0.9)');
-      badgeGrad.addColorStop(1, 'rgba(255,182,217,0.9)');
-      ctx.fillStyle = badgeGrad;
-      ctx.beginPath();
-      ctx.arc(x, y - 30, badgeSize/2 - 10, 0, Math.PI * 2);
-      ctx.fill();
-      
       // Get badge data
       const badgeData = BADGES[badge.id || badge.badgeId];
       if (badgeData) {
-        // Badge emoji
-        ctx.font = '80px Arial';
+        // Badge emoji - no background circle
+        ctx.font = '90px Arial';
         ctx.textAlign = 'center';
-        ctx.fillStyle = '#333';
-        const emoji = badgeData.name.split(' ')[0];
-        ctx.fillText(emoji, x, y);
-        
-        // Badge name with better formatting
         ctx.fillStyle = 'white';
-        ctx.font = 'bold 20px Arial';
+        const emoji = badgeData.name.split(' ')[0];
+        ctx.fillText(emoji, x, y - 20);
+        
+        // Badge name moved up closer to emoji
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 22px Arial';
         const badgeName = badgeData.name.split(' ').slice(1).join(' ');
         
         // Word wrap for long names
@@ -997,7 +1071,7 @@ const drawBadgeCard = (canvas) => {
         lines.push(line.trim());
         
         lines.forEach((textLine, i) => {
-          ctx.fillText(textLine, x, y + 70 + (i * 25));
+          ctx.fillText(textLine, x, y + 40 + (i * 28));
         });
       }
     });
@@ -1006,11 +1080,314 @@ const drawBadgeCard = (canvas) => {
   // Website at bottom
   ctx.font = 'bold 36px Arial';
   ctx.fillStyle = 'white';
-  ctx.fillText('🌐 neighborhood.space', 540, 980);
+  ctx.fillText('🌐 www.neighborhoods.space', 540, 910);
+  
+  // GNF Logo
+  try {
+    const logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
+    await new Promise((resolve, reject) => {
+      logoImg.onload = resolve;
+      logoImg.onerror = reject;
+      logoImg.src = '/assets/gnf-logo.webp';
+    });
+    const logoSize = 80;
+    ctx.drawImage(logoImg, 540 - logoSize/2, 950, logoSize, logoSize);
+  } catch (error) {
+    console.log('Logo load error:', error);
+  }
+};
+
+const drawChapterStatsCard = async (canvas) => {
+  const ctx = canvas.getContext('2d');
+  
+  // Similar gradient to welcome card but slightly different
+  const gradient = ctx.createRadialGradient(540, 540, 0, 540, 540, 800);
+  gradient.addColorStop(0, '#FFB6D9');
+  gradient.addColorStop(0.5, '#FF69B4');
+  gradient.addColorStop(1, '#9B59B6');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 1080, 1080);
+  
+  // No bokeh effect - keep it clean
+  ctx.globalAlpha = 1;
+  
+  // Good Neighbor Fund at top
+  ctx.shadowColor = 'rgba(0,0,0,0.3)';
+  ctx.shadowBlur = 15;
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 48px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('Good Neighbor Fund', 540, 90);
+  
+  // Chapter name
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 72px Arial';
+  ctx.fillText(user.chapter || 'Chapter', 540, 160);
+  ctx.shadowBlur = 0;
+  
+  // Impact text
+  ctx.font = '36px Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillText('Our Impact to Date', 540, 210);
+  
+  // Calculate all-time stats
+  const chapterPitches = adminPitches.filter(p => p.chapter === user.chapter);
+  const grantsAwarded = chapterPitches.filter(p => p.isWinner).length;
+  const dollarsAwarded = grantsAwarded * 1000;
+  
+  // Stats section with modern card design
+  const statsY = 300;
+  
+  // Grants card
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  const cardWidth = 400;
+  const cardHeight = 200;
+  const cardRadius = 20;
+  
+  // Left card
+  const leftCardX = 140;
+  ctx.beginPath();
+  ctx.moveTo(leftCardX + cardRadius, statsY);
+  ctx.lineTo(leftCardX + cardWidth - cardRadius, statsY);
+  ctx.quadraticCurveTo(leftCardX + cardWidth, statsY, leftCardX + cardWidth, statsY + cardRadius);
+  ctx.lineTo(leftCardX + cardWidth, statsY + cardHeight - cardRadius);
+  ctx.quadraticCurveTo(leftCardX + cardWidth, statsY + cardHeight, leftCardX + cardWidth - cardRadius, statsY + cardHeight);
+  ctx.lineTo(leftCardX + cardRadius, statsY + cardHeight);
+  ctx.quadraticCurveTo(leftCardX, statsY + cardHeight, leftCardX, statsY + cardHeight - cardRadius);
+  ctx.lineTo(leftCardX, statsY + cardRadius);
+  ctx.quadraticCurveTo(leftCardX, statsY, leftCardX + cardRadius, statsY);
+  ctx.closePath();
+  ctx.fill();
+  
+  // Grants number
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 96px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(grantsAwarded.toString(), leftCardX + cardWidth/2, statsY + 100);
+  
+  ctx.fillStyle = 'white';
+  ctx.font = '32px Arial';
+  ctx.fillText('Businesses Funded', leftCardX + cardWidth/2, statsY + 150);
+  
+  // Right card
+  const rightCardX = 540;
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  ctx.beginPath();
+  ctx.moveTo(rightCardX + cardRadius, statsY);
+  ctx.lineTo(rightCardX + cardWidth - cardRadius, statsY);
+  ctx.quadraticCurveTo(rightCardX + cardWidth, statsY, rightCardX + cardWidth, statsY + cardRadius);
+  ctx.lineTo(rightCardX + cardWidth, statsY + cardHeight - cardRadius);
+  ctx.quadraticCurveTo(rightCardX + cardWidth, statsY + cardHeight, rightCardX + cardWidth - cardRadius, statsY + cardHeight);
+  ctx.lineTo(rightCardX + cardRadius, statsY + cardHeight);
+  ctx.quadraticCurveTo(rightCardX, statsY + cardHeight, rightCardX, statsY + cardHeight - cardRadius);
+  ctx.lineTo(rightCardX, statsY + cardRadius);
+  ctx.quadraticCurveTo(rightCardX, statsY, rightCardX + cardRadius, statsY);
+  ctx.closePath();
+  ctx.fill();
+  
+  // Dollars number
+  ctx.fillStyle = '#4CAF50';
+  ctx.font = 'bold 72px Arial';
+  ctx.fillText(`$${dollarsAwarded.toLocaleString()}`, rightCardX + cardWidth/2, statsY + 90);
+  
+  ctx.fillStyle = 'white';
+  ctx.font = '32px Arial';
+  ctx.fillText('Awarded in Micro-grants', rightCardX + cardWidth/2, statsY + 150);
+  
+  // Inspiring message with better line breaks
+  ctx.font = 'bold 40px Arial';
+  ctx.fillStyle = 'white';
+  ctx.textAlign = 'center';
+  ctx.fillText('We back brilliant ideas before they\'re "ready."', 540, 620);
+  ctx.font = '36px Arial';
+  ctx.fillText('No pitch deck required. No equity taken.', 540, 670);
+  ctx.fillText('Just belief in your vision and potential.', 540, 710);
+  
+  // Call to action with emoji
+  ctx.fillStyle = 'rgba(255,255,255,0.95)';
+  const ctaRadius = 15;
+  ctx.beginPath();
+  ctx.moveTo(140 + ctaRadius, 760);
+  ctx.lineTo(940 - ctaRadius, 760);
+  ctx.quadraticCurveTo(940, 760, 940, 760 + ctaRadius);
+  ctx.lineTo(940, 880 - ctaRadius);
+  ctx.quadraticCurveTo(940, 880, 940 - ctaRadius, 880);
+  ctx.lineTo(140 + ctaRadius, 880);
+  ctx.quadraticCurveTo(140, 880, 140, 880 - ctaRadius);
+  ctx.lineTo(140, 760 + ctaRadius);
+  ctx.quadraticCurveTo(140, 760, 140 + ctaRadius, 760);
+  ctx.closePath();
+  ctx.fill();
+  
+  ctx.fillStyle = '#8338EC';
+  ctx.font = 'bold 40px Arial';
+  ctx.fillText('🦄 Got a business idea?', 540, 810);
+  ctx.font = '32px Arial';
+  ctx.fillText('Submit your pitch for a $1,000 grant today!', 540, 855);
+  
+  // Website
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 36px Arial';
+  ctx.fillText('🌐 www.neighborhoods.space', 540, 940);
+  
+  // GNF Logo
+  try {
+    const logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
+    await new Promise((resolve, reject) => {
+      logoImg.onload = resolve;
+      logoImg.onerror = reject;
+      logoImg.src = '/assets/gnf-logo.webp';
+    });
+    const logoSize = 80;
+    ctx.drawImage(logoImg, 540 - logoSize/2, 980, logoSize, logoSize);
+  } catch (error) {
+    console.log('Logo load error:', error);
+  }
+};
+
+const drawRecruitmentCard = async (canvas) => {
+  const ctx = canvas.getContext('2d');
+  
+  // Lighter gradient background
+  const gradient = ctx.createLinearGradient(0, 0, 1080, 1080);
+  gradient.addColorStop(0, '#9C27B0');
+  gradient.addColorStop(0.5, '#BA68C8');
+  gradient.addColorStop(1, '#E1BEE7');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 1080, 1080);
+  
+  // No bokeh effect - keep it clean
+  ctx.globalAlpha = 1;
+  
+  // User photo with border
+  const photoSize = 150;
+  const photoX = 540;
+  const photoY = 180;
+  
+  // Photo border
+  ctx.save();
+  ctx.strokeStyle = 'white';
+  ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.arc(photoX, photoY, photoSize/2 + 4, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  // Photo circle
+  ctx.beginPath();
+  ctx.arc(photoX, photoY, photoSize/2, 0, Math.PI * 2);
+  ctx.clip();
+  
+  // Try to load user photo
+  const photoUrl = user.name 
+    ? `/assets/lps/${user.name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}.png`
+    : null;
+    
+  let photoLoaded = false;
+  if (photoUrl) {
+    try {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = photoUrl;
+      });
+      ctx.drawImage(img, photoX - photoSize/2, photoY - photoSize/2, photoSize, photoSize);
+      photoLoaded = true;
+    } catch (error) {
+      console.log('Photo load error:', error);
+    }
+  }
+  
+  if (!photoLoaded) {
+    // Gradient placeholder
+    const placeholderGrad = ctx.createLinearGradient(photoX - photoSize/2, photoY - photoSize/2, photoX + photoSize/2, photoY + photoSize/2);
+    placeholderGrad.addColorStop(0, '#BA68C8');
+    placeholderGrad.addColorStop(1, '#7B1FA2');
+    ctx.fillStyle = placeholderGrad;
+    ctx.fillRect(photoX - photoSize/2, photoY - photoSize/2, photoSize, photoSize);
+    ctx.font = '60px Arial';
+    ctx.fillStyle = 'white';
+    ctx.textAlign = 'center';
+    ctx.fillText('💫', photoX, photoY + 20);
+  }
+  ctx.restore();
+  
+  // User name
+  ctx.shadowColor = 'rgba(0,0,0,0.3)';
+  ctx.shadowBlur = 10;
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 48px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText(user.name || 'LP Name', 540, 360);
+  
+  // Chapter
+  ctx.font = '32px Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillText(user.chapter || 'Chapter', 540, 400);
+  ctx.shadowBlur = 0;
+  
+  // Main message
+  ctx.font = 'bold 42px Arial';
+  ctx.fillStyle = 'white';
+  ctx.fillText("I'm an LP with Good Neighbor Fund 💫", 540, 480);
+  
+  ctx.font = '36px Arial';
+  ctx.fillText('Backing bold founders with $1,000 grants.', 540, 530);
+  
+  // Call to action box
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  const ctaRadius = 20;
+  ctx.beginPath();
+  ctx.moveTo(140 + ctaRadius, 600);
+  ctx.lineTo(940 - ctaRadius, 600);
+  ctx.quadraticCurveTo(940, 600, 940, 600 + ctaRadius);
+  ctx.lineTo(940, 780 - ctaRadius);
+  ctx.quadraticCurveTo(940, 780, 940 - ctaRadius, 780);
+  ctx.lineTo(140 + ctaRadius, 780);
+  ctx.quadraticCurveTo(140, 780, 140, 780 - ctaRadius);
+  ctx.lineTo(140, 600 + ctaRadius);
+  ctx.quadraticCurveTo(140, 600, 140 + ctaRadius, 600);
+  ctx.closePath();
+  ctx.fill();
+  
+  // CTA text
+  ctx.font = 'bold 40px Arial';
+  ctx.fillStyle = 'white';
+  ctx.fillText('Want to help power the next wave', 540, 660);
+  ctx.fillText('of entrepreneurs?', 540, 710);
+  
+  ctx.font = 'bold 36px Arial';
+  ctx.fillStyle = '#FFD700';
+  ctx.fillText('DM me to get involved.', 540, 760);
+  
+  // Website
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 36px Arial';
+  ctx.fillText('🌐 www.neighborhoods.space', 540, 880);
+  
+  // GNF Logo
+  try {
+    const logoImg = new Image();
+    logoImg.crossOrigin = 'anonymous';
+    await new Promise((resolve, reject) => {
+      logoImg.onload = resolve;
+      logoImg.onerror = reject;
+      logoImg.src = '/assets/gnf-logo.webp';
+    });
+    const logoSize = 80;
+    ctx.drawImage(logoImg, 540 - logoSize/2, 920, logoSize, logoSize);
+  } catch (error) {
+    console.log('Logo load error:', error);
+  }
 };
 
 const downloadCard = async (type) => {
-  const canvasId = type === 'welcome' ? 'welcome-canvas' : 'badge-canvas';
+  const canvasId = type === 'welcome' ? 'welcome-canvas' : 
+                   type === 'badge' ? 'badge-canvas' : 
+                   type === 'stats' ? 'stats-canvas' : 'recruitment-canvas';
   const canvas = document.getElementById(canvasId);
   
   if (!canvas) return;
@@ -1018,8 +1395,12 @@ const downloadCard = async (type) => {
   // Draw the appropriate card
   if (type === 'welcome') {
     await drawWelcomeCard(canvas);
-  } else {
-    drawBadgeCard(canvas);
+  } else if (type === 'badge') {
+    await drawBadgeCard(canvas);
+  } else if (type === 'stats') {
+    await drawChapterStatsCard(canvas);
+  } else if (type === 'recruitment') {
+    await drawRecruitmentCard(canvas);
   }
   
   // Download the image
@@ -1041,12 +1422,16 @@ useEffect(() => {
     setTimeout(async () => {
       const welcomeCanvas = document.getElementById('welcome-canvas');
       const badgeCanvas = document.getElementById('badge-canvas');
+      const statsCanvas = document.getElementById('stats-canvas');
+      const recruitmentCanvas = document.getElementById('recruitment-canvas');
       
       if (welcomeCanvas) await drawWelcomeCard(welcomeCanvas);
-      if (badgeCanvas) drawBadgeCard(badgeCanvas);
+      if (badgeCanvas) await drawBadgeCard(badgeCanvas);
+      if (statsCanvas) await drawChapterStatsCard(statsCanvas);
+      if (recruitmentCanvas) await drawRecruitmentCard(recruitmentCanvas);
     }, 100);
   }
-}, [activeTab, user, userStats, userBadges]);
+}, [activeTab, user, userStats, userBadges, adminPitches]);
 
 // --- Helper Functions ---
 
@@ -2966,9 +3351,10 @@ return (
       {activeTab === 'socialCards' && (
         <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto' }}>
           <h2 style={{ marginBottom: '20px', fontSize: '24px', color: '#333' }}>Share Your Impact</h2>
-          <p style={{ marginBottom: '30px', color: '#666', fontSize: '16px' }}>
-            Create beautiful social media cards to share your involvement with Good Neighbor Fund. 
-            Click on a card to download it as an image.
+          <p style={{ marginBottom: '30px', color: '#666', fontSize: '16px', lineHeight: '1.6' }}>
+            Show the world you back bold ideas and early-stage entrepreneurship.<br />
+            Click a card to download and share on Instagram, LinkedIn, or wherever you make noise online.<br /><br />
+            By posting, you're helping spotlight underrepresented founders and spreading the mission of Good Neighbor Fund—$1,000 at a time.
           </p>
           
           <div style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -3012,6 +3398,52 @@ return (
                   display: 'block'
                 }}
                 onClick={() => downloadCard('badge')}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              />
+              <p style={{ marginTop: '10px', fontSize: '13px', color: '#666', textAlign: 'center' }}>Click to download</p>
+            </div>
+            
+            {/* Chapter Stats Card */}
+            <div>
+              <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333', textAlign: 'center' }}>Chapter Impact Stats</h3>
+              <canvas
+                id="stats-canvas"
+                width="1080"
+                height="1080"
+                style={{ 
+                  width: '350px', 
+                  height: '350px', 
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                  transition: 'transform 0.2s ease',
+                  display: 'block'
+                }}
+                onClick={() => downloadCard('stats')}
+                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              />
+              <p style={{ marginTop: '10px', fontSize: '13px', color: '#666', textAlign: 'center' }}>Click to download</p>
+            </div>
+            
+            {/* Recruitment Card */}
+            <div>
+              <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333', textAlign: 'center' }}>Limited Partner CTA</h3>
+              <canvas
+                id="recruitment-canvas"
+                width="1080"
+                height="1080"
+                style={{ 
+                  width: '350px', 
+                  height: '350px', 
+                  borderRadius: '12px',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+                  transition: 'transform 0.2s ease',
+                  display: 'block'
+                }}
+                onClick={() => downloadCard('recruitment')}
                 onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
                 onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
               />

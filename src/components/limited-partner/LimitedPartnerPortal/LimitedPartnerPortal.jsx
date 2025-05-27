@@ -1136,7 +1136,9 @@ const drawChapterStatsCard = async (canvas) => {
   ctx.fillText('Our Impact to Date', 540, 210);
   
   // Calculate all-time stats
-  const chapterPitches = adminPitches.filter(p => p.chapter === user.chapter);
+  // Use adminPitches for admin/superadmin, lpPitches for regular LPs
+  const pitchesToUse = isAdmin ? adminPitches : lpPitches;
+  const chapterPitches = pitchesToUse.filter(p => p.chapter === user.chapter);
   const grantsAwarded = chapterPitches.filter(p => p.isWinner).length;
   const dollarsAwarded = grantsAwarded * 1000;
   

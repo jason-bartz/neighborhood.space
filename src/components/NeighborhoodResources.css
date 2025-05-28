@@ -10,28 +10,42 @@
 .resources-toolbar {
   display: flex;
   gap: 10px;
-  padding: 10px;
-  background-color: #f5f5f5;
-  border-bottom: 1px solid #ddd;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
   align-items: center;
   flex-wrap: wrap;
 }
 
 .resources-toolbar input {
-  padding: 6px 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
   flex-grow: 1;
   min-width: 150px;
   font-family: inherit;
+  background-color: #ffffff;
+  transition: border-color 0.2s;
+}
+
+.resources-toolbar input:focus {
+  outline: none;
+  border-color: #adb5bd;
 }
 
 .resources-toolbar select {
-  padding: 6px 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
   min-width: 120px;
   font-family: inherit;
+  background-color: #ffffff;
+  transition: border-color 0.2s;
+}
+
+.resources-toolbar select:focus {
+  outline: none;
+  border-color: #adb5bd;
 }
 
 /* Content area styles */
@@ -43,20 +57,22 @@
 
 /* Resource list styles */
 .resources-list {
-  width: 250px;
-  border-right: 1px solid #ddd;
+  width: 280px;
+  border-right: 1px solid #e9ecef;
   overflow-y: auto;
-  background-color: #f9f9f9;
+  background-color: #f8f9fa;
   display: flex;
   flex-direction: column;
 }
 
 .resources-list h3 {
   margin: 0;
-  padding: 10px;
+  padding: 15px;
   font-size: 16px;
-  border-bottom: 1px solid #ddd;
-  background-color: #f0f0f0;
+  font-weight: 600;
+  border-bottom: 1px solid #e9ecef;
+  background-color: #ffffff;
+  color: #495057;
 }
 
 .resources-items {
@@ -67,18 +83,21 @@
 .resource-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px;
-  margin: 5px 0;
+  gap: 10px;
+  padding: 12px;
+  margin: 5px;
   background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
 .resource-item:hover {
-  background-color: #f0f0f0;
+  background-color: #f8f9fa;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+  transform: translateY(-1px);
 }
 
 .resource-emoji {
@@ -90,13 +109,14 @@
 }
 
 .resource-name {
-  font-weight: bold;
+  font-weight: 600;
   font-size: 14px;
+  color: #212529;
 }
 
 .resource-type {
   font-size: 12px;
-  color: #666;
+  color: #6c757d;
 }
 
 /* Map styles */
@@ -193,14 +213,14 @@
   position: absolute;
   top: 20px;
   right: 20px;
-  background-color: rgba(255, 255, 255, 0.9);
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 10px;
-  width: 200px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  padding: 15px;
+  width: 220px;
   z-index: 10;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  font-size: 12px; /* Increased from 8px */
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  font-size: 13px;
 }
 
 .map-legend h4 {
@@ -221,12 +241,17 @@
 }
 
 .legend-toggle-button {
-  background: #f0f0f0;
-  border: 1px solid #ccc;
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
   border-radius: 4px;
-  padding: 2px 5px;
-  font-size: 14px; /* Increased from 10px */
+  padding: 4px 8px;
+  font-size: 12px;
   cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.legend-toggle-button:hover {
+  background-color: #e9ecef;
 }
 
 .legend-items {
@@ -255,13 +280,14 @@
 
 .resource-modal-content {
   background-color: white;
-  border-radius: 8px;
+  border-radius: 12px;
   width: 90%;
   max-width: 500px;
   max-height: 80vh;
   overflow-y: auto;
-  padding: 20px;
+  padding: 30px;
   position: relative;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
 }
 
 .resource-modal-content h2 {
@@ -279,10 +305,10 @@
 
 .expanded-details {
   margin-top: 15px;
-  padding: 10px;
-  background-color: #f9f9f9;
-  border-radius: 4px;
-  border-left: 3px solid #FFD6EC;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #e7c6f7;
 }
 
 .expanded-details h3 {
@@ -291,10 +317,11 @@
 }
 
 .resource-link {
-  color: #0066cc;
+  color: #007bff;
   text-decoration: none;
   display: inline-block;
   margin-top: 10px;
+  font-weight: 500;
 }
 
 .resource-link:hover {
@@ -303,16 +330,19 @@
 
 .close-button {
   margin-top: 20px;
-  padding: 8px 16px;
-  background-color: #FFD6EC;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 10px 20px;
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  border-radius: 6px;
   cursor: pointer;
   font-family: inherit;
+  font-weight: 500;
+  transition: background-color 0.2s;
 }
 
 .close-button:hover {
-  background-color: #ffc0e0;
+  background-color: #5a6268;
 }
 
 /* bring all neighborhood labels above the street layer */

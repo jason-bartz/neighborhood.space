@@ -160,6 +160,8 @@ const [resourceFormData, setResourceFormData] = useState({
 });
 const [isAddingResource, setIsAddingResource] = useState(false);
 const [resourceSearchTerm, setResourceSearchTerm] = useState('');
+const [resourceTypeFilter, setResourceTypeFilter] = useState('');
+const [resourceStageFilter, setResourceStageFilter] = useState('');
 
 // Calculate new message count
 const newMessageCount = useMemo(() => {
@@ -1955,17 +1957,33 @@ const handleSaveResource = async () => {
       return;
     }
     
+    // Map form data to Firestore field names
+    const firestoreData = {
+      Resource: resourceFormData.Resource,
+      Type: resourceFormData.Type,
+      Stage: resourceFormData['Business Stage'],
+      FocusArea: resourceFormData['Focus Area'] || '',
+      CountiesServed: resourceFormData['Counties Served'] || '',
+      Website: resourceFormData.URL || '',
+      About: resourceFormData['Expanded Details'] || '',
+      AverageCheckSize: resourceFormData['Average Check Size'] || '',
+      RelocationRequired: resourceFormData['Relocation Required?'] || 'No'
+    };
+    
     if (editingResource) {
       // Update existing resource
       const resourceRef = doc(db, 'resources', editingResource.id);
-      await updateDoc(resourceRef, resourceFormData);
+      await updateDoc(resourceRef, {
+        ...firestoreData,
+        updatedAt: Timestamp.now()
+      });
       console.log(`LPPortal: Updated resource ${editingResource.id}`);
       showAppAlert("Resource updated successfully!");
     } else {
       // Add new resource
       const resourcesRef = collection(db, 'resources');
       await addDoc(resourcesRef, {
-        ...resourceFormData,
+        ...firestoreData,
         createdAt: Timestamp.now(),
         createdBy: user.uid
       });
@@ -2011,15 +2029,15 @@ const handleDeleteResource = async (resourceId) => {
 const handleEditResource = (resource) => {
   setEditingResource(resource);
   setResourceFormData({
-    Resource: resource.Resource || '',
-    Type: resource.Type || '',
-    'Focus Area': resource['Focus Area'] || '',
-    'Business Stage': resource['Business Stage'] || 'Ideation',
-    'Counties Served': resource['Counties Served'] || '',
-    URL: resource.URL || '',
-    'Expanded Details': resource['Expanded Details'] || '',
-    'Average Check Size': resource['Average Check Size'] || '',
-    'Relocation Required?': resource['Relocation Required?'] || 'No'
+    Resource: resource.Resource || resource.resource || '',
+    Type: resource.Type || resource.type || '',
+    'Focus Area': resource.FocusArea || resource['Focus Area'] || resource.focusArea || '',
+    'Business Stage': resource.Stage || resource['Business Stage'] || resource.businessStage || 'Ideation',
+    'Counties Served': resource.CountiesServed || resource['Counties Served'] || resource.countiesServed || '',
+    URL: resource.Website || resource.URL || resource.url || '',
+    'Expanded Details': resource.About || resource['Expanded Details'] || resource.expandedDetails || '',
+    'Average Check Size': resource.AverageCheckSize || resource['Average Check Size'] || resource.averageCheckSize || '',
+    'Relocation Required?': resource.RelocationRequired || resource['Relocation Required?'] || resource.relocationRequired || 'No'
   });
   setIsAddingResource(true);
 };
@@ -5351,69 +5369,144 @@ return (
             <div>
               <h4>🗺️ Neighborhood Resources Management</h4>
               
-              {/* Search and Add New Button */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center' }}>
-                <input
-                  type="text"
-                  placeholder="Search resources..."
-                  value={resourceSearchTerm}
-                  onChange={(e) => setResourceSearchTerm(e.target.value)}
-                  style={{ padding: '8px', width: '300px', border: '1px solid #ccc', borderRadius: '4px' }}
-                />
-                <RetroButton
-                  onClick={() => {
-                    setIsAddingResource(true);
-                    setEditingResource(null);
-                    setResourceFormData({
-                      Resource: '',
-                      Type: '',
-                      'Focus Area': '',
-                      'Business Stage': 'Ideation',
-                      'Counties Served': '',
-                      URL: '',
+              {/* Search, Filters and Add New Button */}
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    placeholder="Search resources..."
+                    value={resourceSearchTerm}
+                    onChange={(e) => setResourceSearchTerm(e.target.value)}
+                    style={{ 
+                      padding: '8px 12px', 
+                      width: '300px', 
+                      border: '1px solid #dee2e6', 
+                      borderRadius: '6px',
+                      backgroundColor: '#ffffff'
+                    }}
+                  />
+                  <select
+                    value={resourceTypeFilter}
+                    onChange={(e) => setResourceTypeFilter(e.target.value)}
+                    style={{ 
+                      padding: '8px 12px', 
+                      border: '1px solid #dee2e6', 
+                      borderRadius: '6px',
+                      backgroundColor: '#ffffff',
+                      minWidth: '150px'
+                    }}
+                  >
+                    <option value="">All Types</option>
+                    <option value="Funding">Funding</option>
+                    <option value="Incubator/Accelerator">Incubator/Accelerator</option>
+                    <option value="Mentorship">Mentorship</option>
+                    <option value="Legal">Legal</option>
+                    <option value="Education">Education</option>
+                    <option value="Community">Community</option>
+                    <option value="Government">Government</option>
+                    <option value="Venture Capital">Venture Capital</option>
+                    <option value="Angel Group">Angel Group</option>
+                    <option value="Coworking">Coworking</option>
+                    <option value="Nonprofit">Nonprofit</option>
+                    <option value="Corporate Venture">Corporate Venture</option>
+                    <option value="Private Equity">Private Equity</option>
+                    <option value="Investment Platform">Investment Platform</option>
+                    <option value="Venture Studio">Venture Studio</option>
+                  </select>
+                  <select
+                    value={resourceStageFilter}
+                    onChange={(e) => setResourceStageFilter(e.target.value)}
+                    style={{ 
+                      padding: '8px 12px', 
+                      border: '1px solid #dee2e6', 
+                      borderRadius: '6px',
+                      backgroundColor: '#ffffff',
+                      minWidth: '150px'
+                    }}
+                  >
+                    <option value="">All Stages</option>
+                    <option value="Ideation">Ideation</option>
+                    <option value="Early Stage">Early Stage</option>
+                    <option value="Growth">Growth</option>
+                    <option value="Established">Established</option>
+                    <option value="All">All Stages (Resource serves all)</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => {
+                      setIsAddingResource(true);
+                      setEditingResource(null);
+                      setResourceFormData({
+                        Resource: '',
+                        Type: '',
+                        'Focus Area': '',
+                        'Business Stage': 'Ideation',
+                        'Counties Served': '',
+                        URL: '',
                       'Expanded Details': '',
                       'Average Check Size': '',
                       'Relocation Required?': 'No'
                     });
                   }}
-                  style={{ background: '#28a745', color: 'white', padding: '8px 16px' }}
+                  style={{ 
+                    background: '#ffffff',
+                    color: '#28a745',
+                    border: '1px solid #28a745',
+                    padding: '10px 20px',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.background = '#28a745';
+                    e.target.style.color = '#ffffff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.background = '#ffffff';
+                    e.target.style.color = '#28a745';
+                  }}
                 >
                   + Add New Resource
-                </RetroButton>
+                </button>
+                </div>
               </div>
               
               {/* Resource Form (Add/Edit) */}
               {isAddingResource && (
                 <div style={{ 
-                  background: '#f8f9fa', 
-                  border: '1px solid #dee2e6', 
-                  borderRadius: '4px', 
-                  padding: '20px', 
-                  marginBottom: '20px' 
+                  background: '#ffffff', 
+                  border: '1px solid #e9ecef', 
+                  borderRadius: '8px', 
+                  padding: '30px', 
+                  marginBottom: '20px',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)' 
                 }}>
-                  <h5>{editingResource ? 'Edit Resource' : 'Add New Resource'}</h5>
+                  <h5 style={{ marginBottom: '20px', color: '#495057' }}>{editingResource ? 'Edit Resource' : 'Add New Resource'}</h5>
                   
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                     <div>
-                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
                         Resource Name *
                       </label>
                       <input
                         type="text"
                         value={resourceFormData.Resource}
                         onChange={(e) => setResourceFormData({...resourceFormData, Resource: e.target.value})}
-                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
                       />
                     </div>
                     
                     <div>
-                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
                         Type *
                       </label>
                       <select
                         value={resourceFormData.Type}
                         onChange={(e) => setResourceFormData({...resourceFormData, Type: e.target.value})}
-                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
                       >
                         <option value="">Select Type</option>
                         <option value="Funding">Funding</option>
@@ -5432,13 +5525,13 @@ return (
                     </div>
                     
                     <div>
-                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
                         Business Stage *
                       </label>
                       <select
                         value={resourceFormData['Business Stage']}
                         onChange={(e) => setResourceFormData({...resourceFormData, 'Business Stage': e.target.value})}
-                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
                       >
                         <option value="Ideation">Ideation</option>
                         <option value="Early">Early</option>
@@ -5449,64 +5542,64 @@ return (
                     </div>
                     
                     <div>
-                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
                         Focus Area
                       </label>
                       <input
                         type="text"
                         value={resourceFormData['Focus Area']}
                         onChange={(e) => setResourceFormData({...resourceFormData, 'Focus Area': e.target.value})}
-                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
                       />
                     </div>
                     
                     <div>
-                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
                         Counties Served
                       </label>
                       <input
                         type="text"
                         value={resourceFormData['Counties Served']}
                         onChange={(e) => setResourceFormData({...resourceFormData, 'Counties Served': e.target.value})}
-                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
                         placeholder="e.g., All 8 counties, Erie, Niagara"
                       />
                     </div>
                     
                     <div>
-                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
                         Average Check Size
                       </label>
                       <input
                         type="text"
                         value={resourceFormData['Average Check Size']}
                         onChange={(e) => setResourceFormData({...resourceFormData, 'Average Check Size': e.target.value})}
-                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
                         placeholder="e.g., $50K-$250K"
                       />
                     </div>
                     
                     <div>
-                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
                         URL
                       </label>
                       <input
                         type="url"
                         value={resourceFormData.URL}
                         onChange={(e) => setResourceFormData({...resourceFormData, URL: e.target.value})}
-                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
                         placeholder="https://..."
                       />
                     </div>
                     
                     <div>
-                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
                         Relocation Required?
                       </label>
                       <select
                         value={resourceFormData['Relocation Required?']}
                         onChange={(e) => setResourceFormData({...resourceFormData, 'Relocation Required?': e.target.value})}
-                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
                       >
                         <option value="No">No</option>
                         <option value="Yes">Yes</option>
@@ -5515,7 +5608,7 @@ return (
                   </div>
                   
                   <div style={{ marginTop: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
                       Expanded Details
                     </label>
                     <textarea
@@ -5523,31 +5616,70 @@ return (
                       onChange={(e) => setResourceFormData({...resourceFormData, 'Expanded Details': e.target.value})}
                       style={{ 
                         width: '100%', 
-                        padding: '8px', 
-                        border: '1px solid #ccc', 
-                        borderRadius: '4px',
-                        minHeight: '100px'
+                        padding: '10px 12px', 
+                        border: '1px solid #dee2e6', 
+                        borderRadius: '6px',
+                        backgroundColor: '#ffffff',
+                        fontSize: '14px',
+                        minHeight: '100px',
+                        resize: 'vertical'
                       }}
                       placeholder="Detailed description of the resource..."
                     />
                   </div>
                   
                   <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-                    <RetroButton
+                    <button
                       onClick={handleSaveResource}
-                      style={{ background: '#007bff', color: 'white', padding: '8px 16px' }}
+                      style={{ 
+                        background: '#ffffff',
+                        color: '#007bff',
+                        border: '1px solid #007bff',
+                        padding: '10px 20px',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = '#007bff';
+                        e.target.style.color = '#ffffff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = '#ffffff';
+                        e.target.style.color = '#007bff';
+                      }}
                     >
                       {editingResource ? 'Update Resource' : 'Save Resource'}
-                    </RetroButton>
-                    <RetroButton
+                    </button>
+                    <button
                       onClick={() => {
                         setIsAddingResource(false);
                         setEditingResource(null);
                       }}
-                      style={{ background: '#6c757d', color: 'white', padding: '8px 16px' }}
+                      style={{ 
+                        background: '#ffffff',
+                        color: '#6c757d',
+                        border: '1px solid #6c757d',
+                        padding: '10px 20px',
+                        fontSize: '14px',
+                        fontWeight: '500',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.background = '#6c757d';
+                        e.target.style.color = '#ffffff';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.background = '#ffffff';
+                        e.target.style.color = '#6c757d';
+                      }}
                     >
                       Cancel
-                    </RetroButton>
+                    </button>
                   </div>
                 </div>
               )}
@@ -5567,18 +5699,34 @@ return (
                   </thead>
                   <tbody>
                     {managedResources
-                      .filter(resource => 
-                        resource.Resource?.toLowerCase().includes(resourceSearchTerm.toLowerCase()) ||
-                        resource.Type?.toLowerCase().includes(resourceSearchTerm.toLowerCase()) ||
-                        resource['Focus Area']?.toLowerCase().includes(resourceSearchTerm.toLowerCase())
-                      )
+                      .filter(resource => {
+                        // Search filter
+                        const matchesSearch = !resourceSearchTerm || 
+                          resource.Resource?.toLowerCase().includes(resourceSearchTerm.toLowerCase()) ||
+                          resource.Type?.toLowerCase().includes(resourceSearchTerm.toLowerCase()) ||
+                          resource.FocusArea?.toLowerCase().includes(resourceSearchTerm.toLowerCase()) ||
+                          resource['Focus Area']?.toLowerCase().includes(resourceSearchTerm.toLowerCase());
+                        
+                        // Type filter
+                        const matchesType = !resourceTypeFilter || 
+                          resource.Type === resourceTypeFilter || 
+                          resource.type === resourceTypeFilter;
+                        
+                        // Stage filter
+                        const matchesStage = !resourceStageFilter || 
+                          resource.Stage === resourceStageFilter || 
+                          resource['Business Stage'] === resourceStageFilter || 
+                          resource.businessStage === resourceStageFilter;
+                        
+                        return matchesSearch && matchesType && matchesStage;
+                      })
                       .map((resource) => (
                         <tr key={resource.id} style={{ borderBottom: '1px solid #dee2e6' }}>
                           <td style={{ padding: '10px' }}>
-                            {resource.Resource}
-                            {resource.URL && (
+                            {resource.Resource || resource.resource || '-'}
+                            {(resource.Website || resource.URL || resource.url) && (
                               <a 
-                                href={resource.URL} 
+                                href={resource.Website || resource.URL || resource.url} 
                                 target="_blank" 
                                 rel="noopener noreferrer"
                                 style={{ marginLeft: '5px', fontSize: '0.8em' }}
@@ -5587,26 +5735,35 @@ return (
                               </a>
                             )}
                           </td>
-                          <td style={{ padding: '10px' }}>{resource.Type}</td>
-                          <td style={{ padding: '10px' }}>{resource['Business Stage']}</td>
+                          <td style={{ padding: '10px' }}>{resource.Type || resource.type || '-'}</td>
+                          <td style={{ padding: '10px' }}>{resource.Stage || resource['Business Stage'] || resource.businessStage || '-'}</td>
                           <td style={{ padding: '10px', fontSize: '0.85em' }}>
-                            {resource['Focus Area'] || '-'}
+                            {resource.FocusArea || resource['Focus Area'] || resource.focusArea || '-'}
                           </td>
                           <td style={{ padding: '10px', fontSize: '0.85em' }}>
-                            {resource['Counties Served'] || '-'}
+                            {resource.CountiesServed || resource['Counties Served'] || resource.countiesServed || '-'}
                           </td>
                           <td style={{ padding: '10px', textAlign: 'center' }}>
                             <button
                               onClick={() => handleEditResource(resource)}
                               style={{
-                                background: '#ffc107',
-                                color: '#000',
-                                border: 'none',
-                                padding: '4px 8px',
-                                borderRadius: '3px',
+                                background: '#ffffff',
+                                color: '#ffc107',
+                                border: '1px solid #ffc107',
+                                padding: '4px 12px',
+                                borderRadius: '4px',
                                 marginRight: '5px',
                                 cursor: 'pointer',
-                                fontSize: '0.85em'
+                                fontSize: '0.85em',
+                                transition: 'all 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.target.style.background = '#ffc107';
+                                e.target.style.color = '#000';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.background = '#ffffff';
+                                e.target.style.color = '#ffc107';
                               }}
                             >
                               Edit
@@ -5614,13 +5771,22 @@ return (
                             <button
                               onClick={() => handleDeleteResource(resource.id)}
                               style={{
-                                background: '#dc3545',
-                                color: 'white',
-                                border: 'none',
-                                padding: '4px 8px',
-                                borderRadius: '3px',
+                                background: '#ffffff',
+                                color: '#dc3545',
+                                border: '1px solid #dc3545',
+                                padding: '4px 12px',
+                                borderRadius: '4px',
                                 cursor: 'pointer',
-                                fontSize: '0.85em'
+                                fontSize: '0.85em',
+                                transition: 'all 0.2s ease'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.target.style.background = '#dc3545';
+                                e.target.style.color = '#ffffff';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.target.style.background = '#ffffff';
+                                e.target.style.color = '#dc3545';
                               }}
                             >
                               Delete

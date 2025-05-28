@@ -38,7 +38,7 @@ const districts = {
   "Startup Campus": ["Education", "Mentorship"],
   "Government Quarter": ["Government", "Nonprofit"],
   "Innovation Alley": ["Incubator/Accelerator", "Coworking", "Venture Studio", "Legal", "Corporate Venture"],
-  "Community Center": ["Community"]
+  "Town Square": ["Community"]
 };
 
 // Street names
@@ -156,10 +156,18 @@ export default function MobileNeighborhoodResources({ onClose }) {
         });
         
         if (firestoreData.length > 0) {
-          // Make sure all rows have a business stage, defaulting to "Ideation" if missing
+          // Map Firestore fields - handle both camelCase and the exact field names from Firestore
           const fixedData = firestoreData.map(item => ({
-            ...item,
-            "Business Stage": item["Business Stage"] || item.businessStage || "Ideation"
+            id: item.id,
+            Resource: item.Resource || item.resource || '',
+            Type: item.Type || item.type || '',
+            "Focus Area": item.FocusArea || item["Focus Area"] || item.focusArea || '',
+            "Business Stage": item.Stage || item["Business Stage"] || item.businessStage || "Ideation",
+            "Counties Served": item.CountiesServed || item["Counties Served"] || item.countiesServed || '',
+            URL: item.Website || item.URL || item.url || '',
+            "Expanded Details": item.About || item["Expanded Details"] || item.expandedDetails || '',
+            "Average Check Size": item.AverageCheckSize || item["Average Check Size"] || item.averageCheckSize || '',
+            "Relocation Required?": item.RelocationRequired || item["Relocation Required?"] || item.relocationRequired || ''
           }));
           const processedResources = processResources(fixedData);
           setResources(processedResources);
@@ -902,9 +910,13 @@ export default function MobileNeighborhoodResources({ onClose }) {
         let neighborhoodKey = "Ideation"; // Default
         
         if (normalizedStage.includes("ideation")) neighborhoodKey = "Ideation";
-        else if (normalizedStage.includes("early")) neighborhoodKey = "Early Stage";
+        else if (normalizedStage.includes("early") || normalizedStage === "early stage") neighborhoodKey = "Early Stage";
         else if (normalizedStage.includes("growth")) neighborhoodKey = "Growth";
         else if (normalizedStage.includes("established")) neighborhoodKey = "Established";
+        else if (normalizedStage === "all" || normalizedStage === "") {
+          // For "All" resources, distribute them based on their type
+          neighborhoodKey = "Early Stage"; // Default for "All" stage resources
+        }
         
         const streetY = neighborhoodYPositions[neighborhoodKey].streetY;
         

@@ -144,6 +144,23 @@ const [lastViewedTimestamp, setLastViewedTimestamp] = useState(() => {
   return stored || new Date().toISOString();
 });
 
+// Resources management state
+const [managedResources, setManagedResources] = useState([]);
+const [editingResource, setEditingResource] = useState(null);
+const [resourceFormData, setResourceFormData] = useState({
+  Resource: '',
+  Type: '',
+  'Focus Area': '',
+  'Business Stage': 'Ideation',
+  'Counties Served': '',
+  URL: '',
+  'Expanded Details': '',
+  'Average Check Size': '',
+  'Relocation Required?': 'No'
+});
+const [isAddingResource, setIsAddingResource] = useState(false);
+const [resourceSearchTerm, setResourceSearchTerm] = useState('');
+
 // Calculate new message count
 const newMessageCount = useMemo(() => {
   if (!lastViewedTimestamp || !bulletinMessages.length) return 0;
@@ -680,6 +697,13 @@ useEffect(() => {
     localStorage.setItem(`messageBoard_lastViewed_${user.uid}`, now);
   }
 }, [user, activeTab]);
+
+// Load resources when admin panel is active
+useEffect(() => {
+  if (user && activeTab === 'adminPanel' && activeAdminTab === 'resourcesManagement' && isSuperAdmin) {
+    loadManagedResources();
+  }
+}, [user, activeTab, activeAdminTab, isSuperAdmin]);
 
 useEffect(() => {
   if (selectedPitch && selectedPitch.id) {
@@ -1898,6 +1922,106 @@ const MessageReactions = ({ message, user, handleReactToMessage, chapterMembers 
       </div>
     </div>
   );
+};
+
+// Resources Management Functions
+const loadManagedResources = async () => {
+  try {
+    const resourcesRef = collection(db, 'resources');
+    const q = query(resourcesRef, orderBy('Resource'));
+    const querySnapshot = await getDocs(q);
+    
+    const resources = [];
+    querySnapshot.forEach((doc) => {
+      resources.push({
+        id: doc.id,
+        ...doc.data()
+      });
+    });
+    
+    setManagedResources(resources);
+    console.log(`LPPortal: Loaded ${resources.length} resources`);
+  } catch (error) {
+    console.error("LPPortal: Error loading resources:", error);
+    showAppAlert("Failed to load resources.");
+  }
+};
+
+const handleSaveResource = async () => {
+  try {
+    // Validate required fields
+    if (!resourceFormData.Resource || !resourceFormData.Type || !resourceFormData['Business Stage']) {
+      showAppAlert("Please fill in all required fields: Resource Name, Type, and Business Stage.");
+      return;
+    }
+    
+    if (editingResource) {
+      // Update existing resource
+      const resourceRef = doc(db, 'resources', editingResource.id);
+      await updateDoc(resourceRef, resourceFormData);
+      console.log(`LPPortal: Updated resource ${editingResource.id}`);
+      showAppAlert("Resource updated successfully!");
+    } else {
+      // Add new resource
+      const resourcesRef = collection(db, 'resources');
+      await addDoc(resourcesRef, {
+        ...resourceFormData,
+        createdAt: Timestamp.now(),
+        createdBy: user.uid
+      });
+      console.log("LPPortal: Added new resource");
+      showAppAlert("Resource added successfully!");
+    }
+    
+    // Reset form and reload
+    setEditingResource(null);
+    setIsAddingResource(false);
+    setResourceFormData({
+      Resource: '',
+      Type: '',
+      'Focus Area': '',
+      'Business Stage': 'Ideation',
+      'Counties Served': '',
+      URL: '',
+      'Expanded Details': '',
+      'Average Check Size': '',
+      'Relocation Required?': 'No'
+    });
+    loadManagedResources();
+  } catch (error) {
+    console.error("LPPortal: Error saving resource:", error);
+    showAppAlert("Failed to save resource.");
+  }
+};
+
+const handleDeleteResource = async (resourceId) => {
+  if (showAppConfirm("Are you sure you want to delete this resource? This action cannot be undone.")) {
+    try {
+      await deleteDoc(doc(db, "resources", resourceId));
+      console.log(`LPPortal: Resource ${resourceId} deleted`);
+      showAppAlert("Resource deleted successfully!");
+      loadManagedResources();
+    } catch (error) {
+      console.error("LPPortal: Error deleting resource:", error);
+      showAppAlert("Failed to delete resource.");
+    }
+  }
+};
+
+const handleEditResource = (resource) => {
+  setEditingResource(resource);
+  setResourceFormData({
+    Resource: resource.Resource || '',
+    Type: resource.Type || '',
+    'Focus Area': resource['Focus Area'] || '',
+    'Business Stage': resource['Business Stage'] || 'Ideation',
+    'Counties Served': resource['Counties Served'] || '',
+    URL: resource.URL || '',
+    'Expanded Details': resource['Expanded Details'] || '',
+    'Average Check Size': resource['Average Check Size'] || '',
+    'Relocation Required?': resource['Relocation Required?'] || 'No'
+  });
+  setIsAddingResource(true);
 };
 
 // Navigation items component (shared between desktop and mobile)
@@ -4244,12 +4368,20 @@ return (
               Create User
             </button>
             {isSuperAdmin && (
-              <button
-                onClick={() => setActiveAdminTab('superAdminTools')}
-                style={{ padding: '7px 12px', border: 'none', borderBottom: activeAdminTab === 'superAdminTools' ? '3px solid #FFD6EC' : '3px solid transparent', background: 'transparent', cursor: 'pointer', fontWeight: activeAdminTab === 'superAdminTools' ? 'bold' : 'normal', fontSize:'inherit', fontFamily:'inherit'}}
-              >
-                Super Admin Tools {/* Changed back */}
-              </button>
+              <>
+                <button
+                  onClick={() => setActiveAdminTab('superAdminTools')}
+                  style={{ padding: '7px 12px', border: 'none', borderBottom: activeAdminTab === 'superAdminTools' ? '3px solid #FFD6EC' : '3px solid transparent', background: 'transparent', cursor: 'pointer', fontWeight: activeAdminTab === 'superAdminTools' ? 'bold' : 'normal', fontSize:'inherit', fontFamily:'inherit'}}
+                >
+                  Super Admin Tools {/* Changed back */}
+                </button>
+                <button
+                  onClick={() => setActiveAdminTab('resourcesManagement')}
+                  style={{ padding: '7px 12px', border: 'none', borderBottom: activeAdminTab === 'resourcesManagement' ? '3px solid #FFD6EC' : '3px solid transparent', background: 'transparent', cursor: 'pointer', fontWeight: activeAdminTab === 'resourcesManagement' ? 'bold' : 'normal', fontSize:'inherit', fontFamily:'inherit'}}
+                >
+                  Resources
+                </button>
+              </>
             )}
           </div>
 
@@ -5210,6 +5342,300 @@ return (
               
               <div style={{border:'1px dashed #ccc', padding:'20px', background:'#fafafa'}}>
                 <strong>Coming Soon:</strong> More super admin tools for managing chapters, global settings, etc.
+              </div>
+            </div>
+          )}
+          
+          {/* Resources Management Sub-Tab Content */}
+          {activeAdminTab === 'resourcesManagement' && isSuperAdmin && (
+            <div>
+              <h4>🗺️ Neighborhood Resources Management</h4>
+              
+              {/* Search and Add New Button */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center' }}>
+                <input
+                  type="text"
+                  placeholder="Search resources..."
+                  value={resourceSearchTerm}
+                  onChange={(e) => setResourceSearchTerm(e.target.value)}
+                  style={{ padding: '8px', width: '300px', border: '1px solid #ccc', borderRadius: '4px' }}
+                />
+                <RetroButton
+                  onClick={() => {
+                    setIsAddingResource(true);
+                    setEditingResource(null);
+                    setResourceFormData({
+                      Resource: '',
+                      Type: '',
+                      'Focus Area': '',
+                      'Business Stage': 'Ideation',
+                      'Counties Served': '',
+                      URL: '',
+                      'Expanded Details': '',
+                      'Average Check Size': '',
+                      'Relocation Required?': 'No'
+                    });
+                  }}
+                  style={{ background: '#28a745', color: 'white', padding: '8px 16px' }}
+                >
+                  + Add New Resource
+                </RetroButton>
+              </div>
+              
+              {/* Resource Form (Add/Edit) */}
+              {isAddingResource && (
+                <div style={{ 
+                  background: '#f8f9fa', 
+                  border: '1px solid #dee2e6', 
+                  borderRadius: '4px', 
+                  padding: '20px', 
+                  marginBottom: '20px' 
+                }}>
+                  <h5>{editingResource ? 'Edit Resource' : 'Add New Resource'}</h5>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                        Resource Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={resourceFormData.Resource}
+                        onChange={(e) => setResourceFormData({...resourceFormData, Resource: e.target.value})}
+                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                        Type *
+                      </label>
+                      <select
+                        value={resourceFormData.Type}
+                        onChange={(e) => setResourceFormData({...resourceFormData, Type: e.target.value})}
+                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      >
+                        <option value="">Select Type</option>
+                        <option value="Funding">Funding</option>
+                        <option value="Incubator/Accelerator">Incubator/Accelerator</option>
+                        <option value="Mentorship">Mentorship</option>
+                        <option value="Community">Community</option>
+                        <option value="Government">Government</option>
+                        <option value="Legal">Legal</option>
+                        <option value="Education">Education</option>
+                        <option value="Venture Capital">Venture Capital</option>
+                        <option value="Angel Group">Angel Group</option>
+                        <option value="Private Investment Office">Private Investment Office</option>
+                        <option value="Corporate Venture">Corporate Venture</option>
+                        <option value="Venture Studio">Venture Studio</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                        Business Stage *
+                      </label>
+                      <select
+                        value={resourceFormData['Business Stage']}
+                        onChange={(e) => setResourceFormData({...resourceFormData, 'Business Stage': e.target.value})}
+                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      >
+                        <option value="Ideation">Ideation</option>
+                        <option value="Early">Early</option>
+                        <option value="Growth">Growth</option>
+                        <option value="Established">Established</option>
+                        <option value="All">All</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                        Focus Area
+                      </label>
+                      <input
+                        type="text"
+                        value={resourceFormData['Focus Area']}
+                        onChange={(e) => setResourceFormData({...resourceFormData, 'Focus Area': e.target.value})}
+                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                        Counties Served
+                      </label>
+                      <input
+                        type="text"
+                        value={resourceFormData['Counties Served']}
+                        onChange={(e) => setResourceFormData({...resourceFormData, 'Counties Served': e.target.value})}
+                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        placeholder="e.g., All 8 counties, Erie, Niagara"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                        Average Check Size
+                      </label>
+                      <input
+                        type="text"
+                        value={resourceFormData['Average Check Size']}
+                        onChange={(e) => setResourceFormData({...resourceFormData, 'Average Check Size': e.target.value})}
+                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        placeholder="e.g., $50K-$250K"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                        URL
+                      </label>
+                      <input
+                        type="url"
+                        value={resourceFormData.URL}
+                        onChange={(e) => setResourceFormData({...resourceFormData, URL: e.target.value})}
+                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                        placeholder="https://..."
+                      />
+                    </div>
+                    
+                    <div>
+                      <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                        Relocation Required?
+                      </label>
+                      <select
+                        value={resourceFormData['Relocation Required?']}
+                        onChange={(e) => setResourceFormData({...resourceFormData, 'Relocation Required?': e.target.value})}
+                        style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                      >
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div style={{ marginTop: '15px' }}>
+                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
+                      Expanded Details
+                    </label>
+                    <textarea
+                      value={resourceFormData['Expanded Details']}
+                      onChange={(e) => setResourceFormData({...resourceFormData, 'Expanded Details': e.target.value})}
+                      style={{ 
+                        width: '100%', 
+                        padding: '8px', 
+                        border: '1px solid #ccc', 
+                        borderRadius: '4px',
+                        minHeight: '100px'
+                      }}
+                      placeholder="Detailed description of the resource..."
+                    />
+                  </div>
+                  
+                  <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
+                    <RetroButton
+                      onClick={handleSaveResource}
+                      style={{ background: '#007bff', color: 'white', padding: '8px 16px' }}
+                    >
+                      {editingResource ? 'Update Resource' : 'Save Resource'}
+                    </RetroButton>
+                    <RetroButton
+                      onClick={() => {
+                        setIsAddingResource(false);
+                        setEditingResource(null);
+                      }}
+                      style={{ background: '#6c757d', color: 'white', padding: '8px 16px' }}
+                    >
+                      Cancel
+                    </RetroButton>
+                  </div>
+                </div>
+              )}
+              
+              {/* Resources Table */}
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em' }}>
+                  <thead>
+                    <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Resource Name</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Type</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Business Stage</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Focus Area</th>
+                      <th style={{ padding: '10px', textAlign: 'left' }}>Counties</th>
+                      <th style={{ padding: '10px', textAlign: 'center' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {managedResources
+                      .filter(resource => 
+                        resource.Resource?.toLowerCase().includes(resourceSearchTerm.toLowerCase()) ||
+                        resource.Type?.toLowerCase().includes(resourceSearchTerm.toLowerCase()) ||
+                        resource['Focus Area']?.toLowerCase().includes(resourceSearchTerm.toLowerCase())
+                      )
+                      .map((resource) => (
+                        <tr key={resource.id} style={{ borderBottom: '1px solid #dee2e6' }}>
+                          <td style={{ padding: '10px' }}>
+                            {resource.Resource}
+                            {resource.URL && (
+                              <a 
+                                href={resource.URL} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                style={{ marginLeft: '5px', fontSize: '0.8em' }}
+                              >
+                                🔗
+                              </a>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px' }}>{resource.Type}</td>
+                          <td style={{ padding: '10px' }}>{resource['Business Stage']}</td>
+                          <td style={{ padding: '10px', fontSize: '0.85em' }}>
+                            {resource['Focus Area'] || '-'}
+                          </td>
+                          <td style={{ padding: '10px', fontSize: '0.85em' }}>
+                            {resource['Counties Served'] || '-'}
+                          </td>
+                          <td style={{ padding: '10px', textAlign: 'center' }}>
+                            <button
+                              onClick={() => handleEditResource(resource)}
+                              style={{
+                                background: '#ffc107',
+                                color: '#000',
+                                border: 'none',
+                                padding: '4px 8px',
+                                borderRadius: '3px',
+                                marginRight: '5px',
+                                cursor: 'pointer',
+                                fontSize: '0.85em'
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteResource(resource.id)}
+                              style={{
+                                background: '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                padding: '4px 8px',
+                                borderRadius: '3px',
+                                cursor: 'pointer',
+                                fontSize: '0.85em'
+                              }}
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+                
+                {managedResources.length === 0 && (
+                  <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                    No resources found. Add your first resource!
+                  </p>
+                )}
               </div>
             </div>
           )}

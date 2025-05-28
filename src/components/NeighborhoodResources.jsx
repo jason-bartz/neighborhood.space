@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import "./NeighborhoodResources.css";
 // Make sure papaparse is imported correctly
 import Papa from "papaparse";
+import { db } from '../firebaseConfig';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 
 // Verify Papa is available and show a warning if not
 if (!Papa || !Papa.parse) {
@@ -84,6 +86,36 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
   
   useEffect(() => {
     async function loadCSV() {
+      try {
+        // First try to load from Firestore
+        const resourcesRef = collection(db, 'resources');
+        const q = query(resourcesRef, orderBy('Resource'));
+        const querySnapshot = await getDocs(q);
+        
+        const firestoreData = [];
+        querySnapshot.forEach((doc) => {
+          firestoreData.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+        
+        if (firestoreData.length > 0) {
+          // Make sure all rows have a business stage, defaulting to "Ideation" if missing
+          const fixedData = firestoreData.map(item => ({
+            ...item,
+            "Business Stage": item["Business Stage"] || item.businessStage || "Ideation"
+          }));
+          const processedResources = processResources(fixedData);
+          setResources(processedResources);
+          setFilteredResources(processedResources);
+          return; // Successfully loaded from Firestore
+        }
+      } catch (error) {
+        console.error("Error loading from Firestore:", error);
+      }
+      
+      // If Firestore fails or is empty, try CSV
       try {
         const response = await window.fs.readFile('Western_New_York_Entrepreneurial_Resources_with_Business_Stage.csv', { encoding: 'utf8' });
         

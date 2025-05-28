@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import "./NeighborhoodResources.css";
 import Papa from "papaparse";
 import "../mock-fs.js"; // Import mock filesystem
+import { db } from '../firebaseConfig';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 
 // Resource emoji mapping
 const resourceEmojis = {
@@ -139,6 +141,36 @@ export default function MobileNeighborhoodResources({ onClose }) {
   
   useEffect(() => {
     async function loadCSV() {
+      try {
+        // First try to load from Firestore
+        const resourcesRef = collection(db, 'resources');
+        const q = query(resourcesRef, orderBy('Resource'));
+        const querySnapshot = await getDocs(q);
+        
+        const firestoreData = [];
+        querySnapshot.forEach((doc) => {
+          firestoreData.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+        
+        if (firestoreData.length > 0) {
+          // Make sure all rows have a business stage, defaulting to "Ideation" if missing
+          const fixedData = firestoreData.map(item => ({
+            ...item,
+            "Business Stage": item["Business Stage"] || item.businessStage || "Ideation"
+          }));
+          const processedResources = processResources(fixedData);
+          setResources(processedResources);
+          setFilteredResources(processedResources);
+          return; // Successfully loaded from Firestore
+        }
+      } catch (error) {
+        console.error("Error loading from Firestore:", error);
+      }
+      
+      // If Firestore fails or is empty, try CSV
       try {
         // Use the same mock filesystem as the desktop version
         if (window.fs && window.fs.readFile) {

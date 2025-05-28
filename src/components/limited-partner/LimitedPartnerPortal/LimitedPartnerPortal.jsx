@@ -136,10 +136,23 @@ const [newUserData, setNewUserData] = useState({
 // User editing state
 const [editingUsers, setEditingUsers] = useState({}); // { userId: { linkedinUrl: '', professionalRole: '', bio: '' } }
 
-// Bulletin board state
+// Message board state
 const [bulletinMessages, setBulletinMessages] = useState([]);
-const [newBulletinSubject, setNewBulletinSubject] = useState('');
 const [newBulletinMessage, setNewBulletinMessage] = useState('');
+const [lastViewedTimestamp, setLastViewedTimestamp] = useState(() => {
+  const stored = localStorage.getItem(`messageBoard_lastViewed_${user?.uid}`);
+  return stored || new Date().toISOString();
+});
+
+// Calculate new message count
+const newMessageCount = useMemo(() => {
+  if (!lastViewedTimestamp || !bulletinMessages.length) return 0;
+  const lastViewed = new Date(lastViewedTimestamp);
+  return bulletinMessages.filter(msg => {
+    const msgDate = msg.timestamp?.toDate ? msg.timestamp.toDate() : new Date(msg.timestamp);
+    return msgDate > lastViewed && msg.authorId !== user?.uid;
+  }).length;
+}, [bulletinMessages, lastViewedTimestamp, user?.uid]);
 
 // --- Refs ---
 const listScrollRef = useRef(null); // Ref for the scrollable list container
@@ -606,8 +619,8 @@ const loadBulletinMessages = useCallback(async () => {
     // Query bulletin messages for the user's chapter
     const messagesQuery = query(
       collection(db, "bulletinMessages"),
-      where("chapter", "==", user.chapter),
-      orderBy("createdAt", "desc")
+      where("authorChapter", "==", user.chapter),
+      orderBy("timestamp", "desc")
     );
     
     const messagesSnap = await getDocs(messagesQuery);
@@ -615,7 +628,7 @@ const loadBulletinMessages = useCallback(async () => {
     const messagesList = messagesSnap.docs.map(d => ({
       id: d.id,
       ...d.data(),
-      createdAt: d.data().createdAt?.toDate ? d.data().createdAt.toDate() : new Date(d.data().createdAt)
+      timestamp: d.data().timestamp?.toDate ? d.data().timestamp.toDate() : new Date(d.data().timestamp)
     }));
     
     setBulletinMessages(messagesList);
@@ -627,7 +640,7 @@ const loadBulletinMessages = useCallback(async () => {
     // Handle index error
     if (error.message?.includes('index')) {
       console.log("LPPortal: Firestore composite index may be required for bulletin messages query");
-      showAppAlert("Please create a Firestore index for bulletinMessages with chapter and createdAt fields.");
+      showAppAlert("Please create a Firestore index for bulletinMessages with authorChapter and timestamp fields.");
     }
   }
 }, [user]);
@@ -658,6 +671,15 @@ useEffect(() => {
 
   // This effect runs when user or isLoadingAuth changes.
 }, [user, isLoadingAuth, isAdmin, loadLPData, loadAdminData, loadChapterMembers, loadBulletinMessages]);
+
+// Update last viewed timestamp when viewing Message Board
+useEffect(() => {
+  if (user && activeTab === 'bulletinBoard') {
+    const now = new Date().toISOString();
+    setLastViewedTimestamp(now);
+    localStorage.setItem(`messageBoard_lastViewed_${user.uid}`, now);
+  }
+}, [user, activeTab]);
 
 useEffect(() => {
   if (selectedPitch && selectedPitch.id) {
@@ -1616,64 +1638,266 @@ const handleTabChange = (tab) => {
 
 // Bulletin board functions
 const handleCreateBulletinMessage = async () => {
-  if (!newBulletinSubject.trim() || !newBulletinMessage.trim()) {
-    showAppAlert("Please enter both subject and message.");
+  if (!newBulletinMessage.trim()) {
+    showAppAlert("Please enter a message.");
     return;
   }
 
   try {
     const messageData = {
-      subject: newBulletinSubject.trim(),
       message: newBulletinMessage.trim(),
-      chapter: user.chapter,
       authorId: user.uid,
       authorName: user.name || user.email,
+      authorChapter: user.chapter,
       authorRole: user.role,
-      createdAt: serverTimestamp(),
-      isPinned: false
+      timestamp: Timestamp.now(),
+      isPinned: false,
+      pinnedBy: null,
+      pinnedAt: null
     };
 
     await addDoc(collection(db, "bulletinMessages"), messageData);
     
     // Clear form
-    setNewBulletinSubject('');
     setNewBulletinMessage('');
     
     // Reload messages
     await loadBulletinMessages();
     
-    showAppAlert("Message posted successfully!");
+    console.log("LPPortal: Bulletin message posted successfully");
   } catch (error) {
-    console.error("Error creating bulletin message:", error);
+    console.error("LPPortal: Error creating bulletin message:", error);
     showAppAlert("Failed to post message. Please try again.");
   }
 };
 
 const handleDeleteBulletinMessage = async (messageId) => {
-  if (!window.confirm("Are you sure you want to delete this message?")) {
-    return;
-  }
-
-  try {
-    await deleteDoc(doc(db, "bulletinMessages", messageId));
-    await loadBulletinMessages();
-    showAppAlert("Message deleted successfully!");
-  } catch (error) {
-    console.error("Error deleting bulletin message:", error);
-    showAppAlert("Failed to delete message. Please try again.");
+  if (showAppConfirm("Are you sure you want to delete this message?")) {
+    try {
+      await deleteDoc(doc(db, "bulletinMessages", messageId));
+      console.log("LPPortal: Bulletin message deleted");
+      loadBulletinMessages();
+    } catch (error) {
+      console.error("LPPortal: Error deleting bulletin message:", error);
+      showAppAlert("Failed to delete message.");
+    }
   }
 };
 
-const handlePinBulletinMessage = async (messageId, isPinned) => {
+const handleTogglePinMessage = async (message) => {
   try {
-    await updateDoc(doc(db, "bulletinMessages", messageId), {
-      isPinned: !isPinned
-    });
-    await loadBulletinMessages();
+    const updates = {
+      isPinned: !message.isPinned,
+      pinnedBy: !message.isPinned ? user.uid : null,
+      pinnedAt: !message.isPinned ? Timestamp.now() : null
+    };
+    
+    await updateDoc(doc(db, "bulletinMessages", message.id), updates);
+    console.log(`LPPortal: Message ${message.isPinned ? 'unpinned' : 'pinned'}`);
+    loadBulletinMessages();
   } catch (error) {
-    console.error("Error pinning/unpinning bulletin message:", error);
-    showAppAlert("Failed to update message. Please try again.");
+    console.error("LPPortal: Error toggling pin:", error);
+    showAppAlert("Failed to update message pin status.");
   }
+};
+
+const handleReactToMessage = async (messageId, emoji) => {
+  try {
+    const messageRef = doc(db, "bulletinMessages", messageId);
+    const messageDoc = await getDoc(messageRef);
+    
+    if (!messageDoc.exists()) {
+      console.error("LPPortal: Message not found");
+      return;
+    }
+    
+    const messageData = messageDoc.data();
+    const reactions = messageData.reactions || {};
+    const emojiReactions = reactions[emoji] || [];
+    
+    // Toggle reaction
+    let updatedReactions;
+    if (emojiReactions.includes(user.uid)) {
+      // Remove reaction
+      updatedReactions = emojiReactions.filter(uid => uid !== user.uid);
+    } else {
+      // Add reaction
+      updatedReactions = [...emojiReactions, user.uid];
+    }
+    
+    // Update the reactions object
+    const updatedReactionsObj = {
+      ...reactions,
+      [emoji]: updatedReactions
+    };
+    
+    // Remove emoji key if no reactions left
+    if (updatedReactions.length === 0) {
+      delete updatedReactionsObj[emoji];
+    }
+    
+    await updateDoc(messageRef, {
+      reactions: updatedReactionsObj
+    });
+    
+    console.log(`LPPortal: Reaction ${emoji} toggled for message ${messageId}`);
+    loadBulletinMessages();
+  } catch (error) {
+    console.error("LPPortal: Error toggling reaction:", error);
+    showAppAlert("Failed to update reaction.");
+  }
+};
+
+// Reactions component for bulletin board messages
+const MessageReactions = ({ message, user, handleReactToMessage, chapterMembers }) => {
+  const availableEmojis = ['👍', '💖', '🎉', '🤔', '😊', '👀'];
+  const reactions = message.reactions || {};
+  
+  return (
+    <div style={{ 
+      marginTop: '15px', 
+      display: 'flex', 
+      gap: '8px',
+      flexWrap: 'wrap',
+      alignItems: 'center'
+    }}>
+      {/* Display existing reactions */}
+      {Object.entries(reactions).map(([emoji, users]) => {
+        if (users.length === 0) return null;
+        const hasReacted = users.includes(user.uid);
+        
+        return (
+          <button
+            key={emoji}
+            onClick={() => handleReactToMessage(message.id, emoji)}
+            style={{
+              background: hasReacted ? '#FFE4F1' : 'white',
+              border: `1px solid ${hasReacted ? '#FFB6D9' : '#e0e0e0'}`,
+              borderRadius: '16px',
+              padding: '4px 10px',
+              fontSize: '14px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              transition: 'all 0.2s ease',
+              position: 'relative'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              const tooltip = e.currentTarget.querySelector('.reaction-tooltip');
+              if (tooltip) tooltip.style.display = 'block';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              const tooltip = e.currentTarget.querySelector('.reaction-tooltip');
+              if (tooltip) tooltip.style.display = 'none';
+            }}
+          >
+            <span>{emoji}</span>
+            <span style={{ fontSize: '12px', color: '#666' }}>{users.length}</span>
+            
+            {/* Tooltip showing who reacted */}
+            <div 
+              className="reaction-tooltip"
+              style={{
+                display: 'none',
+                position: 'absolute',
+                bottom: '100%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'rgba(0, 0, 0, 0.8)',
+                color: 'white',
+                padding: '6px 10px',
+                borderRadius: '4px',
+                fontSize: '12px',
+                whiteSpace: 'nowrap',
+                marginBottom: '4px',
+                zIndex: 1000,
+                maxWidth: '200px',
+                textAlign: 'center'
+              }}
+            >
+              {users.slice(0, 3).map((uid, idx) => {
+                const member = chapterMembers.find(m => m.uid === uid);
+                return member?.name || member?.email || 'Unknown';
+              }).join(', ')}
+              {users.length > 3 && ` and ${users.length - 3} more`}
+            </div>
+          </button>
+        );
+      })}
+      
+      {/* Add reaction button */}
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        <button
+          onClick={(e) => {
+            const btn = e.currentTarget;
+            const picker = btn.nextElementSibling;
+            picker.style.display = picker.style.display === 'none' ? 'block' : 'none';
+          }}
+          style={{
+            background: 'transparent',
+            border: '1px solid #e0e0e0',
+            borderRadius: '16px',
+            padding: '4px 10px',
+            fontSize: '14px',
+            cursor: 'pointer',
+            color: '#666'
+          }}
+          title="Add reaction"
+        >
+          + 😊
+        </button>
+        
+        {/* Emoji picker dropdown */}
+        <div style={{
+          display: 'none',
+          position: 'absolute',
+          bottom: '100%',
+          left: '0',
+          background: 'white',
+          border: '1px solid #e0e0e0',
+          borderRadius: '8px',
+          padding: '8px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          marginBottom: '4px',
+          zIndex: 1000
+        }}>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {availableEmojis.map(emoji => (
+              <button
+                key={emoji}
+                onClick={() => {
+                  handleReactToMessage(message.id, emoji);
+                  // Hide picker
+                  const picker = document.currentScript?.parentElement;
+                  if (picker) picker.style.display = 'none';
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '20px',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  transition: 'background 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background = '#f0f0f0';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = 'transparent';
+                }}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // Navigation items component (shared between desktop and mobile)
@@ -1776,7 +2000,7 @@ const NavigationItems = () => (
       📍 Pitch Map
     </button>
     
-    {/* Bulletin Board */}
+    {/* Message Board */}
     <button
       onClick={() => handleTabChange('bulletinBoard')}
       style={{
@@ -1806,7 +2030,21 @@ const NavigationItems = () => (
           e.currentTarget.style.background = 'transparent';
         }
       }}>
-      📋 Bulletin Board
+      <span style={{ position: 'relative' }}>
+        📬 Message Board
+        {newMessageCount > 0 && (
+          <span style={{
+            position: 'absolute',
+            top: '-4px',
+            right: '-4px',
+            width: '8px',
+            height: '8px',
+            backgroundColor: '#ff0000',
+            borderRadius: '50%',
+            display: 'inline-block'
+          }} />
+        )}
+      </span>
     </button>
     
     {/* Badges */}
@@ -1954,6 +2192,25 @@ const NavigationItems = () => (
 );
 
 // --- Helper Functions ---
+
+const formatRelativeTime = (timestamp) => {
+  if (!timestamp) return 'Unknown time';
+  
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - date) / 1000);
+  
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+  if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+  
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
+  });
+};
 
 const formatDate = (ts) => {
   if (!ts) return "No date";
@@ -5185,74 +5442,55 @@ return (
       
       {/* --- Bulletin Board Tab Content --- */}
       {activeTab === 'bulletinBoard' && (
-        <div style={{ padding: '20px', overflow: 'auto', height: '100%' }}>
-          <h2 style={{ marginBottom: '20px' }}>Chapter Bulletin Board</h2>
+        <div style={{ height: '100%', overflow: 'hidden' }}>
+          <style>{`
+            @media (max-width: 768px) {
+              .bulletin-container {
+                flex-direction: column !important;
+              }
+              .bulletin-messages {
+                order: 2;
+                height: 60vh !important;
+                border-right: none !important;
+                border-bottom: 1px solid #e0e0e0;
+              }
+              .bulletin-compose {
+                order: 1;
+                width: 100% !important;
+                height: auto !important;
+                border-bottom: 1px solid #e0e0e0;
+                padding: 15px !important;
+              }
+            }
+          `}</style>
           
-          {/* Create New Message Form */}
-          <div style={{
-            background: '#f8f9fa',
-            border: '1px solid #e0e0e0',
-            borderRadius: '8px',
-            padding: '20px',
-            marginBottom: '30px'
+          <div className="bulletin-container" style={{ 
+            display: 'flex', 
+            height: '100%',
+            background: '#f5f5f5'
           }}>
-            <h3 style={{ marginBottom: '15px', fontSize: '16px', color: '#333' }}>Post New Message</h3>
-            
-            <input
-              type="text"
-              placeholder="Subject..."
-              value={newBulletinSubject}
-              onChange={(e) => setNewBulletinSubject(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '10px',
-                marginBottom: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-                fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif'
-              }}
-            />
-            
-            <textarea
-              placeholder="Message..."
-              value={newBulletinMessage}
-              onChange={(e) => setNewBulletinMessage(e.target.value)}
-              rows={4}
-              style={{
-                width: '100%',
-                padding: '10px',
-                marginBottom: '10px',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                fontSize: '14px',
-                fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif',
-                resize: 'vertical'
-              }}
-            />
-            
-            <button
-              onClick={handleCreateBulletinMessage}
-              style={{
-                background: '#FFB6D9',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                padding: '8px 16px',
-                fontSize: '14px',
-                cursor: 'pointer',
-                fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif',
-                transition: 'background 0.2s ease'
-              }}
-              onMouseEnter={(e) => e.target.style.background = '#ff9fc9'}
-              onMouseLeave={(e) => e.target.style.background = '#FFB6D9'}
-            >
-              Post Message
-            </button>
-          </div>
-          
-          {/* Messages List */}
-          <div>
+            {/* Messages List - Left Side */}
+            <div className="bulletin-messages" style={{ 
+              flex: '1',
+              display: 'flex',
+              flexDirection: 'column',
+              background: 'white',
+              maxWidth: '700px',
+              margin: '0 auto'
+            }}>
+              <div style={{ 
+                padding: '20px',
+                borderBottom: '1px solid #e0e0e0',
+                background: '#fafafa'
+              }}>
+                <h2 style={{ margin: 0, fontSize: '20px' }}>Chapter Message Board</h2>
+              </div>
+              
+              <div style={{ 
+                flex: 1,
+                overflowY: 'auto',
+                padding: '20px'
+              }}>
             {bulletinMessages.length === 0 ? (
               <div style={{
                 textAlign: 'center',
@@ -5279,15 +5517,15 @@ return (
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
-                          <span style={{ fontSize: '16px' }}>📌</span>
-                          <h4 style={{ margin: 0, fontSize: '16px', color: '#333' }}>{message.subject}</h4>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                          <span style={{ fontSize: '16px' }}>📌 Pinned</span>
                         </div>
                         <p style={{
                           margin: '10px 0',
                           fontSize: '14px',
-                          color: '#666',
-                          whiteSpace: 'pre-wrap'
+                          color: '#333',
+                          whiteSpace: 'pre-wrap',
+                          lineHeight: '1.5'
                         }}>
                           {message.message}
                         </p>
@@ -5300,8 +5538,16 @@ return (
                         }}>
                           <span>{message.authorName}</span>
                           <span>•</span>
-                          <span>{message.createdAt.toLocaleDateString()}</span>
+                          <span>{formatRelativeTime(message.timestamp)}</span>
                         </div>
+                        
+                        {/* Reactions */}
+                        <MessageReactions 
+                          message={message} 
+                          user={user} 
+                          handleReactToMessage={handleReactToMessage}
+                          chapterMembers={chapterMembers}
+                        />
                       </div>
                       
                       {/* Admin Actions */}
@@ -5309,7 +5555,7 @@ return (
                         <div style={{ display: 'flex', gap: '8px' }}>
                           {isAdmin && (
                             <button
-                              onClick={() => handlePinBulletinMessage(message.id, message.isPinned)}
+                              onClick={() => handleTogglePinMessage(message)}
                               style={{
                                 background: 'transparent',
                                 border: '1px solid #ddd',
@@ -5345,21 +5591,40 @@ return (
                 ))}
                 
                 {/* Regular Messages */}
-                {bulletinMessages.filter(msg => !msg.isPinned).map(message => (
-                  <div
-                    key={message.id}
-                    style={{
-                      background: 'white',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '8px',
-                      padding: '15px',
-                      marginBottom: '15px',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                    }}
-                  >
+                {bulletinMessages.filter(msg => !msg.isPinned).map(message => {
+                  const msgDate = message.timestamp?.toDate ? message.timestamp.toDate() : new Date(message.timestamp);
+                  const isNew = msgDate > new Date(lastViewedTimestamp) && message.authorId !== user?.uid;
+                  
+                  return (
+                    <div
+                      key={message.id}
+                      style={{
+                        background: isNew ? '#f0f8ff' : 'white',
+                        border: isNew ? '2px solid #4da6ff' : '1px solid #e0e0e0',
+                        borderRadius: '8px',
+                        padding: '15px',
+                        marginBottom: '15px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                        position: 'relative'
+                      }}
+                    >
+                    {isNew && (
+                      <span style={{
+                        position: 'absolute',
+                        top: '8px',
+                        right: '8px',
+                        background: '#4da6ff',
+                        color: 'white',
+                        padding: '2px 8px',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: 'bold'
+                      }}>
+                        NEW
+                      </span>
+                    )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                       <div style={{ flex: 1 }}>
-                        <h4 style={{ margin: '0 0 10px 0', fontSize: '16px', color: '#333' }}>{message.subject}</h4>
                         <p style={{
                           margin: '10px 0',
                           fontSize: '14px',
@@ -5377,8 +5642,16 @@ return (
                         }}>
                           <span>{message.authorName}</span>
                           <span>•</span>
-                          <span>{message.createdAt.toLocaleDateString()}</span>
+                          <span>{formatRelativeTime(message.timestamp)}</span>
                         </div>
+                        
+                        {/* Reactions */}
+                        <MessageReactions 
+                          message={message} 
+                          user={user} 
+                          handleReactToMessage={handleReactToMessage}
+                          chapterMembers={chapterMembers}
+                        />
                       </div>
                       
                       {/* Admin Actions */}
@@ -5386,7 +5659,7 @@ return (
                         <div style={{ display: 'flex', gap: '8px' }}>
                           {isAdmin && (
                             <button
-                              onClick={() => handlePinBulletinMessage(message.id, message.isPinned)}
+                              onClick={() => handleTogglePinMessage(message)}
                               style={{
                                 background: 'transparent',
                                 border: '1px solid #ddd',
@@ -5419,12 +5692,62 @@ return (
                       )}
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </>
             )}
           </div>
+          
+          {/* Message Compose Box - Bottom of messages */}
+          <div className="bulletin-compose" style={{
+            background: '#f8f9fa',
+            borderTop: '1px solid #e0e0e0',
+            padding: '15px 20px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px'
+          }}>
+            <textarea
+              placeholder="Write your message..."
+              value={newBulletinMessage}
+              onChange={(e) => setNewBulletinMessage(e.target.value)}
+              style={{
+                minHeight: '60px',
+                maxHeight: '120px',
+                padding: '10px',
+                border: '1px solid #e0e0e0',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                resize: 'vertical',
+                width: '100%'
+              }}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                onClick={handleCreateBulletinMessage}
+                style={{
+                  padding: '8px 20px',
+                  background: '#FFB6D9',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#FF9FC7'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#FFB6D9'}
+              >
+                Post Message
+              </button>
+            </div>
+          </div>
         </div>
-      )}
+      </div>
+    </div>
+  )}
       
       </div> {/* End Main Content Area */}
     </div> {/* End Main Content Container */}

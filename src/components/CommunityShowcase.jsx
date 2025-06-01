@@ -70,10 +70,39 @@ const CommunityShowcase = () => {
   const [showGuideModal, setShowGuideModal] = useState(false);
   const PITCHES_PER_PAGE = 12;
 
-  // Contest dates
-  const CONTEST_END_DATE = new Date('2025-07-01T00:01:00-04:00');
-  const VOTING_START_DATE = new Date('2025-06-15T00:01:00-04:00');
-  const VOTING_END_DATE = new Date('2025-06-30T23:59:59-04:00');
+  // Contest dates - Updated timeline
+  const SUBMISSION_END_DATE = new Date('2025-06-30T23:59:59-04:00');
+  const VOTING_START_DATE = new Date('2025-06-22T00:01:00-04:00');
+  const VOTING_END_DATE = new Date('2025-07-06T23:59:59-04:00');
+  const LP_REVIEW_START_DATE = new Date('2025-07-07T00:00:00-04:00');
+  const LP_REVIEW_END_DATE = new Date('2025-07-11T23:59:59-04:00');
+  const WINNER_ANNOUNCE_DATE = new Date('2025-07-11T12:00:00-04:00');
+  
+  // Legacy date for compatibility
+  const CONTEST_END_DATE = WINNER_ANNOUNCE_DATE;
+  
+  // Phase detection function
+  const getCurrentPhase = () => {
+    const now = new Date();
+    if (now < SUBMISSION_END_DATE) {
+      if (now >= VOTING_START_DATE) {
+        return 'submission-and-voting'; // Overlap period
+      }
+      return 'submission';
+    }
+    if (now >= VOTING_START_DATE && now <= VOTING_END_DATE) {
+      return 'voting';
+    }
+    if (now >= LP_REVIEW_START_DATE && now <= LP_REVIEW_END_DATE) {
+      return 'lp-review';
+    }
+    if (now >= WINNER_ANNOUNCE_DATE) {
+      return 'winner-announced';
+    }
+    return 'between-phases';
+  };
+  
+  const currentPhase = getCurrentPhase();
 
   useEffect(() => {
     fetchContestPitches();
@@ -157,7 +186,21 @@ const CommunityShowcase = () => {
 
   const updateCountdown = () => {
     const now = new Date().getTime();
-    const distance = CONTEST_END_DATE.getTime() - now;
+    const phase = getCurrentPhase();
+    let targetDate;
+    
+    // Determine what we're counting down to based on current phase
+    if (phase === 'submission' || phase === 'submission-and-voting') {
+      targetDate = SUBMISSION_END_DATE;
+    } else if (phase === 'voting') {
+      targetDate = VOTING_END_DATE;
+    } else if (phase === 'lp-review') {
+      targetDate = LP_REVIEW_END_DATE;
+    } else {
+      targetDate = CONTEST_END_DATE;
+    }
+    
+    const distance = targetDate.getTime() - now;
 
     if (distance < 0) {
       setTimeLeft(prev => prev.expired ? prev : { expired: true });
@@ -174,7 +217,7 @@ const CommunityShowcase = () => {
           prev.minutes === minutes && prev.seconds === seconds) {
         return prev; // No change, don't re-render
       }
-      return { days, hours, minutes, seconds };
+      return { days, hours, minutes, seconds, phase };
     });
   };
 
@@ -235,6 +278,8 @@ const CommunityShowcase = () => {
 
   const handleVote = async (pitch) => {
     const now = new Date();
+    
+    // Check if voting is allowed
     if (now < VOTING_START_DATE) {
       // Store pitch info for Tally form
       sessionStorage.setItem('tallyPitchId', pitch.id);
@@ -250,6 +295,11 @@ const CommunityShowcase = () => {
           tallyButton.click();
         }
       }, 100);
+      return;
+    }
+    
+    if (now > VOTING_END_DATE) {
+      alert('Voting has ended. The LP review phase is now in progress.');
       return;
     }
     
@@ -445,7 +495,7 @@ const CommunityShowcase = () => {
           pricing: 'Free to start, 9% + $0.30 per sale',
           bestFor: ['Digital Products', 'Creators', 'Quick Setup'],
           link: 'https://gumroad.com',
-          recommended: true
+          recommended: false
         },
         {
           name: 'WooCommerce',
@@ -487,7 +537,7 @@ const CommunityShowcase = () => {
           pricing: 'Free plan, Paid from $25/mo',
           bestFor: ['Database Apps', 'Internal Tools', 'Quick MVPs'],
           link: 'https://glideapps.com',
-          recommended: true
+          recommended: false
         }
       ]
     },
@@ -513,7 +563,7 @@ const CommunityShowcase = () => {
           pricing: '2.9% + $0.30 online, 2.6% + $0.10 in-person',
           bestFor: ['Retail', 'Restaurants', 'Service Businesses'],
           link: 'https://square.com',
-          recommended: true
+          recommended: false
         },
         {
           name: 'PayPal',
@@ -547,7 +597,7 @@ const CommunityShowcase = () => {
           pricing: 'Free for 3 files, Paid from $12/mo',
           bestFor: ['UI/UX', 'App Design', 'Collaboration'],
           link: 'https://figma.com',
-          recommended: true
+          recommended: false
         },
         {
           name: 'Looka',
@@ -580,7 +630,8 @@ const CommunityShowcase = () => {
           ourTake: 'Good free tier for starting out. Becomes expensive quickly but includes landing pages and basic CRM. Easy to use but limited automation.',
           pricing: 'Free up to 500 contacts, then from $13/mo',
           bestFor: ['Beginners', 'Small Lists', 'All-in-One'],
-          link: 'https://mailchimp.com'
+          link: 'https://mailchimp.com',
+          recommended: true
         },
         {
           name: 'Beehiiv',
@@ -614,7 +665,7 @@ const CommunityShowcase = () => {
           pricing: 'Free for 3 channels, Essentials $6/channel/mo',
           bestFor: ['Social Scheduling', 'Multi-Platform', 'Analytics'],
           link: 'https://buffer.com',
-          recommended: true
+          recommended: false
         },
         {
           name: 'Canva',
@@ -640,7 +691,7 @@ const CommunityShowcase = () => {
           pricing: 'Free',
           bestFor: ['Local SEO', 'Maps Visibility', 'Reviews'],
           link: 'https://business.google.com',
-          recommended: true
+          recommended: false
         }
       ]
     },
@@ -657,7 +708,7 @@ const CommunityShowcase = () => {
           pricing: 'Free up to 75 users, Essentials $2.50/user/mo',
           bestFor: ['Scheduling', 'Time Tracking', 'Shift Swapping'],
           link: 'https://wheniwork.com',
-          recommended: true
+          recommended: false
         },
         {
           name: 'Slack',
@@ -665,7 +716,8 @@ const CommunityShowcase = () => {
           ourTake: 'Changes how teams communicate. Free tier works for small teams. Reduces email overload. Mobile app keeps everyone connected.',
           pricing: 'Free, Pro $8.75/user/mo',
           bestFor: ['Team Chat', 'File Sharing', 'Remote Teams'],
-          link: 'https://slack.com'
+          link: 'https://slack.com',
+          recommended: true
         },
         {
           name: 'Gusto',
@@ -674,7 +726,7 @@ const CommunityShowcase = () => {
           pricing: 'Simple $40/mo + $6/person',
           bestFor: ['Payroll', 'Benefits', 'HR Compliance'],
           link: 'https://gusto.com',
-          recommended: true
+          recommended: false
         },
         {
           name: 'Indeed',
@@ -699,7 +751,7 @@ const CommunityShowcase = () => {
           pricing: 'Free, Plus $60/location/mo',
           bestFor: ['Retail POS', 'Multi-Channel', 'Inventory Sync'],
           link: 'https://squareup.com/retail',
-          recommended: true
+          recommended: false
         },
         {
           name: 'Shopify',
@@ -707,7 +759,8 @@ const CommunityShowcase = () => {
           ourTake: 'Gold standard for online stores. Also offers POS for retail. Inventory syncs everywhere. App ecosystem adds any feature you need.',
           pricing: 'Basic $39/mo, POS Pro $89/mo',
           bestFor: ['E-commerce', 'Online + Retail', 'Scaling'],
-          link: 'https://shopify.com'
+          link: 'https://shopify.com',
+          recommended: true
         },
         {
           name: 'ShipStation',
@@ -716,7 +769,7 @@ const CommunityShowcase = () => {
           pricing: 'Starter $9.99/mo (up to 50 shipments)',
           bestFor: ['Multi-Carrier', 'Automation', 'High Volume'],
           link: 'https://shipstation.com',
-          recommended: true
+          recommended: false
         },
         {
           name: 'inFlow',
@@ -741,7 +794,7 @@ const CommunityShowcase = () => {
           pricing: 'Setup from $399, Monthly from $149',
           bestFor: ['Restaurants', 'Direct Orders', 'No Commission'],
           link: 'https://chownow.com',
-          recommended: true
+          recommended: false
         },
         {
           name: 'Acuity Scheduling',
@@ -807,7 +860,7 @@ const CommunityShowcase = () => {
           pricing: 'Free',
           bestFor: ['Startups', 'Digital Banking', 'No Fees'],
           link: 'https://novo.co',
-          recommended: true
+          recommended: false
         },
         {
           name: 'Mercury',
@@ -850,7 +903,7 @@ const CommunityShowcase = () => {
           pricing: 'Free accounting, paid payroll',
           bestFor: ['Startups', 'Freelancers', 'Free Option'],
           link: 'https://waveapps.com',
-          recommended: true
+          recommended: false
         },
         {
           name: 'FreshBooks',
@@ -884,7 +937,7 @@ const CommunityShowcase = () => {
           pricing: 'From $14/user/mo',
           bestFor: ['Sales Teams', 'Pipeline Management', 'Mobile Sales'],
           link: 'https://pipedrive.com',
-          recommended: true
+          recommended: false
         },
         {
           name: 'Salesforce',
@@ -900,7 +953,8 @@ const CommunityShowcase = () => {
           ourTake: 'Not a traditional CRM but incredibly flexible. Build exactly what you need. Great for unique business models. Combine with automations for powerful workflows.',
           pricing: 'Free plan, Paid from $20/user/mo',
           bestFor: ['Custom Workflows', 'Flexibility', 'Small Teams'],
-          link: 'https://airtable.com'
+          link: 'https://airtable.com',
+          recommended: true
         },
         {
           name: 'Folk',
@@ -934,7 +988,7 @@ const CommunityShowcase = () => {
           pricing: 'Free plan, Paid from $32/mo',
           bestFor: ['UX Insights', 'Heatmaps', 'User Recordings'],
           link: 'https://hotjar.com',
-          recommended: true
+          recommended: false
         }
       ]
     },
@@ -976,7 +1030,7 @@ const CommunityShowcase = () => {
           pricing: 'Free (GPT-3.5), Plus $20/mo (GPT-4)',
           bestFor: ['Content Creation', 'Brainstorming', 'General Use'],
           link: 'https://chat.openai.com',
-          recommended: true
+          recommended: false
         },
         {
           name: 'Claude',
@@ -1002,7 +1056,7 @@ const CommunityShowcase = () => {
           pricing: 'Free',
           bestFor: ['Problem Solving', 'Transparency', 'Free Option'],
           link: 'https://chat.deepseek.com',
-          recommended: true
+          recommended: false
         }
       ]
     },
@@ -1045,7 +1099,7 @@ const CommunityShowcase = () => {
           pricing: 'Free credits, then pay as you go',
           bestFor: ['UI Generation', 'React Apps', 'Quick Prototypes'],
           link: 'https://v0.dev',
-          recommended: true
+          recommended: false
         },
         {
           name: 'Windsurf',
@@ -1087,7 +1141,7 @@ const CommunityShowcase = () => {
           pricing: 'Free, Team features $19/user/mo',
           bestFor: ['Free Option', 'Quick Summaries', 'Solo Use'],
           link: 'https://fathom.video',
-          recommended: true
+          recommended: false
         },
         {
           name: 'Otter.ai',
@@ -1103,7 +1157,8 @@ const CommunityShowcase = () => {
           ourTake: 'Built specifically for sales teams. Analyzes emotions, engagement, and talk ratios. Provides coaching insights. More expensive but valuable for sales-heavy businesses.',
           pricing: 'Custom pricing, starts ~$49/user/mo',
           bestFor: ['Sales Calls', 'Coaching', 'Revenue Teams'],
-          link: 'https://spiky.ai'
+          link: 'https://spiky.ai',
+          recommended: true
         },
         {
           name: 'Plaud Note',
@@ -5476,11 +5531,21 @@ Relevant files:
           <p className="hero-subtitle">Open to Western New York Founders</p>
           <p className="hero-question">What would you build with $1,000? Show us your plan. Win funding to make it happen.</p>
           
-          {/* Submission Countdown Timer - More Prominent */}
+          {/* Dynamic Countdown Timer - Phase Aware */}
           {!timeLeft.expired && (
             <div className="submission-countdown-banner">
-              <h3>⏰ Submissions Close In:</h3>
+              <h3>
+                {currentPhase === 'submission' && '⏰ Submissions Close In:'}
+                {currentPhase === 'submission-and-voting' && '⏰ Submissions & Voting End In:'}
+                {currentPhase === 'voting' && '🗳️ Voting Ends In:'}
+                {currentPhase === 'lp-review' && '🔍 LP Review Ends In:'}
+              </h3>
               <CountdownTimer timeLeft={timeLeft} large={true} />
+              {currentPhase === 'submission-and-voting' && (
+                <p style={{ fontSize: '14px', color: '#666', marginTop: '10px' }}>
+                  Both submissions and voting are now open!
+                </p>
+              )}
             </div>
           )}
           
@@ -5506,8 +5571,19 @@ Relevant files:
             )}
           </div>
 
-          <button className="hero-cta" onClick={() => setShowSubmitForm(true)}>
-            Submit Your $1,000 Plan →
+          <button 
+            className="hero-cta" 
+            onClick={() => {
+              const now = new Date();
+              if (now > SUBMISSION_END_DATE) {
+                alert('Submissions have closed. The contest ended on June 30th at 11:59 PM ET.');
+                return;
+              }
+              setShowSubmitForm(true);
+            }}
+            disabled={new Date() > SUBMISSION_END_DATE}
+          >
+            {new Date() > SUBMISSION_END_DATE ? 'Submissions Closed' : 'Submit Your $1,000 Plan →'}
           </button>
         </div>
       </header>
@@ -5620,8 +5696,19 @@ Relevant files:
                     <li>Win $1,000 funding to launch</li>
                     <li>Join a network of scrappy founders</li>
                   </ul>
-                  <button className="info-cta" onClick={() => setShowSubmitForm(true)}>
-                    Submit Your Plan →
+                  <button 
+                    className="info-cta" 
+                    onClick={() => {
+                      const now = new Date();
+                      if (now > SUBMISSION_END_DATE) {
+                        alert('Submissions have closed. The contest ended on June 30th at 11:59 PM ET.');
+                        return;
+                      }
+                      setShowSubmitForm(true);
+                    }}
+                    disabled={new Date() > SUBMISSION_END_DATE}
+                  >
+                    {new Date() > SUBMISSION_END_DATE ? 'Submissions Closed' : 'Submit Your Plan →'}
                   </button>
                 </div>
                 
@@ -5641,36 +5728,40 @@ Relevant files:
                 <div className="info-card how-to-win">
                   <h3>🏆 Contest Timeline</h3>
                   <div className="visual-timeline">
-                    <div className="timeline-item active">
+                    <div className={`timeline-item ${(currentPhase === 'submission' || currentPhase === 'submission-and-voting') ? 'active' : (new Date() > SUBMISSION_END_DATE ? 'completed' : '')}`}>
                       <div className="timeline-icon">📝</div>
                       <div className="timeline-content">
                         <h4>Phase 1</h4>
                         <p>Submissions Open</p>
-                        <span className="timeline-date">Now - June 14</span>
+                        <span className="timeline-date">Now - June 30</span>
+                        {currentPhase === 'submission' && <span className="live-badge">LIVE NOW</span>}
                       </div>
                     </div>
-                    <div className="timeline-item">
+                    <div className={`timeline-item ${(currentPhase === 'voting' || currentPhase === 'submission-and-voting') ? 'active' : (new Date() > VOTING_END_DATE ? 'completed' : '')}`}>
                       <div className="timeline-icon">🗳️</div>
                       <div className="timeline-content">
                         <h4>Phase 2</h4>
                         <p>Community Voting</p>
-                        <span className="timeline-date">June 15-30</span>
+                        <span className="timeline-date">June 22 - July 6</span>
+                        {(currentPhase === 'voting' || currentPhase === 'submission-and-voting') && <span className="live-badge">LIVE NOW</span>}
                       </div>
                     </div>
-                    <div className="timeline-item">
+                    <div className={`timeline-item ${currentPhase === 'lp-review' ? 'active' : (new Date() > LP_REVIEW_END_DATE ? 'completed' : '')}`}>
                       <div className="timeline-icon">🔍</div>
                       <div className="timeline-content">
                         <h4>Phase 3</h4>
                         <p>LP Review</p>
-                        <span className="timeline-date">July 1-7</span>
+                        <span className="timeline-date">July 7-11</span>
+                        {currentPhase === 'lp-review' && <span className="live-badge">LIVE NOW</span>}
                       </div>
                     </div>
-                    <div className="timeline-item">
+                    <div className={`timeline-item ${currentPhase === 'winner-announced' ? 'active' : ''}`}>
                       <div className="timeline-icon">🎆</div>
                       <div className="timeline-content">
                         <h4>Phase 4</h4>
                         <p>Winner Announced</p>
                         <span className="timeline-date">July 11</span>
+                        {currentPhase === 'winner-announced' && <span className="live-badge">COMPLETED</span>}
                       </div>
                     </div>
                   </div>
@@ -5969,6 +6060,10 @@ Relevant files:
                     <h4>Can I apply if I've applied for a GNF micro-grant before?</h4>
                     <p>Yes! Previous applicants are welcome to apply for this challenge. This is a separate contest from our regular quarterly micro-grants program.</p>
                   </div>
+                  <div className="faq-item">
+                    <h4>When do submissions close and voting begin?</h4>
+                    <p>Submissions close June 30th at 11:59 PM ET. Voting opens June 22nd, so there's an overlap period where both submissions and voting are active!</p>
+                  </div>
                 </div>
                 <button className="faq-more-btn" onClick={() => setActiveTab('about')}>
                   View all FAQs →
@@ -6176,7 +6271,7 @@ Relevant files:
             <div className="resource-footer">
               <p>💡 <strong>Pro Tip:</strong> Start with one tool from each category you need. You can always upgrade later!</p>
               <p style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
-                Have a tool recommendation? Email us at founders@neighborhoods.space
+                Have a tool recommendation? Email us at jason@goodneighbor.fund
               </p>
             </div>
             </div>
@@ -6394,11 +6489,14 @@ Relevant files:
 
               <div className="modal-actions">
                 <button 
-                  className={`vote-btn-large ${votedPitches.has(selectedPitch.id) ? 'voted' : ''}`}
+                  className={`vote-btn-large ${votedPitches.has(selectedPitch.id) ? 'voted' : ''} ${new Date() > VOTING_END_DATE ? 'disabled' : ''}`}
                   onClick={() => handleVote(selectedPitch)}
-                  disabled={votedPitches.has(selectedPitch.id)}
+                  disabled={votedPitches.has(selectedPitch.id) || new Date() > VOTING_END_DATE}
                 >
-                  {votedPitches.has(selectedPitch.id) ? '✓ Already Voted' : '❤️ Vote for This Idea'}
+                  {votedPitches.has(selectedPitch.id) ? '✓ Already Voted' : 
+                   new Date() > VOTING_END_DATE ? '🔒 Voting Ended' :
+                   new Date() < VOTING_START_DATE ? '🔔 Get Notified' : 
+                   '❤️ Vote for This Idea'}
                 </button>
                 
                 <button 

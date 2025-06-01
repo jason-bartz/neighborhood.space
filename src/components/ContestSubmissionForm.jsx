@@ -39,6 +39,16 @@ export default function ContestSubmissionForm({ onClose }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check submission deadline
+    const SUBMISSION_END_DATE = new Date('2025-06-30T23:59:59-04:00');
+    const now = new Date();
+    if (now > SUBMISSION_END_DATE) {
+      alert('Submissions have closed. The contest ended on June 30th at 11:59 PM ET.');
+      onClose();
+      return;
+    }
+    
     const requiredFields = [
       'founder', 'email', 'business', 'about',
       'valueProp', 'problem', 'solution', 'revenueModel',

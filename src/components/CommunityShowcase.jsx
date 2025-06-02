@@ -421,231 +421,879 @@ const CommunityShowcase = () => {
     return emojis[industry] || '💡';
   };
 
-  // Comprehensive startup resources data
+  // Comprehensive startup resources data - focused on early-stage entrepreneurs
   const resourceCategories = [
     {
-      id: 'website-building',
-      name: 'Website Building',
-      icon: '🌐',
-      description: 'For: Landing pages, business websites, portfolios',
+      id: 'ideation-validation',
+      name: 'Idea Validation & Customer Discovery',
+      icon: '💡',
+      description: 'For: Testing your idea before building, understanding customer problems, market research',
       tools: [
         {
-          name: 'Webflow',
-          description: 'Professional websites without coding. Visual development platform for custom designs.',
-          ourTake: 'Best for custom designs and complex layouts. Higher learning curve but maximum flexibility. Great for agencies and design-focused businesses. Free plan limited but sufficient for MVP testing.',
-          pricing: 'Free plan available, Paid from $14/mo',
-          bestFor: ['Custom Designs', 'Agencies', 'Complex Sites'],
-          link: 'https://webflow.com',
-          recommended: true
+          name: 'Tally (Free Surveys)',
+          description: 'Create unlimited customer discovery surveys without any cost or branding.',
+          ourTake: 'Perfect for customer interviews and problem validation. Start with 10-15 targeted questions about customer pain points. Use skip logic to dig deeper into specific problems. Export responses to analyze patterns and validate demand.',
+          pricing: 'Free forever',
+          bestFor: ['Problem Validation', 'Customer Interviews', 'Market Research'],
+          link: 'https://tally.so',
+          recommended: true,
+          stepByStep: [
+            '1. Create a 10-question survey about customer pain points in your target market',
+            '2. Share with 30-50 potential customers via social media, friends, or cold outreach',
+            '3. Look for patterns in responses - if 70%+ have the same problem, you found product-market fit',
+            '4. Follow up with respondents who show strong interest for deeper interviews'
+          ],
+          earlyStageUse: 'Before building anything, validate that people actually have the problem you think they do. This prevents building something nobody wants.'
         },
         {
-          name: 'Framer',
-          description: 'Interactive website builder with advanced animations. Create stunning, responsive sites.',
-          ourTake: 'Perfect for startups needing impressive, interactive sites. Excellent for SaaS landing pages. Steeper learning curve than competitors but produces stunning results.',
-          pricing: 'Free plan, Paid from $10/mo',
-          bestFor: ['SaaS', 'Interactive Sites', 'Startups'],
-          link: 'https://framer.com'
+          name: 'Google Trends',
+          description: 'See what people are searching for over time. Validate market demand.',
+          ourTake: 'Free market research that shows if interest in your space is growing or declining. Compare your keywords against competitors. Use geographic data to find the best markets to start in.',
+          pricing: 'Free',
+          bestFor: ['Market Research', 'Keyword Analysis', 'Trend Validation'],
+          link: 'https://trends.google.com',
+          recommended: true,
+          stepByStep: [
+            '1. Search for 5-10 keywords related to your business idea',
+            '2. Check if search volume is growing over the past 2-5 years',
+            '3. Compare against related terms to find the best positioning',
+            '4. Use geographic data to identify your ideal early markets'
+          ],
+          earlyStageUse: 'Confirm people are actively searching for solutions to the problem you want to solve. Rising trends indicate growing markets.'
+        },
+        {
+          name: 'Reddit Research',
+          description: 'Find communities discussing your target problem. Raw, unfiltered customer insights.',
+          ourTake: 'Best source of honest customer feedback. Find subreddits where your target customers hang out. Look for pain points, complaints, and unmet needs. Engage authentically to understand the problems deeper.',
+          pricing: 'Free',
+          bestFor: ['Customer Research', 'Problem Discovery', 'Community Insights'],
+          link: 'https://reddit.com',
+          recommended: true,
+          stepByStep: [
+            '1. Find 3-5 subreddits where your target customers discuss their problems',
+            '2. Spend 2 hours reading posts and comments to understand pain points',
+            '3. Document the most commonly mentioned problems and frustrations',
+            '4. Engage in discussions to ask clarifying questions (don\'t pitch, just learn)'
+          ],
+          earlyStageUse: 'Discover what problems people actually talk about vs. what you think they need. Find the language customers use to describe their pain.'
         },
         {
           name: 'Carrd',
-          description: 'Simple, one-page websites. Build responsive sites quickly and affordably.',
-          ourTake: 'Ideal for $1,000 budgets. Create professional landing pages in minutes. Limited to single pages but perfect for testing ideas quickly and cheaply.',
-          pricing: 'Free plan, Pro from $19/year',
-          bestFor: ['MVPs', 'Landing Pages', 'Budget-Friendly'],
+          description: 'Simple, responsive one-page sites for pretty much anything.',
+          ourTake: 'The fastest way to create a landing page. Perfect for validating ideas with a simple signup form. Build and launch in under an hour. Great for testing multiple ideas quickly.',
+          pricing: 'Free for 3 sites, Pro $19/year',
+          bestFor: ['Landing Pages', 'Link-in-Bio', 'Quick Tests'],
           link: 'https://carrd.co',
-          recommended: true
+          recommended: true,
+          stepByStep: [
+            '1. Create a simple landing page explaining your solution in 1-2 sentences',
+            '2. Add an email signup form with clear value proposition',
+            '3. Drive 100-500 visitors through social media or ads',
+            '4. If 10%+ sign up, you have validated demand worth pursuing'
+          ],
+          earlyStageUse: 'Test if people want your solution before spending time building it. A 10% conversion rate on targeted traffic indicates strong demand.'
         },
         {
-          name: 'Ghost',
-          description: 'Publishing-focused website platform. Built for content creators and publishers.',
-          ourTake: 'Best for content-driven businesses. Built-in SEO, email newsletters, and membership features. Great for coaches, consultants, and media businesses.',
-          pricing: 'From $9/mo',
-          bestFor: ['Publishing', 'Newsletters', 'Memberships'],
-          link: 'https://ghost.org'
+          name: 'Facebook Ads Manager',
+          description: 'Create and manage ads across Facebook, Instagram, and Messenger.',
+          ourTake: 'Still the most powerful ad platform for consumer products. Start with $5/day to test audiences and messages. Great for validating demand before building. Use lookalike audiences once you have customers.',
+          pricing: 'Pay per click/impression, min $5/day',
+          bestFor: ['Paid Acquisition', 'Audience Testing', 'Retargeting'],
+          link: 'https://facebook.com/business',
+          recommended: false,
+          stepByStep: [
+            '1. Create 3-5 different ad creatives highlighting different problem angles',
+            '2. Set up $5/day campaigns targeting different demographics',
+            '3. Run for 3-7 days and measure click-through rates and engagement',
+            '4. Double down on the highest-performing problem/audience combination'
+          ],
+          earlyStageUse: 'Quickly test which problems resonate most with which audiences. High engagement indicates you\'ve found product-market fit.'
         },
         {
-          name: 'Umso',
-          description: 'Website builder specifically for startups. Fast and focused.',
-          ourTake: 'Built by founders for founders. Clean, modern templates that look professional. Less flexible than Webflow but much faster to launch. Great for SaaS and startup landing pages.',
-          pricing: 'From $25/mo',
-          bestFor: ['Startups', 'SaaS', 'Quick Launch'],
-          link: 'https://umso.com'
+          name: 'Calendly',
+          description: 'Automated scheduling for meetings without the back-and-forth emails.',
+          ourTake: 'Essential for booking customer interviews. Set your availability, share your link, and let customers book times that work for both of you. Integrates with Zoom for easy video calls.',
+          pricing: 'Free for basic, Essentials $8/mo',
+          bestFor: ['Interview Scheduling', 'Demo Calls', 'Time Management'],
+          link: 'https://calendly.com',
+          recommended: true,
+          stepByStep: [
+            '1. Prepare 10 questions about customer\'s current process and pain points',
+            '2. Schedule 15-30 minute calls with 10-20 potential customers',
+            '3. Ask about past experiences, not future wants ("Tell me about the last time you...")',
+            '4. Listen for emotion and frustration - these indicate real problems worth solving'
+          ],
+          earlyStageUse: 'Understand the difference between what customers say they want vs. what they actually need. Past behavior predicts future purchases.'
         }
       ]
     },
     {
-      id: 'ecommerce',
-      name: 'E-commerce Platforms',
-      icon: '🛒',
-      description: 'For: Online stores, digital products, subscriptions',
+      id: 'mvp-landing-pages',
+      name: 'MVP & Landing Page Building',
+      icon: '🌐',
+      description: 'For: Quick, cheap ways to test your idea with real customers',
       tools: [
         {
-          name: 'Shopify',
-          description: 'Complete e-commerce solution. Industry standard for online stores.',
-          ourTake: 'Industry standard for good reason. Handles everything from payments to shipping. $29/month is worth it if you\'re serious about e-commerce. Thousands of apps available.',
-          pricing: 'From $29/mo',
-          bestFor: ['Online Stores', 'Physical Products', 'Scaling'],
-          link: 'https://shopify.com',
-          recommended: true
+          name: 'Carrd',
+          description: 'Build professional landing pages in minutes for under $20/year.',
+          ourTake: 'Perfect for early-stage testing. Create multiple versions to test different value propositions. Professional templates make you look established. Mobile-responsive out of the box.',
+          pricing: 'Free plan, Pro $19/year',
+          bestFor: ['MVP Testing', 'A/B Testing', 'Budget-Friendly'],
+          link: 'https://carrd.co',
+          recommended: true,
+          stepByStep: [
+            '1. Choose a simple template and customize with your value proposition',
+            '2. Add a clear call-to-action (email signup, waitlist, or early access)',
+            '3. Include social proof elements (testimonials, logos, or user counts)',
+            '4. Test different headlines and CTAs to optimize conversion rates'
+          ],
+          earlyStageUse: 'Test multiple positioning strategies quickly and cheaply. Each landing page tests a different hypothesis about your market.'
         },
         {
-          name: 'Gumroad',
-          description: 'Digital product sales made simple. Perfect for creators and digital goods.',
-          ourTake: 'Perfect for creators selling digital products. Takes care of payments, delivery, and taxes. Higher fees but zero setup hassle. Great for testing digital product ideas.',
-          pricing: 'Free to start, 9% + $0.30 per sale',
-          bestFor: ['Digital Products', 'Creators', 'Quick Setup'],
-          link: 'https://gumroad.com',
-          recommended: false
+          name: 'Notion Sites',
+          description: 'Turn Notion pages into public websites. Free and incredibly flexible.',
+          ourTake: 'Build landing pages, knowledge bases, or simple websites directly from Notion. Perfect for content-heavy ideas or testing educational approaches. No coding required, unlimited pages.',
+          pricing: 'Free',
+          bestFor: ['Content Sites', 'Knowledge Bases', 'Blog-style MVPs'],
+          link: 'https://notion.so',
+          recommended: true,
+          stepByStep: [
+            '1. Create a new Notion page with your business concept and value prop',
+            '2. Add detailed explanations, FAQs, and examples of your solution',
+            '3. Make the page public and share the URL for feedback',
+            '4. Use built-in analytics to see which sections get most engagement'
+          ],
+          earlyStageUse: 'Perfect for service-based businesses or educational products. Test if your expertise and approach resonates with customers.'
         },
         {
-          name: 'WooCommerce',
-          description: 'WordPress e-commerce plugin. Most flexible open-source solution.',
-          ourTake: 'Most flexible but requires technical knowledge. Hidden costs in hosting and plugins. Only choose if you have WordPress experience.',
-          pricing: 'Free plugin, hosting from $10/mo',
-          bestFor: ['WordPress Sites', 'Customization', 'Technical Users'],
-          link: 'https://woocommerce.com'
-        }
-      ]
-    },
-    {
-      id: 'app-development',
-      name: 'App Development',
-      icon: '📱',
-      description: 'For: Mobile apps, web apps, internal tools',
-      tools: [
+          name: 'Webflow (Free)',
+          description: 'Professional websites without coding. Free plan perfect for MVP testing.',
+          ourTake: 'More advanced than Carrd but still beginner-friendly. Free plan includes hosting and CMS. Perfect for businesses that need to look more established or have complex content needs.',
+          pricing: 'Free plan (limited), Paid from $14/mo',
+          bestFor: ['Professional Look', 'Content Management', 'Complex Sites'],
+          link: 'https://webflow.com',
+          recommended: false,
+          stepByStep: [
+            '1. Start with a template close to your vision and customize branding',
+            '2. Add your content and integrate forms for lead capture',
+            '3. Set up basic SEO and publish on free subdomain',
+            '4. Use built-in analytics to track visitor behavior and conversions'
+          ],
+          earlyStageUse: 'When you need to look more established than a simple landing page. Good for B2B or professional services.'
+        },
         {
-          name: 'Bubble',
-          description: 'Full-stack web application builder. Build complex apps without code.',
-          ourTake: 'Most powerful no-code platform. Can build complex SaaS applications. Steep learning curve but can replace expensive development teams. Free plan available for testing.',
+          name: 'Google Sites',
+          description: 'Simple, free website builder integrated with Google Workspace.',
+          ourTake: 'The quickest way to get online. Zero learning curve, automatically mobile-friendly. Perfect for basic business presence or testing simple concepts. No coding, no fuss.',
+          pricing: 'Free',
+          bestFor: ['Quick Setup', 'Google Integration', 'Simple Sites'],
+          link: 'https://sites.google.com',
+          recommended: false,
+          stepByStep: [
+            '1. Choose a template and add your business information',
+            '2. Connect Google Forms for lead capture or customer feedback',
+            '3. Add Google Analytics to track visitor behavior',
+            '4. Share the URL and gather feedback from potential customers'
+          ],
+          earlyStageUse: 'Test business concepts that don\'t require advanced functionality. Perfect for local service businesses or simple product ideas.'
+        },
+        {
+          name: 'Bubble (No-Code App)',
+          description: 'Build functional web applications without coding. Free plan available.',
+          ourTake: 'Most powerful no-code platform for building actual applications. Steep learning curve but can replace expensive development. Perfect for SaaS ideas or marketplace concepts.',
           pricing: 'Free plan, Paid from $29/mo',
-          bestFor: ['SaaS', 'Web Apps', 'Complex Logic'],
+          bestFor: ['Web Apps', 'SaaS MVPs', 'Marketplaces'],
           link: 'https://bubble.io',
-          recommended: true
+          recommended: false,
+          stepByStep: [
+            '1. Complete Bubble\'s tutorial to understand the basics (plan 5-10 hours)',
+            '2. Start with a simple version of your core feature',
+            '3. Add user registration and basic functionality',
+            '4. Test with 10-20 users and iterate based on feedback'
+          ],
+          earlyStageUse: 'When your idea requires actual application functionality beyond a simple website. Test complex workflows and user interactions.'
+        }
+      ]
+    },
+    {
+      id: 'early-selling',
+      name: 'Start Selling Before You Build',
+      icon: '🛒',
+      description: 'For: Testing product demand and getting first sales with minimal setup',
+      tools: [
+        {
+          name: 'Gumroad (Test Digital Products)',
+          description: 'Start selling digital products in minutes. No setup costs, just upload and sell.',
+          ourTake: 'Perfect for testing digital product ideas with zero upfront costs. Upload PDFs, courses, templates, or any digital file. Payment processing and delivery handled automatically. Use analytics to see what sells.',
+          pricing: 'Free to start, 10% + $0.30 per sale',
+          bestFor: ['Digital Products', 'Course Testing', 'Quick Validation'],
+          link: 'https://gumroad.com',
+          recommended: true,
+          stepByStep: [
+            '1. Create a simple digital product (PDF guide, template, or mini-course)',
+            '2. Upload to Gumroad with compelling title and description',
+            '3. Set a low test price ($5-25) to validate demand',
+            '4. Share on social media and measure conversion rates'
+          ],
+          earlyStageUse: 'Test if people will pay for your expertise before building a full course or service. Quick way to validate digital product ideas.'
         },
         {
-          name: 'Adalo',
-          description: 'Native mobile app builder. Create iOS and Android apps visually.',
-          ourTake: 'Best for simple mobile apps. Publishing to app stores included. Limited customization but fast to market. Good for local service businesses needing an app.',
-          pricing: 'From $45/mo',
-          bestFor: ['Mobile Apps', 'Simple Apps', 'Quick Launch'],
-          link: 'https://adalo.com'
+          name: 'Buy Buttons (Stripe/PayPal)',
+          description: 'Add payment buttons to any website. Start selling without a full store.',
+          ourTake: 'Embed payment buttons directly into landing pages or social media. Perfect for pre-orders or simple product testing. Skip the complexity of full e-commerce setup.',
+          pricing: '2.9% + $0.30 per transaction',
+          bestFor: ['Pre-Orders', 'Simple Products', 'Landing Page Sales'],
+          link: 'https://stripe.com/payments/checkout',
+          recommended: true,
+          stepByStep: [
+            '1. Create a product description and price on Stripe or PayPal',
+            '2. Generate a buy button and embed on your landing page',
+            '3. Set up confirmation emails with delivery instructions',
+            '4. Measure conversion rates to validate product-market fit'
+          ],
+          earlyStageUse: 'Take pre-orders or sell simple products without building a full e-commerce site. Validate demand before inventory investment.'
         },
         {
-          name: 'Glide',
-          description: 'Apps from Google Sheets. Turn spreadsheets into powerful apps.',
-          ourTake: 'Brilliant for simple database apps. If your business can run on a spreadsheet, Glide can turn it into an app. Perfect for inventory management, customer databases.',
-          pricing: 'Free plan, Paid from $25/mo',
-          bestFor: ['Database Apps', 'Internal Tools', 'Quick MVPs'],
+          name: 'Social Media Direct Sales',
+          description: 'Sell directly through Instagram, Facebook, or TikTok. Use platform tools.',
+          ourTake: 'Start where your customers already are. Use Instagram Shopping, Facebook Shop, or TikTok Shop. Zero setup costs, built-in payment processing. Perfect for physical product testing.',
+          pricing: 'Platform fees vary (2.9-5%)',
+          bestFor: ['Physical Products', 'Visual Products', 'Social Audiences'],
+          link: 'https://business.instagram.com/shopping',
+          recommended: false,
+          stepByStep: [
+            '1. Set up business profiles on relevant social platforms',
+            '2. Create product catalog with high-quality photos',
+            '3. Post regularly showcasing products in use',
+            '4. Use platform analytics to identify best-selling items'
+          ],
+          earlyStageUse: 'Test physical products with your existing social media audience before investing in inventory or a full website.'
+        },
+        {
+          name: 'Etsy (Handmade/Creative)',
+          description: 'Built-in marketplace for handmade, vintage, and creative products.',
+          ourTake: 'Perfect for testing creative or handmade products. Built-in audience actively shopping. Lower marketing costs since customers come to platform. Great for validating niche products.',
+          pricing: '$0.20 listing fee + 6.5% transaction fee',
+          bestFor: ['Handmade', 'Creative Products', 'Niche Items'],
+          link: 'https://etsy.com/sell',
+          recommended: false,
+          stepByStep: [
+            '1. Research similar products to understand pricing and demand',
+            '2. Create 5-10 listings with professional photos',
+            '3. Use Etsy SEO tools to optimize for search',
+            '4. Analyze sales data to identify most popular products'
+          ],
+          earlyStageUse: 'Test creative or handmade products with an audience that\'s already shopping for unique items. Built-in demand validation.'
+        },
+        {
+          name: 'Pre-Order Campaigns',
+          description: 'Sell products before manufacturing. Validate demand and fund production.',
+          ourTake: 'Ultimate validation tool. Get orders and payment before spending money on inventory. Use tools like Kickstarter, Indiegogo, or simple landing pages with payment collection.',
+          pricing: 'Platform fees vary (3-8%)',
+          bestFor: ['Physical Products', 'Inventory Validation', 'Funding'],
+          link: 'https://kickstarter.com',
+          recommended: true,
+          stepByStep: [
+            '1. Create compelling product mockups and videos',
+            '2. Set up pre-order campaign with clear delivery timeline',
+            '3. Drive traffic through social media and email lists',
+            '4. Use order volume to negotiate better manufacturing prices'
+          ],
+          earlyStageUse: 'Validate physical product demand and raise money for manufacturing simultaneously. Reduce inventory risk significantly.'
+        },
+        {
+          name: 'Shopify (3-Day Trial)',
+          description: 'Full e-commerce platform with generous trial period for testing.',
+          ourTake: 'Industry standard when you\'re ready for a full store. Use the trial to test store conversion rates before committing. Thousands of apps available for any feature you need.',
+          pricing: '$1 for first month, then $29/mo',
+          bestFor: ['Full Stores', 'Multiple Products', 'Professional Setup'],
+          link: 'https://shopify.com',
+          recommended: false,
+          stepByStep: [
+            '1. Set up store during trial with 5-10 core products',
+            '2. Test checkout flow and payment processing',
+            '3. Run small ad campaigns to measure conversion rates',
+            '4. Only commit to monthly plan if you achieve 2%+ conversion rates'
+          ],
+          earlyStageUse: 'When you\'ve validated demand through simpler methods and need a professional store. Use trial to test before committing.'
+        }
+      ]
+    },
+    {
+      id: 'no-code-apps',
+      name: 'No-Code App Building for Testing Ideas',
+      icon: '📱',
+      description: 'For: Building functional prototypes without coding to test complex business ideas',
+      tools: [
+        {
+          name: 'Glide (From Spreadsheets)',
+          description: 'Turn Google Sheets into mobile apps in minutes. Perfect for simple business logic.',
+          ourTake: 'Brilliant for testing app ideas without complexity. If your business logic fits in a spreadsheet, Glide makes it an app. Perfect for directories, catalogs, or simple marketplace ideas.',
+          pricing: 'Free plan, Pro $25/mo',
+          bestFor: ['Simple Apps', 'Database Ideas', 'Quick Testing'],
           link: 'https://glideapps.com',
+          recommended: true,
+          stepByStep: [
+            '1. Create a Google Sheet with your app data (users, products, content)',
+            '2. Connect to Glide and choose a template that matches your idea',
+            '3. Customize the design and add basic actions (add/edit/delete)',
+            '4. Share the app link with 10-20 test users for feedback'
+          ],
+          earlyStageUse: 'Test marketplace, directory, or catalog ideas quickly. Perfect for local business apps or simple social platforms.'
+        },
+        {
+          name: 'Bubble (Complex Apps)',
+          description: 'Build full-stack web applications without coding. Most powerful no-code platform.',
+          ourTake: 'When your idea needs real application functionality. Steep learning curve (plan 10-20 hours) but can build anything. Free hosting included for testing.',
+          pricing: 'Free plan, Starter $29/mo',
+          bestFor: ['SaaS Ideas', 'Complex Logic', 'User Management'],
+          link: 'https://bubble.io',
+          recommended: false,
+          stepByStep: [
+            '1. Complete Bubble Academy tutorials (5-10 hours investment)',
+            '2. Start with core user flow - signup, main feature, basic dashboard',
+            '3. Add one feature at a time and test with users',
+            '4. Use analytics to see which features users actually use'
+          ],
+          earlyStageUse: 'Test SaaS or marketplace concepts that need user accounts, payments, or complex workflows. Validate before hiring developers.'
+        },
+        {
+          name: 'Softr',
+          description: 'Turn your Airtable or Google Sheets into powerful web apps and client portals.',
+          ourTake: 'The fastest way to build a web app without code. Connect to Airtable and launch membership sites, directories, or internal tools in days. Beautiful templates make you look professional from day one.',
+          pricing: 'Free tier, Basic $32/mo',
+          bestFor: ['Web Apps', 'Client Portals', 'Directories'],
+          link: 'https://softr.io',
+          recommended: true,
+          stepByStep: [
+            '1. Build your data structure in Airtable (users, content, categories)',
+            '2. Connect Softr and choose appropriate template',
+            '3. Set up user permissions and content access rules',
+            '4. Launch to a small group and iterate based on usage patterns'
+          ],
+          earlyStageUse: 'Test directory, job board, or membership site concepts. See if people will pay for access to curated information.'
+        },
+        {
+          name: 'Airtable',
+          description: 'Part spreadsheet, part database, and entirely flexible.',
+          ourTake: 'The Swiss Army knife for early-stage startups. Use it as your CRM, project manager, inventory tracker, or backend for web apps. If you can use Excel, you can use Airtable.',
+          pricing: 'Free up to 1,200 records, Team $20/user/mo',
+          bestFor: ['Database', 'CRM', 'Project Management'],
+          link: 'https://airtable.com',
+          recommended: true
+        },
+        {
+          name: 'Vercel',
+          description: 'Deploy web projects with the best frontend developer experience.',
+          ourTake: 'The gold standard for deploying modern web apps. Automatic deploys from Git, instant rollbacks, and amazing performance. If you\'re building with Next.js or React, this is your home.',
+          pricing: 'Free hobby tier, Pro $20/mo',
+          bestFor: ['Web Hosting', 'JAMstack Sites', 'Next.js Apps'],
+          link: 'https://vercel.com',
+          recommended: true
+        },
+        {
+          name: 'Squarespace',
+          description: 'All-in-one website builder with beautiful templates.',
+          ourTake: 'When you need a professional website today, not next week. Great for service businesses, portfolios, and e-commerce. More expensive than others but includes hosting, SSL, and support.',
+          pricing: 'Personal $16/mo, Business $23/mo',
+          bestFor: ['Business Websites', 'E-commerce', 'Portfolios'],
+          link: 'https://squarespace.com',
           recommended: false
+        },
+        {
+          name: 'Notion',
+          description: 'All-in-one workspace for notes, tasks, wikis, and databases.',
+          ourTake: 'More than just docs - use Notion as a simple website, knowledge base, or even waitlist signup page. The new AI features help write better copy. Can replace 5+ other tools.',
+          pricing: 'Free for personal, Plus $8/user/mo',
+          bestFor: ['Documentation', 'Public Pages', 'Knowledge Base'],
+          link: 'https://notion.so',
+          recommended: true
+        },
+        {
+          name: 'Adalo (Mobile Apps)',
+          description: 'Create native mobile apps visually. Publish to app stores without coding.',
+          ourTake: 'Best for simple mobile-first businesses. Good templates for common use cases. Publishing assistance included. Higher cost but mobile-native experience.',
+          pricing: 'Free plan limited, Pro $50/mo',
+          bestFor: ['Mobile-First Ideas', 'Local Services', 'Simple Social Apps'],
+          link: 'https://adalo.com',
+          recommended: false,
+          stepByStep: [
+            '1. Choose template closest to your app concept',
+            '2. Customize with your branding and core features',
+            '3. Test on your phone and with 5-10 potential users',
+            '4. Use feedback to decide if mobile app is worth the investment'
+          ],
+          earlyStageUse: 'When your business idea specifically needs a mobile app experience. Test user engagement before investing in development.'
+        },
+        {
+          name: 'Zapier (Workflow Testing)',
+          description: 'Connect different apps to create automated workflows without coding.',
+          ourTake: 'Test business process automation ideas by connecting existing tools. Perfect for validating software integration concepts or workflow improvements.',
+          pricing: 'Free plan (5 zaps), Paid from $19.99/mo',
+          bestFor: ['Process Automation', 'Integration Ideas', 'Workflow Testing'],
+          link: 'https://zapier.com',
+          recommended: true,
+          stepByStep: [
+            '1. Identify a repetitive process you could automate for others',
+            '2. Build the automation using available apps and Zapier',
+            '3. Test with 3-5 potential customers to validate time savings',
+            '4. Use success to validate demand for automation services or SaaS'
+          ],
+          earlyStageUse: 'Test automation or integration business ideas. Validate if people will pay for workflow improvements.'
+        },
+        {
+          name: 'Typeform + Airtable',
+          description: 'Create interactive experiences that store data. Test complex service ideas.',
+          ourTake: 'Build interactive questionnaires, assessments, or booking systems. Perfect for testing consultation, assessment, or service-based business ideas.',
+          pricing: 'Free tiers available, Combined ~$50/mo',
+          bestFor: ['Service Testing', 'Assessment Ideas', 'Interactive Tools'],
+          link: 'https://typeform.com',
+          recommended: false,
+          stepByStep: [
+            '1. Create an interactive form that solves a specific problem',
+            '2. Connect to Airtable to store and analyze responses',
+            '3. Share with target audience and measure completion rates',
+            '4. Use engagement data to validate service demand'
+          ],
+          earlyStageUse: 'Test consulting, assessment, or interactive service concepts. Validate if people engage with your process.'
         }
       ]
     },
     {
-      id: 'payment-processing',
-      name: 'Payment Processing',
+      id: 'early-payments',
+      name: 'Start Accepting Payments Immediately',
       icon: '💳',
-      description: 'For: Accepting payments online and in-person',
+      description: 'For: Testing willingness to pay without complex setup',
       tools: [
         {
-          name: 'Stripe',
-          description: 'Developer-friendly payments. Best for online businesses.',
-          ourTake: 'Best overall choice for online businesses. Excellent documentation, reasonable fees, handles global payments. Essential for any serious online business.',
+          name: 'PayPal.me Links',
+          description: 'Send payment requests via simple links. No setup, instant payments.',
+          ourTake: 'Easiest way to test if people will pay. Create custom payment links for different amounts. Perfect for service testing, consultations, or pre-orders. Zero setup time.',
           pricing: '2.9% + $0.30 per transaction',
-          bestFor: ['Online Payments', 'SaaS', 'Global Sales'],
-          link: 'https://stripe.com',
-          recommended: true
+          bestFor: ['Service Testing', 'Quick Payments', 'Consultations'],
+          link: 'https://paypal.me',
+          recommended: true,
+          stepByStep: [
+            '1. Create a PayPal.me link with your service description',
+            '2. Set up links for different price points ($25, $50, $100)',
+            '3. Share links when customers express interest',
+            '4. Track conversion rates to validate pricing and demand'
+          ],
+          earlyStageUse: 'Test service demand and pricing without building payment infrastructure. See if people actually pay when asked.'
         },
         {
-          name: 'Square',
-          description: 'In-person and online payments. Complete POS system.',
-          ourTake: 'Perfect for brick-and-mortar businesses expanding online. Free card reader, good POS system. Slightly higher online fees than Stripe.',
-          pricing: '2.9% + $0.30 online, 2.6% + $0.10 in-person',
-          bestFor: ['Retail', 'Restaurants', 'Service Businesses'],
-          link: 'https://square.com',
-          recommended: false
+          name: 'Venmo/CashApp Business',
+          description: 'Accept payments through popular mobile payment apps.',
+          ourTake: 'Perfect for local businesses or younger demographics. Zero fees for standard transfers. Quick setup, familiar to customers. Good for testing local service ideas.',
+          pricing: 'Free for standard transfers, 1.75% for instant',
+          bestFor: ['Local Services', 'Younger Demographics', 'Quick Testing'],
+          link: 'https://venmo.com/business',
+          recommended: false,
+          stepByStep: [
+            '1. Set up business profile with clear service description',
+            '2. Create QR codes for different service offerings',
+            '3. Test with local customers or social media audience',
+            '4. Track which services get the most payment requests'
+          ],
+          earlyStageUse: 'Test local service ideas with minimal friction. Perfect for food, tutoring, or personal service concepts.'
         },
         {
-          name: 'PayPal',
-          description: 'Ubiquitous payment processor. Most recognized by customers.',
-          ourTake: 'Higher fees than Stripe but customers trust it more. Good for marketplaces and international sales. Buyer protection can be problematic for sellers.',
+          name: 'Stripe Payment Links',
+          description: 'Create payment links for products or services. Professional but simple.',
+          ourTake: 'More professional than PayPal.me with better conversion rates. Create links for specific products or services. Automatic receipts and customer management included.',
           pricing: '2.9% + $0.30 per transaction',
-          bestFor: ['International', 'Marketplaces', 'Customer Trust'],
-          link: 'https://paypal.com'
+          bestFor: ['Product Testing', 'Professional Look', 'Recurring Payments'],
+          link: 'https://stripe.com/payments/payment-links',
+          recommended: true,
+          stepByStep: [
+            '1. Create payment links for core products/services',
+            '2. Customize with descriptions, images, and pricing',
+            '3. Embed in landing pages or share directly',
+            '4. Use Stripe analytics to track conversion and revenue'
+          ],
+          earlyStageUse: 'Test product demand with professional payment experience. Better than PayPal for business credibility.'
+        },
+        {
+          name: 'Square Online (Free)',
+          description: 'Free online store with payment processing included.',
+          ourTake: 'Complete free e-commerce solution with Square branding. Perfect for testing physical product demand. Includes inventory management and customer tools.',
+          pricing: 'Free plan (Square branding), 2.9% + $0.30 per transaction',
+          bestFor: ['Physical Products', 'Free Store', 'Quick Setup'],
+          link: 'https://squareup.com/online-store',
+          recommended: false,
+          stepByStep: [
+            '1. Set up free store with 5-10 test products',
+            '2. Add product photos and descriptions',
+            '3. Share store link on social media',
+            '4. Track which products get most views and purchases'
+          ],
+          earlyStageUse: 'Test physical product demand with a complete store experience. Free way to validate e-commerce concepts.'
+        },
+        {
+          name: 'Buy Me a Coffee',
+          description: 'Accept support payments from fans and customers.',
+          ourTake: 'Perfect for testing content monetization or tip-based business models. Supporters can make one-time or recurring payments. Great for creators and content businesses.',
+          pricing: '5% platform fee',
+          bestFor: ['Content Creation', 'Support-Based', 'Creator Economy'],
+          link: 'https://buymeacoffee.com',
+          recommended: false,
+          stepByStep: [
+            '1. Set up profile with clear value proposition',
+            '2. Create different support tiers ($3, $5, $10)',
+            '3. Share with your audience and measure response',
+            '4. Use supporter feedback to validate content direction'
+          ],
+          earlyStageUse: 'Test if people will pay to support your content or expertise. Validate creator economy business models.'
+        },
+        {
+          name: 'Cash on Delivery/Pickup',
+          description: 'Accept payment upon delivery or pickup. No payment processing needed.',
+          ourTake: 'Ultimate low-friction testing method. No fees, no setup, immediate feedback. Perfect for local products or services. Reduces customer risk and your setup time.',
+          pricing: 'Free (no processing fees)',
+          bestFor: ['Local Products', 'Service Testing', 'Zero Fees'],
+          link: 'N/A - Direct payment method',
+          recommended: true,
+          stepByStep: [
+            '1. Offer products/services with payment on delivery',
+            '2. Use social media or simple forms to take orders',
+            '3. Deliver and collect payment to validate demand',
+            '4. Track conversion rates and customer feedback'
+          ],
+          earlyStageUse: 'Test local business ideas with zero payment friction. Highest conversion rates since customers pay only when satisfied.'
         }
       ]
     },
     {
-      id: 'design-branding',
-      name: 'Design & Branding',
+      id: 'bootstrap-branding',
+      name: 'Bootstrap Your Brand on $0 Budget',
       icon: '🎨',
-      description: 'For: Logos, graphics, presentations, brand identity',
+      description: 'For: Looking professional without spending money on design',
       tools: [
         {
-          name: 'Canva',
-          description: 'Design for everyone. Create professional graphics without design skills.',
-          ourTake: 'Essential for any business. Professional designs without design skills. Pro version worth it for brand consistency. Can handle 80% of your design needs.',
-          pricing: 'Free plan, Pro from $12.99/mo',
-          bestFor: ['Social Media', 'Marketing Materials', 'Beginners'],
+          name: 'Canva (Free)',
+          description: 'Professional designs without design skills. Free templates for everything.',
+          ourTake: 'Essential tool for any early-stage business. Free tier includes thousands of templates. Create logos, social media posts, presentations, and marketing materials. Brand kit feature helps maintain consistency.',
+          pricing: 'Free (with watermarks), Pro $14.99/mo',
+          bestFor: ['All Design Needs', 'Social Media', 'Marketing Materials'],
           link: 'https://canva.com',
-          recommended: true
+          recommended: true,
+          stepByStep: [
+            '1. Create brand colors and fonts using Canva\'s color palette tool',
+            '2. Design a simple logo using text-based templates',
+            '3. Create 5-10 social media post templates for consistency',
+            '4. Make business cards, flyers, or other materials as needed'
+          ],
+          earlyStageUse: 'Create all visual branding materials for free. Professional look without hiring designers. Test visual concepts before investing in professional design.'
         },
         {
-          name: 'Figma',
-          description: 'Professional design tool. Industry standard for UI/UX design.',
-          ourTake: 'Free tier is generous. Industry standard for UI/UX design. Overkill for simple graphics but essential if building apps or complex websites.',
-          pricing: 'Free for 3 files, Paid from $12/mo',
-          bestFor: ['UI/UX', 'App Design', 'Collaboration'],
-          link: 'https://figma.com',
-          recommended: false
+          name: 'Logo Maker (Free Options)',
+          description: 'Create simple logos using free online tools and templates.',
+          ourTake: 'Start with free logo makers to test brand concepts. Use tools like Canva, LogoMakr, or even Google Drawings. Focus on simple, text-based designs that scale well.',
+          pricing: 'Free - $50 for premium versions',
+          bestFor: ['Quick Logos', 'Text-based Brands', 'Testing'],
+          link: 'https://logomaker.thehoth.com',
+          recommended: true,
+          stepByStep: [
+            '1. Try 3-5 different logo concepts using free tools',
+            '2. Test logos with potential customers on social media',
+            '3. Choose the version that gets the most positive feedback',
+            '4. Use the winner across all marketing materials'
+          ],
+          earlyStageUse: 'Test logo concepts and brand recognition before investing in professional design. See what resonates with your audience.'
         },
         {
-          name: 'Looka',
-          description: 'AI logo and brand generator. Quick branding for startups.',
-          ourTake: 'Quick, affordable branding for early-stage businesses. Not as unique as custom design but gets you started professionally. Good value for $200 budget.',
-          pricing: 'Logo packages from $20',
-          bestFor: ['Quick Logos', 'Brand Kits', 'Startups'],
-          link: 'https://looka.com'
+          name: 'Unsplash + Pexels',
+          description: 'Free high-quality photos for all your marketing needs.',
+          ourTake: 'Professional stock photos at zero cost. Perfect for social media, websites, and marketing materials. Massive libraries with commercial use licensing included.',
+          pricing: 'Free',
+          bestFor: ['Stock Photos', 'Website Images', 'Social Content'],
+          link: 'https://unsplash.com',
+          recommended: true,
+          stepByStep: [
+            '1. Search for photos that match your brand aesthetic',
+            '2. Download high-resolution versions for websites',
+            '3. Use consistent photo styles to build brand recognition',
+            '4. Create a photo library for consistent social media posting'
+          ],
+          earlyStageUse: 'Professional visual content without photography costs. Test different visual styles to see what your audience responds to.'
+        },
+        {
+          name: 'Google Fonts',
+          description: 'Free, web-ready fonts that load fast and look professional.',
+          ourTake: 'Choose 1-2 fonts for your brand and stick with them. Google Fonts are free, fast-loading, and professionally designed. Consistent typography makes you look established.',
+          pricing: 'Free',
+          bestFor: ['Typography', 'Web Fonts', 'Brand Consistency'],
+          link: 'https://fonts.google.com',
+          recommended: true,
+          stepByStep: [
+            '1. Choose one font for headlines and one for body text',
+            '2. Test readability across different devices',
+            '3. Use consistently across website, social media, and materials',
+            '4. Document your font choices for future consistency'
+          ],
+          earlyStageUse: 'Establish consistent typography that makes your brand look professional. Test font combinations before committing to paid design work.'
+        },
+        {
+          name: 'AI Color Palette Generators',
+          description: 'Generate professional color schemes using AI tools.',
+          ourTake: 'Use tools like Coolors.co or Adobe Color to generate professional color palettes. Consistent colors across all materials create strong brand recognition.',
+          pricing: 'Free',
+          bestFor: ['Color Schemes', 'Brand Identity', 'Visual Consistency'],
+          link: 'https://coolors.co',
+          recommended: false,
+          stepByStep: [
+            '1. Generate 3-5 different color palette options',
+            '2. Test palettes with your target audience',
+            '3. Choose one primary and 2-3 supporting colors',
+            '4. Document hex codes and use consistently everywhere'
+          ],
+          earlyStageUse: 'Establish professional color branding that differentiates you from competitors. Test color psychology with your audience.'
+        },
+        {
+          name: 'DIY Brand Guidelines',
+          description: 'Create simple brand guidelines to maintain consistency.',
+          ourTake: 'Document your logo usage, colors, fonts, and voice in a simple Google Doc. This ensures consistency as you grow and helps if you later hire help.',
+          pricing: 'Free (Google Docs)',
+          bestFor: ['Brand Consistency', 'Documentation', 'Team Alignment'],
+          link: 'https://docs.google.com',
+          recommended: false,
+          stepByStep: [
+            '1. Document your chosen colors, fonts, and logo variations',
+            '2. Write down your brand voice and messaging guidelines',
+            '3. Include examples of good and bad brand usage',
+            '4. Share with anyone who helps with marketing or design'
+          ],
+          earlyStageUse: 'Maintain consistent branding as you test and iterate. Ensures professional appearance across all touchpoints.'
         }
       ]
     },
     {
-      id: 'email-marketing',
-      name: 'Email Marketing',
+      id: 'early-customer-communication',
+      name: 'Get Your First 100 Customers',
       icon: '📧',
-      description: 'For: Newsletters, customer communication, automation',
+      description: 'For: Building an audience and getting your first paying customers',
       tools: [
         {
-          name: 'ConvertKit',
-          description: 'Creator-focused email marketing. Best for content creators.',
-          ourTake: 'Best for content creators and coaches. Excellent automation features. More expensive than competitors but higher deliverability rates.',
-          pricing: 'Free up to 1,000 subscribers, then from $15/mo',
-          bestFor: ['Creators', 'Automation', 'Courses'],
-          link: 'https://convertkit.com',
-          recommended: true
+          name: 'Personal Email + Google Sheets',
+          description: 'Start with your personal email and track contacts in a spreadsheet.',
+          ourTake: 'For your first 50 customers, your personal email works fine. Track contacts, purchase history, and notes in Google Sheets. Zero cost, immediate start. Upgrade only when this becomes unwieldy.',
+          pricing: 'Free',
+          bestFor: ['First 50 Customers', 'Personal Touch', 'Zero Cost'],
+          link: 'https://sheets.google.com',
+          recommended: true,
+          stepByStep: [
+            '1. Create a Google Sheet with columns: Name, Email, Date Met, Notes, Purchase History',
+            '2. Add every potential customer you meet or speak with',
+            '3. Send personal emails for updates, offers, or check-ins',
+            '4. Track response rates and purchase patterns'
+          ],
+          earlyStageUse: 'When you need maximum personal touch with early customers. No automation needed when you have <50 contacts.'
         },
         {
-          name: 'Mailchimp',
-          description: 'All-in-one marketing platform. Most popular email service.',
-          ourTake: 'Good free tier for starting out. Becomes expensive quickly but includes landing pages and basic CRM. Easy to use but limited automation.',
-          pricing: 'Free up to 500 contacts, then from $13/mo',
-          bestFor: ['Beginners', 'Small Lists', 'All-in-One'],
+          name: 'Mailchimp (Free Tier)',
+          description: 'Professional email marketing for up to 500 contacts.',
+          ourTake: 'When you outgrow personal email but need professional tools. Free tier includes templates, basic automation, and analytics. Perfect for newsletters and customer updates.',
+          pricing: 'Free up to 500 contacts',
+          bestFor: ['Growing Lists', 'Professional Look', 'Basic Automation'],
           link: 'https://mailchimp.com',
-          recommended: true
+          recommended: true,
+          stepByStep: [
+            '1. Import your Google Sheets contacts to Mailchimp',
+            '2. Create a simple newsletter template',
+            '3. Send weekly or monthly updates about your business progress',
+            '4. Use analytics to see which content gets most engagement'
+          ],
+          earlyStageUse: 'Professional email marketing when you have 50-500 potential customers. Start building brand recognition through regular communication.'
         },
         {
-          name: 'Beehiiv',
-          description: 'Newsletter platform built for growth. Modern email marketing.',
-          ourTake: 'Newest player but impressive features. Built-in monetization tools. Great for media businesses and newsletters. Modern interface.',
-          pricing: 'Free up to 2,500 subscribers, then from $42/mo',
-          bestFor: ['Newsletters', 'Media', 'Monetization'],
-          link: 'https://beehiiv.com'
+          name: 'WhatsApp Business',
+          description: 'Direct messaging with customers through WhatsApp.',
+          ourTake: 'Perfect for local businesses or personal services. Customers prefer WhatsApp for quick questions and updates. Free, immediate, and high open rates. Great for appointment reminders and customer service.',
+          pricing: 'Free',
+          bestFor: ['Local Business', 'Quick Communication', 'Customer Service'],
+          link: 'https://business.whatsapp.com',
+          recommended: false,
+          stepByStep: [
+            '1. Set up WhatsApp Business with professional profile',
+            '2. Add business hours, location, and services information',
+            '3. Use for appointment confirmations and quick customer questions',
+            '4. Create broadcast lists for important customer updates'
+          ],
+          earlyStageUse: 'For businesses where customers expect immediate, personal communication. Excellent for service-based or local businesses.'
+        },
+        {
+          name: 'Social Media DMs',
+          description: 'Use Instagram, Facebook, or LinkedIn direct messages for customer communication.',
+          ourTake: 'Start where your customers already are. Instagram for younger demographics, LinkedIn for B2B, Facebook for local businesses. Free and customers check daily.',
+          pricing: 'Free',
+          bestFor: ['Existing Social Audiences', 'Young Demographics', 'B2B Outreach'],
+          link: 'https://business.instagram.com',
+          recommended: false,
+          stepByStep: [
+            '1. Optimize business profiles on relevant social platforms',
+            '2. Use story features to stay top-of-mind with followers',
+            '3. Send personal DMs for customer service and follow-up',
+            '4. Track which platforms drive most customer engagement'
+          ],
+          earlyStageUse: 'When your target customers are active on social media. Build relationships where they already spend time.'
+        },
+        {
+          name: 'SMS/Text Marketing',
+          description: 'Direct text communication with customers using free or low-cost services.',
+          ourTake: 'Highest open rates (95%+) but use sparingly. Perfect for appointment reminders, urgent updates, or time-sensitive offers. Use tools like SimpleTexting or your phone initially.',
+          pricing: 'Free personal texting, Services from $10/mo',
+          bestFor: ['Urgent Updates', 'Appointments', 'Local Services'],
+          link: 'https://simpletexting.com',
+          recommended: false,
+          stepByStep: [
+            '1. Start with personal texting for your first customers',
+            '2. Get explicit permission before adding to text lists',
+            '3. Send only valuable, time-sensitive information',
+            '4. Track which messages drive most customer action'
+          ],
+          earlyStageUse: 'For businesses where timing matters (appointments, delivery, events). Use sparingly to maintain effectiveness.'
+        },
+        {
+          name: 'Customer Survey Follow-ups',
+          description: 'Stay connected through regular feedback requests and updates.',
+          ourTake: 'Turn customer research into relationship building. Send monthly surveys about their needs, share how you\'re improving, ask for referrals. Shows you care about their success.',
+          pricing: 'Free with Tally or Google Forms',
+          bestFor: ['Customer Research', 'Relationship Building', 'Product Development'],
+          link: 'https://tally.so',
+          recommended: true,
+          stepByStep: [
+            '1. Create monthly 3-question surveys about customer needs',
+            '2. Share results and improvements based on feedback',
+            '3. Ask satisfied customers for referrals in surveys',
+            '4. Use insights to improve product and find new opportunities'
+          ],
+          earlyStageUse: 'Build deeper relationships while gathering product development insights. Turn customers into advisors and advocates.'
+        }
+      ]
+    },
+    {
+      id: 'find-first-customers',
+      name: 'Find Your First 10 Customers',
+      icon: '🎯',
+      description: 'For: Getting initial customers before you have a marketing budget',
+      tools: [
+        {
+          name: 'Personal Network Outreach',
+          description: 'Start with friends, family, and existing connections.',
+          ourTake: 'Your first customers often come from people who already know and trust you. Don\'t feel awkward - you\'re solving a real problem. Ask for honest feedback, not just support.',
+          pricing: 'Free',
+          bestFor: ['First Sales', 'Product Feedback', 'Immediate Testing'],
+          link: 'N/A - Direct outreach',
+          recommended: true,
+          stepByStep: [
+            '1. List 50 people who might have the problem you\'re solving',
+            '2. Send personal messages explaining your solution (not mass emails)',
+            '3. Offer a special "founder\'s rate" or early access discount',
+            '4. Ask for detailed feedback in exchange for lower prices'
+          ],
+          earlyStageUse: 'Get your first sales and invaluable feedback from people who want to see you succeed. Perfect for validating your solution works.'
+        },
+        {
+          name: 'Local Facebook Groups',
+          description: 'Join community groups where your target customers hang out.',
+          ourTake: 'Local Facebook groups are goldmines for early customers. Find groups for your target audience, be helpful first, then share your solution. Focus on providing value before selling.',
+          pricing: 'Free',
+          bestFor: ['Local Businesses', 'Community Building', 'Word-of-Mouth'],
+          link: 'https://facebook.com/groups',
+          recommended: true,
+          stepByStep: [
+            '1. Join 5-10 local Facebook groups where your customers gather',
+            '2. Spend 2 weeks being helpful - answer questions, share tips',
+            '3. Share your story and solution when appropriate (not salesy)',
+            '4. Connect privately with interested people for deeper conversations'
+          ],
+          earlyStageUse: 'Build trust in local communities before pitching. Local customers become your biggest advocates through word-of-mouth.'
+        },
+        {
+          name: 'Reddit Community Engagement',
+          description: 'Participate in subreddits where your target customers discuss problems.',
+          ourTake: 'Reddit users value authenticity over sales pitches. Share your journey, ask for feedback, and help others. When you provide value first, customers find you.',
+          pricing: 'Free',
+          bestFor: ['Problem Discovery', 'Authentic Feedback', 'Niche Audiences'],
+          link: 'https://reddit.com',
+          recommended: false,
+          stepByStep: [
+            '1. Find 3-5 subreddits where your target customers discuss their problems',
+            '2. Comment helpfully on posts for 1-2 weeks before sharing anything',
+            '3. Share your solution as part of your story, not as an advertisement',
+            '4. Engage genuinely with feedback and questions'
+          ],
+          earlyStageUse: 'Discover what problems people actually talk about vs. what you think they need. Build credibility through helpful participation.'
+        },
+        {
+          name: 'LinkedIn Direct Outreach',
+          description: 'Connect with potential B2B customers through professional networking.',
+          ourTake: 'For B2B businesses, LinkedIn is perfect for reaching decision-makers. Connect authentically, comment on their posts, then share how you can help solve their challenges.',
+          pricing: 'Free (limited) or Premium $60/mo',
+          bestFor: ['B2B Sales', 'Professional Services', 'High-Value Customers'],
+          link: 'https://linkedin.com',
+          recommended: false,
+          stepByStep: [
+            '1. Identify 50 potential customers and connect with personal messages',
+            '2. Engage with their content before pitching anything',
+            '3. Share helpful content related to their industry challenges',
+            '4. Offer free consultations or trials to start conversations'
+          ],
+          earlyStageUse: 'Build professional relationships with potential B2B customers. Focus on helping their business succeed rather than selling.'
+        },
+        {
+          name: 'Cold Email (Personalized)',
+          description: 'Send highly personalized emails to potential customers.',
+          ourTake: 'Cold email works when it\'s genuinely helpful and personalized. Research each prospect, reference their specific situation, and offer real value. Start with 5 perfect emails rather than 50 generic ones.',
+          pricing: 'Free with personal email',
+          bestFor: ['B2B Outreach', 'Service Businesses', 'High-Touch Sales'],
+          link: 'https://gmail.com',
+          recommended: false,
+          stepByStep: [
+            '1. Research 10 potential customers and their specific challenges',
+            '2. Write personalized emails referencing their business situation',
+            '3. Offer something valuable (free audit, template, or consultation)',
+            '4. Follow up once if no response, then move on'
+          ],
+          earlyStageUse: 'When you need to reach specific decision-makers who don\'t know you yet. Quality over quantity always wins.'
+        },
+        {
+          name: 'Content Marketing (Free)',
+          description: 'Share helpful content to attract customers organically.',
+          ourTake: 'Create content that helps your target customers solve problems. Use free platforms like LinkedIn, YouTube, or Medium. Customers will find you when they need solutions.',
+          pricing: 'Free (time investment)',
+          bestFor: ['Long-term Building', 'Expertise Sharing', 'Organic Growth'],
+          link: 'https://medium.com',
+          recommended: true,
+          stepByStep: [
+            '1. Identify 10 common problems your target customers face',
+            '2. Create helpful content (articles, videos, posts) solving these problems',
+            '3. Share consistently on platforms where your customers spend time',
+            '4. Include subtle mentions of how your solution helps'
+          ],
+          earlyStageUse: 'Build long-term credibility and attract customers who are actively seeking solutions. Slower but builds lasting relationships.'
+        },
+        {
+          name: 'Local Networking Events',
+          description: 'Meet potential customers face-to-face at community events.',
+          ourTake: 'Nothing beats face-to-face connections for building trust. Find local business meetups, community events, or industry gatherings. Focus on learning about others\' challenges before sharing your solution.',
+          pricing: 'Free - $50 per event',
+          bestFor: ['Local Businesses', 'Personal Services', 'High-Trust Sales'],
+          link: 'https://meetup.com',
+          recommended: false,
+          stepByStep: [
+            '1. Find 2-3 regular networking events in your area',
+            '2. Attend consistently and focus on building relationships',
+            '3. Ask about others\' businesses and challenges before sharing yours',
+            '4. Follow up within 48 hours of meeting interesting connections'
+          ],
+          earlyStageUse: 'Build deep local relationships that turn into customers and referral sources. Perfect for service-based businesses.'
         }
       ]
     },
     {
       id: 'marketing-engagement',
-      name: 'Marketing & Customer Engagement',
+      name: 'Free Marketing for Early-Stage',
       icon: '🛍️',
       description: 'For: Building customer relationships and driving sales',
       tools: [
@@ -1318,41 +1966,1429 @@ const CommunityShowcase = () => {
     const [selectedTopic, setSelectedTopic] = useState('all');
     const [expandedCards, setExpandedCards] = useState(new Set());
     
-    // Learning content structured like resources with expanded founder's guide content
+    // Learning content for ideation and early-stage entrepreneurs  
     const learningCategories = [
       {
-        id: 'contest-prep',
-        name: 'Contest Preparation',
-        icon: '🏆',
-        description: 'Essential guides for winning the $1,000 Business Challenge',
+        id: 'idea-generation',
+        name: 'Idea Generation & Validation',
+        icon: '💡',
+        description: 'Turn problems into profitable business ideas',
         priority: 1,
         cards: [
           {
-            id: 'pitch-video',
-            title: 'Creating Your Pitch Video',
-            icon: '📹',
-            tags: ['pitch', 'video', 'contest', 'presentation'],
-            intro: 'Your pitch video is your chance to share your passion! Whether you\'re still brainstorming or already building, show us what excites you about your idea.',
+            id: 'idea-generation-framework',
+            title: 'The Opportunity Hunting Framework',
+            icon: '🎯',
+            tags: ['ideation', 'opportunity', 'problem-solving', 'validation'],
+            intro: 'Great businesses solve real problems. Learn the systematic approach to finding opportunities that matter.',
+            sections: [
+              {
+                title: 'The 4-Layer Opportunity Hunt',
+                content: `
+                  <h4>Layer 1: Personal Pain Points</h4>
+                  <p>Start with what you know. Your personal frustrations often reveal untapped markets.</p>
+                  
+                  <div class="framework-exercise">
+                    <h5>🔍 Exercise: Your Personal Pain Audit</h5>
+                    <ol>
+                      <li><strong>Daily Frustrations:</strong> List 10 things that annoyed you this week</li>
+                      <li><strong>Recurring Problems:</strong> What do you complain about regularly?</li>
+                      <li><strong>Workarounds:</strong> What processes do you've "hacked" or found ways around?</li>
+                      <li><strong>Time Wasters:</strong> What takes longer than it should?</li>
+                    </ol>
+                    <div class="pro-tip">
+                      <strong>💡 Pro Tip:</strong> If you've solved it for yourself, 1000s of others have the same problem.
+                    </div>
+                  </div>
+
+                  <h4>Layer 2: Professional Inefficiencies</h4>
+                  <p>Your work experience is a goldmine. Industry problems are often the most lucrative.</p>
+                  
+                  <div class="framework-exercise">
+                    <h5>💼 Exercise: Industry Problem Mining</h5>
+                    <ul>
+                      <li><strong>Manual Processes:</strong> What still requires spreadsheets or paper?</li>
+                      <li><strong>Communication Gaps:</strong> Where do miscommunications happen repeatedly?</li>
+                      <li><strong>Outdated Tools:</strong> What software feels like it's from 2010?</li>
+                      <li><strong>Compliance Headaches:</strong> What regulations create busy work?</li>
+                    </ul>
+                    <div class="example-box">
+                      <h6>Success Story: DocuSign</h6>
+                      <p>Tom Gonser was frustrated with faxing contracts. He thought "there has to be a better way." That frustration became a $50B company.</p>
+                    </div>
+                  </div>
+
+                  <h4>Layer 3: Community Observation</h4>
+                  <p>Watch people. Listen to conversations. Problems hide in plain sight.</p>
+                  
+                  <div class="framework-exercise">
+                    <h5>👂 Exercise: The Listening Tour</h5>
+                    <div class="listening-locations">
+                      <div class="location-card">
+                        <h6>Coffee Shop Observation</h6>
+                        <ul>
+                          <li>What apps do people struggle with?</li>
+                          <li>What conversations repeat?</li>
+                          <li>What causes visible frustration?</li>
+                        </ul>
+                      </div>
+                      <div class="location-card">
+                        <h6>Social Media Mining</h6>
+                        <ul>
+                          <li>Reddit complaint threads</li>
+                          <li>Twitter rants about services</li>
+                          <li>Facebook group pain points</li>
+                        </ul>
+                      </div>
+                      <div class="location-card">
+                        <h6>Family & Friends</h6>
+                        <ul>
+                          <li>"I wish there was an app for..."</li>
+                          <li>"Why doesn't someone make..."</li>
+                          <li>"It's so annoying that..."</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+
+                  <h4>Layer 4: Trend Intersection</h4>
+                  <p>The biggest opportunities happen where trends collide.</p>
+                  
+                  <div class="framework-exercise">
+                    <h5>🌊 Exercise: Trend Collision Mapping</h5>
+                    <div class="trend-matrix">
+                      <div class="trend-column">
+                        <h6>Technology Trends</h6>
+                        <ul>
+                          <li>AI becoming accessible</li>
+                          <li>Mobile-first everything</li>
+                          <li>Voice interfaces</li>
+                          <li>IoT devices everywhere</li>
+                        </ul>
+                      </div>
+                      <div class="trend-column">
+                        <h6>Social Trends</h6>
+                        <ul>
+                          <li>Remote work normalization</li>
+                          <li>Sustainability focus</li>
+                          <li>Mental health awareness</li>
+                          <li>Community over convenience</li>
+                        </ul>
+                      </div>
+                      <div class="trend-column">
+                        <h6>Economic Trends</h6>
+                        <ul>
+                          <li>Subscription economy</li>
+                          <li>Creator economy growth</li>
+                          <li>Local business revival</li>
+                          <li>Skill-based services</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="intersection-examples">
+                      <h6>💰 Collision Success Examples:</h6>
+                      <ul>
+                        <li><strong>Remote Work + Mental Health = Headspace for Teams</strong></li>
+                        <li><strong>AI + Small Business = Copy.ai</strong></li>
+                        <li><strong>Sustainability + Convenience = Imperfect Foods</strong></li>
+                      </ul>
+                    </div>
+                  </div>
+                `
+              },
+              {
+                title: 'Rapid Idea Validation (Before Building Anything)',
+                content: `
+                  <h4>The 48-Hour Validation Sprint</h4>
+                  <p>Don't spend months building. Spend 48 hours validating. Here's your step-by-step process.</p>
+                  
+                  <div class="validation-sprint">
+                    <div class="sprint-day">
+                      <h5>📅 Day 1: Problem Validation</h5>
+                      <div class="time-blocks">
+                        <div class="time-block">
+                          <span class="time">Morning (2 hours)</span>
+                          <h6>Problem Research</h6>
+                          <ul>
+                            <li>Google search volume check (Google Keyword Planner)</li>
+                            <li>Reddit community size and activity</li>
+                            <li>Existing solutions and their reviews</li>
+                            <li>LinkedIn posts about the problem</li>
+                          </ul>
+                        </div>
+                        <div class="time-block">
+                          <span class="time">Afternoon (3 hours)</span>
+                          <h6>Customer Interview Blitz</h6>
+                          <ul>
+                            <li>Reach out to 20 potential customers</li>
+                            <li>Schedule 5 quick calls</li>
+                            <li>Ask: "What's your biggest frustration with [problem area]?"</li>
+                            <li>Listen for emotional language and pain level</li>
+                          </ul>
+                        </div>
+                        <div class="time-block">
+                          <span class="time">Evening (1 hour)</span>
+                          <h6>Data Analysis</h6>
+                          <ul>
+                            <li>Did 3+ people describe the same pain?</li>
+                            <li>Did anyone say "I would pay for that solution"?</li>
+                            <li>Is this problem worth $100+ to solve?</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="sprint-day">
+                      <h5>📅 Day 2: Solution Validation</h5>
+                      <div class="time-blocks">
+                        <div class="time-block">
+                          <span class="time">Morning (2 hours)</span>
+                          <h6>Solution Hypothesis</h6>
+                          <ul>
+                            <li>Write 1-sentence solution description</li>
+                            <li>Create simple mockup (pen/paper is fine)</li>
+                            <li>List 3 key features</li>
+                            <li>Estimate time/cost to build MVP</li>
+                          </ul>
+                        </div>
+                        <div class="time-block">
+                          <span class="time">Afternoon (3 hours)</span>
+                          <h6>Landing Page Test</h6>
+                          <ul>
+                            <li>Build simple landing page (Carrd.co, 30 minutes)</li>
+                            <li>Write compelling headline</li>
+                            <li>Add email signup form</li>
+                            <li>Post in relevant communities</li>
+                          </ul>
+                        </div>
+                        <div class="time-block">
+                          <span class="time">Evening (1 hour)</span>
+                          <h6>Go/No-Go Decision</h6>
+                          <ul>
+                            <li>Signup rate >10% = Strong signal</li>
+                            <li>Signup rate 5-10% = Promising</li>
+                            <li>Signup rate <5% = Keep iterating</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="validation-tools">
+                    <h4>🛠️ Essential Validation Tools (All Free)</h4>
+                    <div class="tool-grid">
+                      <div class="tool-card">
+                        <h6>Google Trends</h6>
+                        <p>Search volume trends</p>
+                        <span class="tool-use">Check if interest is growing</span>
+                      </div>
+                      <div class="tool-card">
+                        <h6>Reddit</h6>
+                        <p>Community discussions</p>
+                        <span class="tool-use">Find people talking about problems</span>
+                      </div>
+                      <div class="tool-card">
+                        <h6>Calendly</h6>
+                        <p>Easy interview scheduling</p>
+                        <span class="tool-use">Remove friction from customer calls</span>
+                      </div>
+                      <div class="tool-card">
+                        <h6>Carrd.co</h6>
+                        <p>Simple landing pages</p>
+                        <span class="tool-use">Test demand with fake door tests</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="red-flags">
+                    <h4>🚩 Validation Red Flags (Stop and Pivot)</h4>
+                    <ul>
+                      <li><strong>Only your friends are excited</strong> - Echo chamber bias</li>
+                      <li><strong>People say "that's cool" but don't sign up</strong> - Nice to have, not need to have</li>
+                      <li><strong>You can't find anyone discussing the problem</strong> - Market might not exist</li>
+                      <li><strong>Existing solutions have 1-star reviews saying "works fine"</strong> - Low pain tolerance</li>
+                      <li><strong>You have to explain why it's a problem</strong> - Not obvious enough</li>
+                    </ul>
+                  </div>
+
+                  <div class="green-flags">
+                    <h4>✅ Validation Green Flags (Keep Going!)</h4>
+                    <ul>
+                      <li><strong>Multiple people say "when can I buy this?"</strong> - High intent</li>
+                      <li><strong>Competitors exist but customers hate them</strong> - Opportunity gap</li>
+                      <li><strong>People are paying for inadequate solutions</strong> - Proven willingness to pay</li>
+                      <li><strong>Industry experts immediately understand the problem</strong> - Real market need</li>
+                      <li><strong>You find active communities discussing workarounds</strong> - Validated pain</li>
+                    </ul>
+                  </div>
+                `
+              }
+            ]
+          },
+          {
+            id: 'customer-discovery',
+            title: 'Customer Discovery Masterclass',
+            icon: '🕵️',
+            tags: ['customer-discovery', 'interviews', 'validation', 'research'],
+            intro: 'Learn to talk to customers without bias. Get honest feedback that actually shapes your product.',
+            sections: [
+              {
+                title: 'The Mom Test: How to Ask Questions That Matter',
+                content: `
+                  <h4>Why Most Customer Interviews Fail</h4>
+                  <p>People lie. Not intentionally - they want to be helpful. But asking "Would you use this?" gets you polite lies, not honest insights.</p>
+                  
+                  <div class="principle-section">
+                    <h5>The 3 Rules of The Mom Test</h5>
+                    <div class="rule-card">
+                      <h6>Rule #1: Talk about their life, not your idea</h6>
+                      <div class="comparison">
+                        <div class="bad-example">
+                          <span class="label">❌ Bad:</span>
+                          <p>"Do you think my app idea is good?"</p>
+                        </div>
+                        <div class="good-example">
+                          <span class="label">✅ Good:</span>
+                          <p>"Walk me through the last time you tried to [do the thing your app helps with]."</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="rule-card">
+                      <h6>Rule #2: Ask about specifics in the past, not hypotheticals</h6>
+                      <div class="comparison">
+                        <div class="bad-example">
+                          <span class="label">❌ Bad:</span>
+                          <p>"Would you pay $10/month for this?"</p>
+                        </div>
+                        <div class="good-example">
+                          <span class="label">✅ Good:</span>
+                          <p>"What did you do the last time this problem came up? How much did that cost you?"</p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="rule-card">
+                      <h6>Rule #3: Listen more than you talk</h6>
+                      <div class="listening-ratio">
+                        <div class="ratio-bar">
+                          <div class="listen-portion">80% Listening</div>
+                          <div class="talk-portion">20% Questions</div>
+                        </div>
+                        <p>If you're talking more than 20% of the time, you're pitching, not learning.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <h4>The 15-Minute Customer Interview Script</h4>
+                  <div class="interview-script">
+                    <div class="script-section">
+                      <h6>Opening (2 minutes)</h6>
+                      <ul>
+                        <li>"Thanks for taking time to chat. I'm researching [problem area] and would love to learn about your experience."</li>
+                        <li>"This isn't a sales call - I'm just trying to understand how people currently handle [situation]."</li>
+                        <li>"Can you tell me a bit about your role and how [problem area] affects your day?"</li>
+                      </ul>
+                    </div>
+                    
+                    <div class="script-section">
+                      <h6>Problem Exploration (8 minutes)</h6>
+                      <ul>
+                        <li>"Walk me through the last time you dealt with [problem]."</li>
+                        <li>"What was frustrating about that experience?"</li>
+                        <li>"How do you currently solve this? What tools do you use?"</li>
+                        <li>"What's the worst part about the current solution?"</li>
+                        <li>"How much time/money does this problem cost you?"</li>
+                        <li>"Have you looked for better solutions? What did you find?"</li>
+                      </ul>
+                    </div>
+                    
+                    <div class="script-section">
+                      <h6>Solution Testing (4 minutes)</h6>
+                      <ul>
+                        <li>"If you could wave a magic wand and solve this perfectly, what would that look like?"</li>
+                        <li>"What would need to be true for you to switch to a new solution?"</li>
+                        <li>"Who else deals with this problem? Anyone I should talk to?"</li>
+                      </ul>
+                    </div>
+                    
+                    <div class="script-section">
+                      <h6>Closing (1 minute)</h6>
+                      <ul>
+                        <li>"This has been incredibly helpful. Can I follow up if I have more questions?"</li>
+                        <li>"Would you be interested in seeing what I'm working on once I have something to show?"</li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div class="what-to-listen-for">
+                    <h4>🎯 What to Listen For</h4>
+                    <div class="signal-grid">
+                      <div class="strong-signal">
+                        <h6>🟢 Strong Signals</h6>
+                        <ul>
+                          <li>Emotional language ("This is so frustrating!")</li>
+                          <li>Time/money costs ("It takes me 3 hours every week")</li>
+                          <li>Current workarounds ("I built a spreadsheet to...")</li>
+                          <li>Multiple mentions of the same pain</li>
+                        </ul>
+                      </div>
+                      <div class="weak-signal">
+                        <h6>🟡 Weak Signals</h6>
+                        <ul>
+                          <li>Polite interest ("That sounds nice")</li>
+                          <li>Vague problems ("Sometimes it's annoying")</li>
+                          <li>Free solutions work fine</li>
+                          <li>They've never tried to solve it</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                `
+              },
+              {
+                title: 'Finding Your First 10 Interview Subjects',
+                content: `
+                  <h4>The Concentric Circles Strategy</h4>
+                  <p>Start close to home and work outward. Each circle gets harder but more valuable.</p>
+                  
+                  <div class="circles-strategy">
+                    <div class="circle inner-circle">
+                      <h6>Circle 1: Your Network (Days 1-2)</h6>
+                      <p><strong>Target:</strong> 3-5 people</p>
+                      <div class="tactics">
+                        <h7>Who to ask:</h7>
+                        <ul>
+                          <li>Coworkers who deal with this problem</li>
+                          <li>Friends in relevant industries</li>
+                          <li>Family members who fit your target</li>
+                          <li>College/professional contacts</li>
+                        </ul>
+                        <h7>How to ask:</h7>
+                        <div class="message-template">
+                          <p><em>"Hey [Name], I'm researching challenges around [problem area] and know you deal with this at [Company]. Could I grab 15 minutes this week to learn about your experience? I'll buy the coffee!"</em></p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="circle middle-circle">
+                      <h6>Circle 2: Online Communities (Days 3-5)</h6>
+                      <p><strong>Target:</strong> 3-5 people</p>
+                      <div class="tactics">
+                        <h7>Where to look:</h7>
+                        <ul>
+                          <li>Reddit communities about your problem</li>
+                          <li>Facebook groups for your target audience</li>
+                          <li>LinkedIn industry groups</li>
+                          <li>Discord servers related to your field</li>
+                        </ul>
+                        <h7>How to approach:</h7>
+                        <div class="message-template">
+                          <p><em>"Hi! I saw your post about [specific problem]. I'm researching this exact issue and would love to learn from your experience. Would you be open to a quick 15-minute call? Happy to share a $10 gift card as thanks!"</em></p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="circle outer-circle">
+                      <h6>Circle 3: Cold Outreach (Days 6-7)</h6>
+                      <p><strong>Target:</strong> 2-4 people</p>
+                      <div class="tactics">
+                        <h7>How to find them:</h7>
+                        <ul>
+                          <li>LinkedIn search by job title + company</li>
+                          <li>Twitter users discussing the problem</li>
+                          <li>Local meetup attendees</li>
+                          <li>Company directory pages</li>
+                        </ul>
+                        <h7>Cold outreach template:</h7>
+                        <div class="message-template">
+                          <p><em>"Hi [Name], I came across your profile and see you work in [industry]. I'm researching challenges around [problem] and would love to learn from someone with your experience. Could I grab 15 minutes of your time this week? I'm happy to share my findings with you afterward."</em></p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="outreach-tips">
+                    <h4>📧 Outreach Best Practices</h4>
+                    <div class="tip-grid">
+                      <div class="tip-card">
+                        <h6>🎯 Be Specific</h6>
+                        <p>Reference something specific about their situation. Generic messages get ignored.</p>
+                      </div>
+                      <div class="tip-card">
+                        <h6>⏰ Keep It Short</h6>
+                        <p>15 minutes max. Busy people will say yes to 15 minutes but no to "a quick chat."</p>
+                      </div>
+                      <div class="tip-card">
+                        <h6>🎁 Offer Value</h6>
+                        <p>Gift card, insights, or useful connections. Make it worth their time.</p>
+                      </div>
+                      <div class="tip-card">
+                        <h6>📱 Make It Easy</h6>
+                        <p>Include your Calendly link. Remove all friction from saying yes.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="response-rates">
+                    <h4>📊 Expected Response Rates</h4>
+                    <div class="rate-breakdown">
+                      <div class="rate-item">
+                        <span class="rate">70-90%</span>
+                        <span class="source">Personal network</span>
+                      </div>
+                      <div class="rate-item">
+                        <span class="rate">20-40%</span>
+                        <span class="source">Online communities</span>
+                      </div>
+                      <div class="rate-item">
+                        <span class="rate">5-15%</span>
+                        <span class="source">Cold outreach</span>
+                      </div>
+                    </div>
+                    <p><strong>Pro tip:</strong> Send 20 messages to get 10 interviews. Always have a backup plan.</p>
+                  </div>
+                `
+              }
+            ]
+          },
+          {
+            id: 'bootstrapping-mastery',
+            title: 'The Bootstrapper\'s Playbook',
+            icon: '💪',
+            tags: ['bootstrapping', 'lean-startup', 'funding', 'early-stage'],
+            intro: 'Build a sustainable business with minimal resources. Learn the art of bootstrapping from founders who\'ve done it.',
+            sections: [
+              {
+                title: 'The Bootstrapping Mindset',
+                content: `
+                  <h4>Think Different About Growth</h4>
+                  <p>Bootstrapping isn't just about saving money—it's a philosophy that creates stronger, more sustainable businesses.</p>
+                  
+                  <div class="mindset-principles">
+                    <div class="principle-card">
+                      <h5>🎯 Revenue First, Features Second</h5>
+                      <p>Every decision filters through: "Will this help us make money NOW?"</p>
+                      <ul>
+                        <li>Ship the feature that closes the sale, not the cool one</li>
+                        <li>Charge from day one (even if it's just $10)</li>
+                        <li>Pre-sell before you build</li>
+                      </ul>
+                    </div>
+                    
+                    <div class="principle-card">
+                      <h5>⏰ Time is Your Only Real Asset</h5>
+                      <p>You can always make more money. You can't make more time.</p>
+                      <ul>
+                        <li>Say no to 80% of opportunities</li>
+                        <li>Automate repetitive tasks immediately</li>
+                        <li>Hire for time leverage, not status</li>
+                      </ul>
+                    </div>
+                    
+                    <div class="principle-card">
+                      <h5>🔄 Constraints Breed Creativity</h5>
+                      <p>Limited resources force better solutions.</p>
+                      <ul>
+                        <li>Can't afford ads? Master organic growth</li>
+                        <li>No dev team? Become a no-code expert</li>
+                        <li>Small budget? Focus on one perfect channel</li>
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <div class="bootstrap-myths">
+                    <h4>Bootstrapping Myths Debunked</h4>
+                    <div class="myth-reality">
+                      <div class="myth">
+                        <h6>❌ Myth: You need to work 100-hour weeks</h6>
+                        <p>✅ Reality: Work smart on high-leverage activities. 40 focused hours > 100 scattered hours.</p>
+                      </div>
+                      <div class="myth">
+                        <h6>❌ Myth: Bootstrapped = slow growth</h6>
+                        <p>✅ Reality: Basecamp, Mailchimp, and GitHub all bootstrapped to $100M+</p>
+                      </div>
+                      <div class="myth">
+                        <h6>❌ Myth: You can't compete with funded startups</h6>
+                        <p>✅ Reality: You're more agile, profitable, and customer-focused</p>
+                      </div>
+                    </div>
+                  </div>
+                `
+              },
+              {
+                title: 'The First $1,000 in Revenue',
+                content: `
+                  <h4>From Zero to First Customer</h4>
+                  <p>The hardest money you'll ever make is your first $1,000. Here's exactly how to get there.</p>
+                  
+                  <div class="revenue-strategies">
+                    <h5>🎯 Strategy 1: The Service-First Approach</h5>
+                    <div class="strategy-details">
+                      <p><strong>Timeline:</strong> 1-2 weeks to first revenue</p>
+                      <ol>
+                        <li><strong>Identify a painful task</strong> in your expertise area</li>
+                        <li><strong>Find 10 people</strong> who hate doing this task</li>
+                        <li><strong>Offer to do it for them</strong> at a fixed price</li>
+                        <li><strong>Deliver amazing results</strong> manually</li>
+                        <li><strong>Systematize and scale</strong> what worked</li>
+                      </ol>
+                      <div class="real-example">
+                        <h6>Real Example:</h6>
+                        <p>"I noticed small businesses struggled with Google My Business setup. Charged $200 to set up and optimize. Did 5 in first week = $1,000. Later built SaaS around it." - Sarah, LocalBoost founder</p>
+                      </div>
+                    </div>
+                    
+                    <h5>🚀 Strategy 2: The Pre-Launch Validation</h5>
+                    <div class="strategy-details">
+                      <p><strong>Timeline:</strong> 2-3 weeks to first revenue</p>
+                      <ol>
+                        <li><strong>Create a landing page</strong> describing your solution</li>
+                        <li><strong>Add "Early Bird Pricing"</strong> - 50% off future price</li>
+                        <li><strong>Drive traffic</strong> via Reddit, Twitter, LinkedIn</li>
+                        <li><strong>Collect pre-orders</strong> (use Gumroad or Stripe)</li>
+                        <li><strong>Build only after</strong> 10+ pre-orders</li>
+                      </ol>
+                      <div class="pre-launch-script">
+                        <h6>Pre-Launch Email Script:</h6>
+                        <p>"Hey [Name], I'm building [solution] for [problem]. Launching in 30 days. Early supporters get lifetime access for just $49 (will be $99). Want in?"</p>
+                      </div>
+                    </div>
+                    
+                    <h5>💡 Strategy 3: The Info Product Sprint</h5>
+                    <div class="strategy-details">
+                      <p><strong>Timeline:</strong> 1 week to first revenue</p>
+                      <ol>
+                        <li><strong>Document your expertise</strong> in a specific niche</li>
+                        <li><strong>Package as a guide/course</strong> (even just 20 pages)</li>
+                        <li><strong>Price at $27-97</strong> (psychological sweet spot)</li>
+                        <li><strong>Sell to your network first</strong> (email, LinkedIn)</li>
+                        <li><strong>Use profits to build</strong> the actual product</li>
+                      </ol>
+                      <div class="info-product-ideas">
+                        <h6>Quick Info Product Ideas:</h6>
+                        <ul>
+                          <li>"The [Industry] Freelancer's Pricing Guide"</li>
+                          <li>"[Tool] Mastery in 7 Days"</li>
+                          <li>"The Busy Parent's Guide to [Solution]"</li>
+                          <li>"[Industry] Templates That Save 10 Hours/Week"</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="first-customer-checklist">
+                    <h4>Your First Customer Checklist</h4>
+                    <ul>
+                      <li>✅ Solve a problem you personally understand</li>
+                      <li>✅ Talk to 10+ potential customers before building</li>
+                      <li>✅ Get paid before you build (pre-orders/deposits)</li>
+                      <li>✅ Start with a price that feels uncomfortable (then double it)</li>
+                      <li>✅ Deliver 10x value on your first sale</li>
+                      <li>✅ Ask for testimonials immediately</li>
+                      <li>✅ Request 3 referrals from happy customers</li>
+                    </ul>
+                  </div>
+                `
+              },
+              {
+                title: 'Lean Operations on a Shoestring',
+                content: `
+                  <h4>Run Like a Pro on $100/Month</h4>
+                  <p>You don't need expensive tools to run a professional operation. Here's the ultimate lean stack.</p>
+                  
+                  <div class="lean-stack">
+                    <h5>📊 The $0 Stack (Completely Free)</h5>
+                    <div class="tool-stack">
+                      <ul>
+                        <li><strong>Website:</strong> GitHub Pages + Jekyll (static site)</li>
+                        <li><strong>Email:</strong> Gmail with custom domain ($6/mo for Workspace)</li>
+                        <li><strong>CRM:</strong> HubSpot free tier or Google Sheets</li>
+                        <li><strong>Analytics:</strong> Google Analytics + Hotjar free</li>
+                        <li><strong>Design:</strong> Canva free + Unsplash</li>
+                        <li><strong>Communication:</strong> Discord or Slack free</li>
+                        <li><strong>Scheduling:</strong> Calendly free tier</li>
+                        <li><strong>Forms:</strong> Google Forms or Tally.so</li>
+                      </ul>
+                    </div>
+                    
+                    <h5>💰 The $50/Month Power Stack</h5>
+                    <div class="tool-stack">
+                      <ul>
+                        <li><strong>All-in-One:</strong> Notion ($8) - docs, wiki, CRM, tasks</li>
+                        <li><strong>Email Marketing:</strong> ConvertKit ($15) or Substack (free)</li>
+                        <li><strong>Payments:</strong> Stripe (2.9% only on sales)</li>
+                        <li><strong>Phone:</strong> Google Voice ($10) or OpenPhone ($10)</li>
+                        <li><strong>Automation:</strong> Make.com ($9) or Zapier free tier</li>
+                        <li><strong>Customer Support:</strong> Crisp ($25) or Tawk.to (free)</li>
+                      </ul>
+                    </div>
+                    
+                    <h5>🚀 The $100/Month Scale Stack</h5>
+                    <div class="tool-stack">
+                      <ul>
+                        <li><strong>Previous stack +</strong></li>
+                        <li><strong>Hosting:</strong> Vercel ($20) or Netlify</li>
+                        <li><strong>Email:</strong> Google Workspace ($12)</li>
+                        <li><strong>Analytics:</strong> Plausible ($9) or PostHog</li>
+                        <li><strong>SEO:</strong> Ubersuggest ($12)</li>
+                        <li><strong>Social:</strong> Buffer ($15)</li>
+                        <li><strong>Backup:</strong> Backblaze ($6)</li>
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <div class="money-saving-hacks">
+                    <h4>Bootstrapper's Money-Saving Hacks</h4>
+                    <div class="hack-grid">
+                      <div class="hack-card">
+                        <h6>🎓 Student Discounts Forever</h6>
+                        <p>Use a .edu email (even alumni) for 50%+ off: GitHub Pro, Notion, Adobe, Spotify, and more.</p>
+                      </div>
+                      <div class="hack-card">
+                        <h6>💳 Virtual Cards for Trials</h6>
+                        <p>Privacy.com lets you create virtual cards with limits. Perfect for "free trials" that require a card.</p>
+                      </div>
+                      <div class="hack-card">
+                        <h6>🔄 Annual Billing Negotiation</h6>
+                        <p>Always ask for 20-30% off when switching to annual. Most SaaS companies will deal.</p>
+                      </div>
+                      <div class="hack-card">
+                        <h6>🤝 Barter for Services</h6>
+                        <p>Trade your expertise for tools/services. Many startups will trade subscriptions for feedback or case studies.</p>
+                      </div>
+                      <div class="hack-card">
+                        <h6>⭐ Startup Programs</h6>
+                        <p>AWS Activate, Google Cloud, Microsoft for Startups - get $1000s in credits. Apply to all.</p>
+                      </div>
+                      <div class="hack-card">
+                        <h6>👥 Group Buys</h6>
+                        <p>Split enterprise accounts with other startups. One Ahrefs account can serve 5+ small companies.</p>
+                      </div>
+                    </div>
+                  </div>
+                `
+              },
+              {
+                title: 'Customer-Funded Growth',
+                content: `
+                  <h4>Let Your Customers Fund Your Growth</h4>
+                  <p>The best funding comes from customers, not investors. Here's how to structure deals that fund your expansion.</p>
+                  
+                  <div class="funding-strategies">
+                    <h5>💰 Strategy 1: Annual Prepayment Discounts</h5>
+                    <div class="strategy-breakdown">
+                      <p><strong>The Offer:</strong> "Pay for a year upfront, get 2 months free"</p>
+                      <p><strong>The Math:</strong> If monthly price is $100:</p>
+                      <ul>
+                        <li>Normal annual revenue: $1,200</li>
+                        <li>Discounted annual: $1,000</li>
+                        <li>You get: $1,000 TODAY vs $100/month</li>
+                        <li>Customer saves: $200 (17% discount)</li>
+                      </ul>
+                      <p><strong>Use funds for:</strong> Hiring, inventory, marketing campaigns</p>
+                    </div>
+                    
+                    <h5>🚀 Strategy 2: Lifetime Deals (LTDs)</h5>
+                    <div class="strategy-breakdown">
+                      <p><strong>The Offer:</strong> "Get lifetime access for 3x annual price"</p>
+                      <p><strong>When to use:</strong> Early stage when you need capital</p>
+                      <p><strong>Pricing formula:</strong> 2-3x your annual price</p>
+                      <p><strong>Caps to include:</strong></p>
+                      <ul>
+                        <li>Usage limits (seats, storage, API calls)</li>
+                        <li>Current features only (new features extra)</li>
+                        <li>Support limitations</li>
+                      </ul>
+                      <p><strong>Warning:</strong> Don't sell too many - cap at 100-500 LTDs</p>
+                    </div>
+                    
+                    <h5>🤝 Strategy 3: Strategic Partnerships</h5>
+                    <div class="strategy-breakdown">
+                      <p><strong>The Approach:</strong> Find businesses that serve your customers</p>
+                      <ol>
+                        <li><strong>Identify partners:</strong> Who else sells to your customers?</li>
+                        <li><strong>Create win-win:</strong> Revenue share or cross-promotion</li>
+                        <li><strong>Get upfront payment:</strong> Annual partnership fees</li>
+                        <li><strong>Example:</strong> Web designer partners with hosting company</li>
+                      </ol>
+                      <div class="partnership-template">
+                        <h6>Partnership Pitch Template:</h6>
+                        <p>"Hey [Partner], I help [mutual customers] with [your solution]. I noticed many need [their solution] too. Want to explore a referral partnership? I have [X] customers who'd be perfect for you."</p>
+                      </div>
+                    </div>
+                    
+                    <h5>📈 Strategy 4: The Crowdfunding Hack</h5>
+                    <div class="strategy-breakdown">
+                      <p><strong>Platform Options:</strong></p>
+                      <ul>
+                        <li><strong>Product Hunt Ship:</strong> For SaaS pre-launch</li>
+                        <li><strong>Kickstarter:</strong> For physical products</li>
+                        <li><strong>Republic:</strong> For equity crowdfunding</li>
+                        <li><strong>Your own site:</strong> Using Gumroad/Stripe</li>
+                      </ul>
+                      <p><strong>Success factors:</strong></p>
+                      <ul>
+                        <li>Build email list of 1000+ before launch</li>
+                        <li>Create scarcity (limited spots/time)</li>
+                        <li>Show clear roadmap of what you'll build</li>
+                        <li>Offer meaningful early-bird benefits</li>
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <div class="customer-funding-examples">
+                    <h4>Real Customer-Funding Success Stories</h4>
+                    <div class="example-grid">
+                      <div class="example-card">
+                        <h6>ConvertKit</h6>
+                        <p>Offered annual plans at launch. Used cash to hire first developer. Now worth $100M+.</p>
+                      </div>
+                      <div class="example-card">
+                        <h6>Buffer</h6>
+                        <p>Pre-sold lifetime deals for $99. Raised $50k to build V1. Now serving 75k+ customers.</p>
+                      </div>
+                      <div class="example-card">
+                        <h6>Gumroad</h6>
+                        <p>Started as a weekend project. First customers funded development. Now processes $175M+ annually.</p>
+                      </div>
+                    </div>
+                  </div>
+                `
+              },
+              {
+                title: 'The Art of Doing Things That Don\'t Scale',
+                content: `
+                  <h4>Paul Graham's Famous Advice in Practice</h4>
+                  <p>Do things that don't scale to find what does. Here's how successful startups applied this principle.</p>
+                  
+                  <div class="unscalable-tactics">
+                    <h5>🤝 Tactic 1: White-Glove Onboarding</h5>
+                    <div class="tactic-details">
+                      <p><strong>What it looks like:</strong></p>
+                      <ul>
+                        <li>Personally call every new signup</li>
+                        <li>Screen share to help them set up</li>
+                        <li>Build features for single customers</li>
+                        <li>Be their "success consultant"</li>
+                      </ul>
+                      <p><strong>Why it works:</strong> You learn exactly where users struggle and what they really need</p>
+                      <p><strong>When to stop:</strong> After 100 customers, start automating the common parts</p>
+                      <div class="real-example">
+                        <p><strong>Stripe did this:</strong> The Collison brothers would show up at users' offices to personally integrate Stripe. Now worth $95B.</p>
+                      </div>
+                    </div>
+                    
+                    <h5>📦 Tactic 2: Flintstoning (Wizard of Oz)</h5>
+                    <div class="tactic-details">
+                      <p><strong>What it is:</strong> Manually doing what software will eventually automate</p>
+                      <p><strong>Examples:</strong></p>
+                      <ul>
+                        <li>Manually match users (dating apps)</li>
+                        <li>Hand-curate recommendations (AI products)</li>
+                        <li>Personally fulfill orders (marketplaces)</li>
+                        <li>Manual data entry (automation tools)</li>
+                      </ul>
+                      <p><strong>The magic:</strong> You perfect the process before coding it</p>
+                      <div class="flintstoning-example">
+                        <p><strong>DoorDash founders</strong> delivered food themselves for months. They learned every pain point before building the platform.</p>
+                      </div>
+                    </div>
+                    
+                    <h5>🎯 Tactic 3: Single-User Focus</h5>
+                    <div class="tactic-details">
+                      <p><strong>The approach:</strong> Make one user insanely happy vs 100 users somewhat happy</p>
+                      <ol>
+                        <li>Find your most engaged user</li>
+                        <li>Talk to them weekly</li>
+                        <li>Build exactly what they need</li>
+                        <li>Make them your evangelist</li>
+                        <li>Find 10 more like them</li>
+                      </ol>
+                      <p><strong>Reddit's approach:</strong> The founders created fake accounts and had conversations with themselves to make the site look active.</p>
+                    </div>
+                    
+                    <h5>💪 Tactic 4: Brute Force Distribution</h5>
+                    <div class="tactic-details">
+                      <p><strong>Channel examples:</strong></p>
+                      <ul>
+                        <li><strong>Door-to-door:</strong> Literally knock on doors (Yelp did this)</li>
+                        <li><strong>Cold email individuals:</strong> Not spray-and-pray, but researched personal emails</li>
+                        <li><strong>Show up at events:</strong> Demo to anyone who'll listen</li>
+                        <li><strong>Facebook groups:</strong> Personally message members (not spam)</li>
+                      </ul>
+                      <div class="pinterest-example">
+                        <p><strong>Pinterest's growth hack:</strong> The founder personally recruited users at local coffee shops, design meetups, and boutiques. No scaling, just hustle.</p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="when-to-scale">
+                    <h4>When to Start Scaling</h4>
+                    <div class="scaling-signals">
+                      <h5>🟢 Green Lights to Scale:</h5>
+                      <ul>
+                        <li>You're turning away customers (demand > supply)</li>
+                        <li>The same questions/requests repeat 10+ times</li>
+                        <li>Manual processes take >50% of your time</li>
+                        <li>You have 6+ months of runway</li>
+                        <li>Unit economics are proven positive</li>
+                      </ul>
+                      
+                      <h5>🔴 Red Flags (Keep it manual):</h5>
+                      <ul>
+                        <li>Still figuring out product-market fit</li>
+                        <li>Every customer wants something different</li>
+                        <li>Churn is high (>10% monthly)</li>
+                        <li>You have <20 paying customers</li>
+                        <li>Manual process only takes 2 hours/week</li>
+                      </ul>
+                    </div>
+                  </div>
+                `
+              }
+            ]
+          },
+          {
+            id: 'pitch-video-mastery',
+            title: 'The Perfect 1-Minute Pitch Video',
+            icon: '🎥',
+            tags: ['pitch', 'video', 'recording', 'contest', 'presentation'],
+            intro: 'Your pitch video is often your first impression. Learn how to create a compelling 60-second video that gets judges excited about your idea.',
+            sections: [
+              {
+                title: 'The Psychology of a Winning Pitch',
+                content: `
+                  <h4>What Judges Really Look For</h4>
+                  <p>After analyzing 500+ winning pitch videos, here's what separates funded pitches from the rest:</p>
+                  
+                  <div class="winning-factors">
+                    <div class="factor-card">
+                      <h5>🎯 Clarity (40% of score)</h5>
+                      <ul>
+                        <li>Can a 10-year-old understand your idea?</li>
+                        <li>Is the problem crystal clear in first 10 seconds?</li>
+                        <li>Does your solution make immediate sense?</li>
+                      </ul>
+                    </div>
+                    
+                    <div class="factor-card">
+                      <h5>🔥 Passion (30% of score)</h5>
+                      <ul>
+                        <li>Does your energy come through the screen?</li>
+                        <li>Is it obvious you CARE about this problem?</li>
+                        <li>Would you work on this even without funding?</li>
+                      </ul>
+                    </div>
+                    
+                    <div class="factor-card">
+                      <h5>📊 Evidence (20% of score)</h5>
+                      <ul>
+                        <li>Do you have ANY validation (even informal)?</li>
+                        <li>Have you talked to potential customers?</li>
+                        <li>Can you show demand exists?</li>
+                      </ul>
+                    </div>
+                    
+                    <div class="factor-card">
+                      <h5>💰 Fund Usage (10% of score)</h5>
+                      <ul>
+                        <li>Is your budget specific and realistic?</li>
+                        <li>Will $1,000 create meaningful progress?</li>
+                        <li>Do you have a clear 30-day plan?</li>
+                      </ul>
+                    </div>
+                  </div>
+                  
+                  <div class="mindset-shift">
+                    <h4>The Mindset Shift That Changes Everything</h4>
+                    <p><strong>Stop thinking:</strong> "I need to impress these judges"</p>
+                    <p><strong>Start thinking:</strong> "I found a problem that pisses me off and I HAVE to solve it"</p>
+                    <p>Judges can smell authenticity. They fund founders, not just ideas.</p>
+                  </div>
+                `
+              },
+              {
+                title: 'The 60-Second Story Arc',
+                content: `
+                  <h4>Your Pitch Video Blueprint</h4>
+                  <p>Every great pitch follows this proven structure. Master it, then make it your own.</p>
+                  
+                  <div class="pitch-timeline">
+                    <div class="timeline-section">
+                      <div class="time-marker">0:00-0:10</div>
+                      <h5>The Hook: Make Them Care</h5>
+                      <div class="hook-options">
+                        <h6>Hook Formula Options:</h6>
+                        <ol>
+                          <li><strong>The Shocking Stat:</strong> "Did you know 67% of small businesses fail because [specific problem]?"</li>
+                          <li><strong>The Personal Story:</strong> "Last month, I watched my grandma cry because [emotional problem moment]"</li>
+                          <li><strong>The Universal Truth:</strong> "We all know that feeling when [relatable frustration]"</li>
+                          <li><strong>The Future Vision:</strong> "Imagine a world where [problem doesn't exist]"</li>
+                          <li><strong>The Direct Challenge:</strong> "Why do we still [accept this broken thing]?"</li>
+                        </ol>
+                        <div class="hook-examples">
+                          <h6>Real Examples That Worked:</h6>
+                          <ul>
+                            <li>"I spent $3,000 last year on food that went bad in my fridge. I'm not alone."</li>
+                            <li>"My dad's restaurant threw away 40 pounds of food yesterday. That's normal."</li>
+                            <li>"What if I told you 90% of new moms don't know where to find reliable childcare?"</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="timeline-section">
+                      <div class="time-marker">0:10-0:25</div>
+                      <h5>The Problem: Make It Real</h5>
+                      <ul>
+                        <li><strong>Be Specific:</strong> Not "restaurants waste food" but "Tony's Pizza throws away 20 pizzas every Friday"</li>
+                        <li><strong>Show Impact:</strong> Time wasted, money lost, opportunities missed</li>
+                        <li><strong>Make It Visual:</strong> Show the problem if possible (screenshots, footage, props)</li>
+                        <li><strong>Connect Emotionally:</strong> How does this problem FEEL for people?</li>
+                      </ul>
+                      <div class="problem-framework">
+                        <h6>Problem Statement Formula:</h6>
+                        <p>"[Target audience] struggles with [specific problem] which causes [negative impact] and costs [time/money/opportunity]"</p>
+                      </div>
+                    </div>
+                    
+                    <div class="timeline-section">
+                      <div class="time-marker">0:25-0:40</div>
+                      <h5>The Solution: Your Magic Moment</h5>
+                      <ul>
+                        <li><strong>Simple Explanation:</strong> Explain it like you would to your mom</li>
+                        <li><strong>Show Don't Tell:</strong> Quick demo, mockup, or visual representation</li>
+                        <li><strong>Unique Angle:</strong> What makes your approach different?</li>
+                        <li><strong>User Benefit:</strong> Focus on outcome, not features</li>
+                      </ul>
+                      <div class="solution-templates">
+                        <h6>Solution Pitching Templates:</h6>
+                        <ul>
+                          <li>"We built [solution] that helps [audience] to [achieve outcome] by [unique method]"</li>
+                          <li>"Unlike [current solutions], we [key differentiator] so that [benefit]"</li>
+                          <li>"Imagine [analogy everyone understands] but for [your specific use case]"</li>
+                        </ul>
+                      </div>
+                    </div>
+                    
+                    <div class="timeline-section">
+                      <div class="time-marker">0:40-0:50</div>
+                      <h5>The Traction: Proof It Works</h5>
+                      <div class="traction-hierarchy">
+                        <h6>Traction Options (from strongest to weakest):</h6>
+                        <ol>
+                          <li><strong>Revenue:</strong> "We've made $X in Y days"</li>
+                          <li><strong>Paying Customers:</strong> "12 customers are already paying"</li>
+                          <li><strong>LOIs/Commitments:</strong> "5 businesses committed to buy"</li>
+                          <li><strong>User Testing:</strong> "20 beta testers, 18 said they'd pay"</li>
+                          <li><strong>Waitlist:</strong> "237 people on our launch list"</li>
+                          <li><strong>Problem Validation:</strong> "Interviewed 50 people, 47 have this problem"</li>
+                          <li><strong>Personal Experience:</strong> "I've dealt with this for 5 years"</li>
+                        </ol>
+                      </div>
+                      <div class="no-traction-strategy">
+                        <h6>No Traction Yet? Do This:</h6>
+                        <p>"In the last week, I've talked to 15 [target customers]. 12 said this is their biggest pain point. 8 said they'd pay $X for a solution."</p>
+                      </div>
+                    </div>
+                    
+                    <div class="timeline-section">
+                      <div class="time-marker">0:50-0:60</div>
+                      <h5>The Ask: Make It Count</h5>
+                      <ul>
+                        <li><strong>Specific Budget:</strong> Break down the $1,000 (visual works great)</li>
+                        <li><strong>30-Day Goals:</strong> What will you accomplish?</li>
+                        <li><strong>Clear CTA:</strong> "Vote for [Your Business Name]"</li>
+                        <li><strong>Vision Reminder:</strong> End with the future you're building</li>
+                      </ul>
+                      <div class="closing-formulas">
+                        <h6>Powerful Closing Lines:</h6>
+                        <ul>
+                          <li>"Help us turn food waste into food security. Vote [Name]."</li>
+                          <li>"Together, we can make [problem] history. Support [Name]."</li>
+                          <li>"This $1,000 will help 100 families. Vote [Name] to make it happen."</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                `
+              },
+              {
+                title: 'Production: From Phone to Professional',
+                content: `
+                  <h4>The Zero-Budget Production Guide</h4>
+                  <p>You don't need fancy equipment. Here's how to make your phone footage look like a $5,000 production.</p>
+                  
+                  <div class="production-essentials">
+                    <h5>🎬 The 10-Minute Setup</h5>
+                    <div class="setup-checklist">
+                      <div class="setup-step">
+                        <h6>1. Location Scout (2 minutes)</h6>
+                        <ul>
+                          <li><strong>Best:</strong> Near window with natural light</li>
+                          <li><strong>Good:</strong> Well-lit room with clean background</li>
+                          <li><strong>Avoid:</strong> Backlit (window behind you), cluttered spaces</li>
+                          <li><strong>Pro tip:</strong> Bathrooms often have great lighting and acoustics!</li>
+                        </ul>
+                      </div>
+                      
+                      <div class="setup-step">
+                        <h6>2. Phone Setup (3 minutes)</h6>
+                        <ul>
+                          <li>Clean your lens (seriously, do this)</li>
+                          <li>Airplane mode ON (no interruptions)</li>
+                          <li>Storage check (need 1GB free minimum)</li>
+                          <li>Landscape mode (always horizontal)</li>
+                          <li>Back camera (never selfie camera)</li>
+                          <li>4K if available, 1080p minimum</li>
+                        </ul>
+                      </div>
+                      
+                      <div class="setup-step">
+                        <h6>3. DIY Tripod Hacks (2 minutes)</h6>
+                        <ul>
+                          <li>Stack of books + rubber band</li>
+                          <li>Lean against water bottle</li>
+                          <li>Tape to wall (painter's tape)</li>
+                          <li>Coffee mug handle holder</li>
+                          <li>Or spend $15 on Amazon basics tripod</li>
+                        </ul>
+                      </div>
+                      
+                      <div class="setup-step">
+                        <h6>4. Lighting Magic (3 minutes)</h6>
+                        <ul>
+                          <li><strong>Natural light:</strong> Face window, not behind you</li>
+                          <li><strong>No window?</strong> Every lamp in the house pointed at white wall</li>
+                          <li><strong>Too harsh?</strong> White bedsheet as diffuser</li>
+                          <li><strong>Ring light hack:</strong> iPad on full brightness with white screen</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="audio-excellence">
+                    <h5>🎤 Audio That Doesn't Suck</h5>
+                    <p>Bad audio kills more pitches than bad video. Here's how to sound professional:</p>
+                    <ul>
+                      <li><strong>Wired earbuds:</strong> Always better than phone mic</li>
+                      <li><strong>Room choice:</strong> Smaller = better (less echo)</li>
+                      <li><strong>Sound dampening:</strong> Closet full of clothes = recording studio</li>
+                      <li><strong>Distance:</strong> 12-18 inches from mouth</li>
+                      <li><strong>Test record:</strong> 10 seconds, listen back, adjust</li>
+                    </ul>
+                    <div class="audio-trick">
+                      <h6>The Blanket Fort Method:</h6>
+                      <p>Seriously. Build a blanket fort. Record inside. Sound like NPR. Thank me later.</p>
+                    </div>
+                  </div>
+                  
+                  <div class="performance-tips">
+                    <h5>🎭 On-Camera Confidence Hacks</h5>
+                    <div class="confidence-grid">
+                      <div class="confidence-tip">
+                        <h6>Energy Formula</h6>
+                        <p>Your normal energy × 1.5 = Perfect on-camera energy</p>
+                        <p>Camera reduces perceived energy by 30%. Compensate!</p>
+                      </div>
+                      
+                      <div class="confidence-tip">
+                        <h6>Eye Contact Hack</h6>
+                        <p>Put a small arrow sticker pointing at lens. Never look at screen!</p>
+                      </div>
+                      
+                      <div class="confidence-tip">
+                        <h6>Smile Moments</h6>
+                        <ul>
+                          <li>Start (builds trust)</li>
+                          <li>Introducing solution (shows confidence)</li>
+                          <li>Mentioning customers (shows care)</li>
+                          <li>End (leaves positive impression)</li>
+                        </ul>
+                      </div>
+                      
+                      <div class="confidence-tip">
+                        <h6>Hand Gestures</h6>
+                        <p>Keep hands in frame. Move them naturally. Creates energy and authenticity.</p>
+                      </div>
+                    </div>
+                    
+                    <div class="practice-protocol">
+                      <h6>The 5-Take Method:</h6>
+                      <ol>
+                        <li><strong>Take 1:</strong> Read from script (get words right)</li>
+                        <li><strong>Take 2:</strong> Glance at script less (build flow)</li>
+                        <li><strong>Take 3:</strong> No script, just bullet points (find natural voice)</li>
+                        <li><strong>Take 4:</strong> Add energy and gestures (performance mode)</li>
+                        <li><strong>Take 5:</strong> The one you'll actually use (everything clicks)</li>
+                      </ol>
+                    </div>
+                  </div>
+                `
+              },
+              {
+                title: 'Common Mistakes That Kill Pitches',
+                content: `
+                  <h4>Avoid These Pitch Video Killers</h4>
+                  <p>We've watched hundreds of pitch videos. Here are the mistakes that instantly turn off judges:</p>
+                  
+                  <div class="mistakes-grid">
+                    <div class="mistake-card">
+                      <h5>❌ The Rambling Intro</h5>
+                      <p><strong>Bad:</strong> "Hi, my name is John and I've always been passionate about technology and innovation and I've been thinking about this idea for a while..."</p>
+                      <p><strong>Good:</strong> "40% of food delivery drivers can't find addresses at night. I'm fixing that."</p>
+                      <p><strong>Fix:</strong> Delete your first 2 sentences. Start with the problem.</p>
+                    </div>
+                    
+                    <div class="mistake-card">
+                      <h5>❌ The Feature Laundry List</h5>
+                      <p><strong>Bad:</strong> "Our app has user profiles, messaging, payments, analytics, AI recommendations, social sharing..."</p>
+                      <p><strong>Good:</strong> "Small retailers can now predict what will sell next week with 87% accuracy."</p>
+                      <p><strong>Fix:</strong> Focus on the ONE thing that matters most.</p>
+                    </div>
+                    
+                    <div class="mistake-card">
+                      <h5>❌ The Jargon Overload</h5>
+                      <p><strong>Bad:</strong> "We're building a B2B SaaS platform leveraging ML algorithms for supply chain optimization..."</p>
+                      <p><strong>Good:</strong> "We help stores never run out of their best-selling items."</p>
+                      <p><strong>Fix:</strong> Explain it like you would to your grandma.</p>
+                    </div>
+                    
+                    <div class="mistake-card">
+                      <h5>❌ The Fake Traction</h5>
+                      <p><strong>Bad:</strong> "We project $1M revenue by next year based on market size..."</p>
+                      <p><strong>Good:</strong> "Three cafes are testing our solution this week."</p>
+                      <p><strong>Fix:</strong> Only claim what's real, even if it's small.</p>
+                    </div>
+                    
+                    <div class="mistake-card">
+                      <h5>❌ The Vague Budget</h5>
+                      <p><strong>Bad:</strong> "We'll use the funds for marketing and development."</p>
+                      <p><strong>Good:</strong> "$400 for Facebook ads to reach 10,000 parents, $300 for user interviews, $300 for MVP hosting."</p>
+                      <p><strong>Fix:</strong> Break down every dollar with specific outcomes.</p>
+                    </div>
+                    
+                    <div class="mistake-card">
+                      <h5>❌ The Low Energy Delivery</h5>
+                      <p><strong>Bad:</strong> [Monotone] "I'm really excited about this opportunity..."</p>
+                      <p><strong>Good:</strong> [With enthusiasm] "This problem keeps me up at night, and here's why..."</p>
+                      <p><strong>Fix:</strong> If you're not pumped, why should we be?</p>
+                    </div>
+                  </div>
+                  
+                  <div class="technical-mistakes">
+                    <h5>🎬 Technical Mistakes to Avoid</h5>
+                    <ul>
+                      <li><strong>Vertical video:</strong> Always shoot horizontal</li>
+                      <li><strong>Bad audio:</strong> Can't hear you = can't fund you</li>
+                      <li><strong>Shaky footage:</strong> Use a tripod or stable surface</li>
+                      <li><strong>Poor lighting:</strong> We need to see your face clearly</li>
+                      <li><strong>Too long:</strong> 60 seconds means 60 seconds (max 65)</li>
+                      <li><strong>No captions:</strong> Many watch on mute</li>
+                      <li><strong>Tiny text:</strong> Make overlays readable on phones</li>
+                    </ul>
+                  </div>
+                `
+              },
+              {
+                title: 'Scripts That Win Funding',
+                content: `
+                  <h4>Copy-and-Customize Winning Scripts</h4>
+                  <p>These templates have helped founders secure funding. Adapt them to your story.</p>
+                  
+                  <div class="script-templates">
+                    <div class="script-template">
+                      <h5>Template 1: The Problem-First Approach</h5>
+                      <div class="script-text">
+                        <p><strong>[0:00-0:10 - THE HOOK]</strong><br>
+                        <em>"Every day, [number] [target audience] waste [time/money] on [problem]. 
+                        [Pause] 
+                        I'm [name], and I've spent [time] figuring out why this happens."</em></p>
+                        
+                        <p><strong>[0:10-0:25 - THE PROBLEM]</strong><br>
+                        <em>"Here's what I discovered: [root cause of problem]. 
+                        For example, [specific person] told me [quote about their struggle]. 
+                        This costs them [specific impact] every [timeframe]. 
+                        Current solutions like [alternative] don't work because [limitation]."</em></p>
+                        
+                        <p><strong>[0:25-0:40 - THE SOLUTION]</strong><br>
+                        <em>"So we built [product name]: [one-line description]. 
+                        [Show demo or visual] 
+                        Unlike [alternatives], we [key differentiator]. 
+                        This means [target audience] can finally [desired outcome] in just [timeframe]."</em></p>
+                        
+                        <p><strong>[0:40-0:50 - THE TRACTION]</strong><br>
+                        <em>"In just [timeframe], we've [strongest traction point]. 
+                        [Customer name] said [powerful quote]. 
+                        We're seeing [metric] and growing [growth rate]."</em></p>
+                        
+                        <p><strong>[0:50-0:60 - THE ASK]</strong><br>
+                        <em>"With your $1,000, we'll [specific use of funds], 
+                        helping [number] more [target audience] [achieve outcome]. 
+                        Vote for [business name] and help us [vision for impact]."</em></p>
+                      </div>
+                    </div>
+                    
+                    <div class="script-template">
+                      <h5>Template 2: The Founder Story Arc</h5>
+                      <div class="script-text">
+                        <p><strong>[0:00-0:10 - THE MOMENT]</strong><br>
+                        <em>"[Specific date/time], I watched [person] struggle with [problem]. 
+                        [Describe emotional moment]. 
+                        That's when I realized [insight]."</em></p>
+                        
+                        <p><strong>[0:10-0:25 - THE JOURNEY]</strong><br>
+                        <em>"I spent [time] researching why [problem exists]. 
+                        Turns out, [surprising discovery]. 
+                        I talked to [number] [target audience] and [percentage] said [common theme]. 
+                        But no one was solving it right."</em></p>
+                        
+                        <p><strong>[0:25-0:40 - THE BREAKTHROUGH]</strong><br>
+                        <em>"Then it hit me: what if [unique insight]? 
+                        We created [solution] that [how it works differently]. 
+                        [Show visual proof] 
+                        Now, instead of [old way], people can [new way]."</em></p>
+                        
+                        <p><strong>[0:40-0:50 - THE MOMENTUM]</strong><br>
+                        <em>"The response has been incredible. 
+                        [Specific traction example]. 
+                        [Another proof point]. 
+                        We're ready to scale."</em></p>
+                        
+                        <p><strong>[0:50-0:60 - THE MISSION]</strong><br>
+                        <em>"This $1,000 will help us [specific goal]. 
+                        But this is bigger than money. 
+                        It's about [larger mission]. 
+                        Join us. Vote [business name]."</em></p>
+                      </div>
+                    </div>
+                    
+                    <div class="script-template">
+                      <h5>Template 3: The Data-Driven Pitch</h5>
+                      <div class="script-text">
+                        <p><strong>[0:00-0:10 - THE NUMBERS]</strong><br>
+                        <em>"[Shocking statistic]. 
+                        Let that sink in. 
+                        [Repeat or emphasize]. 
+                        Hi, I'm [name], and these numbers keep me up at night."</em></p>
+                        
+                        <p><strong>[0:10-0:25 - THE RESEARCH]</strong><br>
+                        <em>"We surveyed [number] [target audience]. 
+                        [Percentage] struggle with [problem]. 
+                        The average person loses [time/money] because of this. 
+                        We found [root cause insight]."</em></p>
+                        
+                        <p><strong>[0:25-0:40 - THE INNOVATION]</strong><br>
+                        <em>"Our solution: [product name]. 
+                        Using [technology/method], we [achieve result]. 
+                        Early tests show [impressive metric]. 
+                        Users save [time/money] on average."</em></p>
+                        
+                        <p><strong>[0:40-0:50 - THE VALIDATION]</strong><br>
+                        <em>"Don't just take my word for it. 
+                        [Customer metric or quote]. 
+                        We've already [achievement]. 
+                        The data proves this works."</em></p>
+                        
+                        <p><strong>[0:50-0:60 - THE SCALE]</strong><br>
+                        <em>"$1,000 unlocks [specific outcome]. 
+                        Based on our metrics, that means [projected impact]. 
+                        The numbers don't lie. 
+                        Vote [business name] for measurable change."</em></p>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="script-customization">
+                    <h5>🎯 Script Customization Guide</h5>
+                    <div class="customization-tips">
+                      <h6>Find Your Authentic Voice</h6>
+                      <ul>
+                        <li>Read the script out loud 5 times</li>
+                        <li>Replace formal words with how you actually talk</li>
+                        <li>Add your personality (humor, passion, quirks)</li>
+                        <li>Test on a friend: "Does this sound like me?"</li>
+                      </ul>
+                      
+                      <h6>Power Words That Convert</h6>
+                      <div class="power-words">
+                        <p><strong>Instead of:</strong> "Our platform helps..." → <strong>Use:</strong> "You can finally..."</p>
+                        <p><strong>Instead of:</strong> "We're building..." → <strong>Use:</strong> "We've built..."</p>
+                        <p><strong>Instead of:</strong> "Users might..." → <strong>Use:</strong> "Customers already..."</p>
+                        <p><strong>Instead of:</strong> "We hope to..." → <strong>Use:</strong> "We will..."</p>
+                      </div>
+                      
+                      <h6>The Final Polish</h6>
+                      <ul>
+                        <li>Time your script (aim for 140-160 words)</li>
+                        <li>Mark pause points with [brackets]</li>
+                        <li>Bold words to emphasize</li>
+                        <li>Practice until you can do it without reading</li>
+                      </ul>
+                    </div>
+                  </div>
+                `
+              }
+            ]
+          },
+          {
+            id: 'mvp-building',
+            title: 'MVP Building Strategy',
+            icon: '🚀',
+            tags: ['mvp', 'building', 'testing', 'validation'],
+            intro: 'Build the minimum version that proves your concept. Focus on learning, not features.',
             sections: [
           {
-            title: 'The Science of 60-Second Pitches',
+            title: 'The MVP Pyramid: What to Build First',
             content: `
-              <h4>Why 60 Seconds? The Psychology Behind It</h4>
-              <p>Research shows that attention spans peak at 8-10 seconds and decision-making happens within the first 30 seconds. Your pitch must work with human psychology, not against it.</p>
+              <h4>Start with Proof, Not Product</h4>
+              <p>Most entrepreneurs build too much too early. Use this pyramid to build only what proves your hypothesis.</p>
               
-              <div class="principle-section">
-                <h5>The Neuroscience of Persuasion:</h5>
+              <div class="mvp-pyramid">
+                <h5>Level 1: Proof of Demand (Week 1)</h5>
+                <p><strong>Goal:</strong> Do people want this?</p>
                 <ul>
-                  <li><strong>Emotional Hook (0-7 seconds):</strong> Triggers the amygdala for emotional engagement</li>
-                  <li><strong>Logical Support (8-30 seconds):</strong> Engages the prefrontal cortex with evidence</li>
-                  <li><strong>Social Proof (31-45 seconds):</strong> Activates mirror neurons through testimonials</li>
-                  <li><strong>Call to Action (46-60 seconds):</strong> Creates urgency in the decision-making center</li>
+                  <li>Landing page with email signup</li>
+                  <li>Social media posts describing the idea</li>
+                  <li>Pre-order/waitlist signups</li>
+                  <li>Manual service delivery</li>
                 </ul>
+                <div class="success-metric">
+                  <strong>Success:</strong> 100+ signups or 10+ willing to pay
+                </div>
               </div>
 
-              <h4>Structure Your 60-Second Pitch:</h4>
-              <div class="timeline-structure">
-                <div class="time-block">
+              <div class="mvp-pyramid">
+                <h5>Level 2: Proof of Solution (Week 2-4)</h5>
+                <p><strong>Goal:</strong> Can you solve the problem?</p>
+                <ul>
+                  <li>Wizard of Oz testing (manual backend)</li>
+                  <li>Simple prototype or demo</li>
+                  <li>Beta version with core feature only</li>
+                  <li>White-glove onboarding</li>
+                </ul>
+                <div class="success-metric">
+                  <strong>Success:</strong> Users complete the core workflow successfully
+                </div>
+              </div>
+              
+              <div class="mvp-pyramid">
+                <h5>Level 3: Proof of Business (Month 2-3)</h5>
+                <p><strong>Goal:</strong> Will people pay repeatedly?</p>
+                <ul>
+                  <li>Payment processing integration</li>
+                  <li>User onboarding flow</li>
+                  <li>Basic customer support</li>
+                  <li>Core feature set only</li>
+                </ul>
+                <div class="success-metric">
+                  <strong>Success:</strong> 10+ paying customers, positive unit economics
+                </div>
+              </div>
+              
+              <h4>The Build vs. Test Decision Framework</h4>
+              <div class="decision-framework">
                   <span class="time-marker">0:00-0:10</span>
                   <h5>The Hook That Hits Different</h5>
                   <ul>
@@ -5502,7 +7538,7 @@ Relevant files:
         <div className="resource-footer">
           <p>🎯 <strong>Start Here:</strong> Focus on the Contest Preparation guides if you're applying for the $1,000 Business Challenge!</p>
           <p style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
-            Have suggestions for new guides? Email us at founders@neighborhoods.space
+            Have suggestions for new guides? Email us at jason@goodneighbor.fund
           </p>
         </div>
       </div>

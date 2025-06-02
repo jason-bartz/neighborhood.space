@@ -1076,6 +1076,126 @@ const CommunityShowcase = () => {
       ]
     },
     {
+      id: 'find-first-customers',
+      name: 'Find Your First 10 Customers',
+      icon: '🎯',
+      description: 'For: Getting initial customers before you have a marketing budget',
+      tools: [
+        {
+          name: 'Personal Network Outreach',
+          description: 'Start with friends, family, and existing connections.',
+          ourTake: 'Your first customers often come from people who already know and trust you. Don\'t feel awkward - you\'re solving a real problem. Ask for honest feedback, not just support.',
+          pricing: 'Free',
+          bestFor: ['First Sales', 'Product Feedback', 'Immediate Testing'],
+          link: 'N/A - Direct outreach',
+          recommended: false,
+          stepByStep: [
+            '1. List 50 people who might have the problem you\'re solving',
+            '2. Send personal messages explaining your solution (not mass emails)',
+            '3. Offer a special "founder\'s rate" or early access discount',
+            '4. Ask for detailed feedback in exchange for lower prices'
+          ],
+          earlyStageUse: 'Get your first sales and invaluable feedback from people who want to see you succeed. Perfect for validating your solution works.'
+        },
+        {
+          name: 'Local Facebook Groups',
+          description: 'Join community groups where your target customers hang out.',
+          ourTake: 'Local Facebook groups are goldmines for early customers. Find groups for your target audience, be helpful first, then share your solution. Focus on providing value before selling.',
+          pricing: 'Free',
+          bestFor: ['Local Businesses', 'Community Building', 'Word-of-Mouth'],
+          link: 'https://facebook.com/groups',
+          recommended: false,
+          stepByStep: [
+            '1. Join 5-10 local Facebook groups where your customers gather',
+            '2. Spend 2 weeks being helpful - answer questions, share tips',
+            '3. Share your story and solution when appropriate (not salesy)',
+            '4. Connect privately with interested people for deeper conversations'
+          ],
+          earlyStageUse: 'Build trust in local communities before pitching. Local customers become your biggest advocates through word-of-mouth.'
+        },
+        {
+          name: 'Reddit Community Engagement',
+          description: 'Participate in subreddits where your target customers discuss problems.',
+          ourTake: 'Reddit users value authenticity over sales pitches. Share your journey, ask for feedback, and help others. When you provide value first, customers find you.',
+          pricing: 'Free',
+          bestFor: ['Problem Discovery', 'Authentic Feedback', 'Niche Audiences'],
+          link: 'https://reddit.com',
+          recommended: false,
+          stepByStep: [
+            '1. Find 3-5 subreddits where your target customers discuss their problems',
+            '2. Comment helpfully on posts for 1-2 weeks before sharing anything',
+            '3. Share your solution as part of your story, not as an advertisement',
+            '4. Engage genuinely with feedback and questions'
+          ],
+          earlyStageUse: 'Discover what problems people actually talk about vs. what you think they need. Build credibility through helpful participation.'
+        },
+        {
+          name: 'LinkedIn Direct Outreach',
+          description: 'Connect with potential B2B customers through professional networking.',
+          ourTake: 'For B2B businesses, LinkedIn is perfect for reaching decision-makers. Connect authentically, comment on their posts, then share how you can help solve their challenges.',
+          pricing: 'Free (limited) or Premium $60/mo',
+          bestFor: ['B2B Sales', 'Professional Services', 'High-Value Customers'],
+          link: 'https://linkedin.com',
+          recommended: false,
+          stepByStep: [
+            '1. Identify 50 potential customers and connect with personal messages',
+            '2. Engage with their content before pitching anything',
+            '3. Share helpful content related to their industry challenges',
+            '4. Offer free consultations or trials to start conversations'
+          ],
+          earlyStageUse: 'Build professional relationships with potential B2B customers. Focus on helping their business succeed rather than selling.'
+        },
+        {
+          name: 'Cold Email (Personalized)',
+          description: 'Send highly personalized emails to potential customers.',
+          ourTake: 'Cold email works when it\'s genuinely helpful and personalized. Research each prospect, reference their specific situation, and offer real value. Start with 5 perfect emails rather than 50 generic ones.',
+          pricing: 'Free with personal email',
+          bestFor: ['B2B Outreach', 'Service Businesses', 'High-Touch Sales'],
+          link: 'https://gmail.com',
+          recommended: false,
+          stepByStep: [
+            '1. Research 10 potential customers and their specific challenges',
+            '2. Write personalized emails referencing their business situation',
+            '3. Offer something valuable (free audit, template, or consultation)',
+            '4. Follow up once if no response, then move on'
+          ],
+          earlyStageUse: 'When you need to reach specific decision-makers who don\'t know you yet. Quality over quantity always wins.'
+        },
+        {
+          name: 'Content Marketing (Free)',
+          description: 'Share helpful content to attract customers organically.',
+          ourTake: 'Create content that helps your target customers solve problems. Use free platforms like LinkedIn, YouTube, or Medium. Customers will find you when they need solutions.',
+          pricing: 'Free (time investment)',
+          bestFor: ['Long-term Building', 'Expertise Sharing', 'Organic Growth'],
+          link: 'https://medium.com',
+          recommended: false,
+          stepByStep: [
+            '1. Identify 10 common problems your target customers face',
+            '2. Create helpful content (articles, videos, posts) solving these problems',
+            '3. Share consistently on platforms where your customers spend time',
+            '4. Include subtle mentions of how your solution helps'
+          ],
+          earlyStageUse: 'Build long-term credibility and attract customers who are actively seeking solutions. Slower but builds lasting relationships.'
+        },
+        {
+          name: 'Local Networking Events',
+          description: 'Meet potential customers face-to-face at community events.',
+          ourTake: 'Nothing beats face-to-face connections for building trust. Find local business meetups, community events, or industry gatherings. Focus on learning about others\' challenges before sharing your solution.',
+          pricing: 'Free - $50 per event',
+          bestFor: ['Local Businesses', 'Personal Services', 'High-Trust Sales'],
+          link: 'https://meetup.com',
+          recommended: false,
+          stepByStep: [
+            '1. Find 2-3 regular networking events in your area',
+            '2. Attend consistently and focus on building relationships',
+            '3. Ask about others\' businesses and challenges before sharing yours',
+            '4. Follow up within 48 hours of meeting interesting connections'
+          ],
+          earlyStageUse: 'Build deep local relationships that turn into customers and referral sources. Perfect for service-based businesses.'
+        }
+      ]
+    },
+    {
       id: 'marketing-engagement',
       name: 'Free Marketing for Early-Stage',
       icon: '🛍️',

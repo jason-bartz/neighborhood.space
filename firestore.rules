@@ -1,0 +1,60 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read access to all documents
+    match /{document=**} {
+      allow read: if true;
+    }
+    
+    // Pitches collection rules
+    match /pitches/{pitchId} {
+      allow write: if request.auth != null;
+    }
+    
+    // Reviews collection rules
+    match /reviews/{reviewId} {
+      // Allow LP users to create and update reviews
+      allow create: if request.auth != null && 
+        (request.auth.token.role == 'lp' || request.auth.token.role == 'admin');
+      
+      // Allow LP users to update their own reviews
+      allow update: if request.auth != null && 
+        (request.auth.token.role == 'lp' || request.auth.token.role == 'admin') &&
+        request.auth.uid == resource.data.lpId;
+      
+      // Allow delete only for admins
+      allow delete: if request.auth != null && request.auth.token.role == 'admin';
+    }
+    
+    // Resources collection rules
+    match /resources/{resourceId} {
+      allow write: if request.auth != null && request.auth.token.role == 'admin';
+    }
+    
+    // Contest submissions
+    match /contestSubmissions/{submissionId} {
+      allow create: if true; // Allow public submissions
+      allow update, delete: if request.auth != null && request.auth.token.role == 'admin';
+    }
+    
+    // Badges collection
+    match /badges/{badgeId} {
+      allow write: if request.auth != null && request.auth.token.role == 'admin';
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        (request.auth.uid == userId || request.auth.token.role == 'admin');
+    }
+    
+    // LP-specific collections
+    match /limitedPartners/{lpId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid == lpId || request.auth.token.role == 'admin');
+      allow write: if request.auth != null && 
+        (request.auth.uid == lpId || request.auth.token.role == 'admin');
+    }
+  }
+}

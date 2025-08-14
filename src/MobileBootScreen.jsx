@@ -76,7 +76,7 @@ export default function MobileBootScreen({ onFinish }) {
         cursor: 'default'
       }}>
       <div className="boot-box" style={{
-        background: 'rgba(255, 255, 255, 0.9)',
+        background: '#ffffff',
         borderRadius: '12px',
         padding: '20px',
         width: '85%',

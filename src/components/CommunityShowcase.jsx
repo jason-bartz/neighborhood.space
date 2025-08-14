@@ -45,6 +45,16 @@ const createSafeHTML = (html) => {
   return temp.innerHTML;
 };
 
+// Helper function to ensure URLs have proper protocol
+const ensureProtocol = (url) => {
+  if (!url) return url;
+  // If URL doesn't start with http:// or https://, add https://
+  if (!/^https?:\/\//i.test(url)) {
+    return `https://${url}`;
+  }
+  return url;
+};
+
 const CommunityShowcase = () => {
   const [pitches, setPitches] = useState([]);
   const [filteredPitches, setFilteredPitches] = useState([]);
@@ -54,9 +64,7 @@ const CommunityShowcase = () => {
   const [votedPitches, setVotedPitches] = useState(new Set());
   const [showVoteModal, setShowVoteModal] = useState(false);
   const [voterEmail, setVoterEmail] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [sentCode, setSentCode] = useState('');
-  const [emailVerified, setEmailVerified] = useState(false);
+  const [isVoting, setIsVoting] = useState(false);
   const [sortBy, setSortBy] = useState('votes'); // votes, newest, random
   const [showSubmitForm, setShowSubmitForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -71,12 +79,12 @@ const CommunityShowcase = () => {
   const PITCHES_PER_PAGE = 12;
 
   // Contest dates - Updated timeline
-  const SUBMISSION_END_DATE = new Date('2025-06-30T23:59:59-04:00');
-  const VOTING_START_DATE = new Date('2025-06-22T00:01:00-04:00');
-  const VOTING_END_DATE = new Date('2025-07-06T23:59:59-04:00');
-  const LP_REVIEW_START_DATE = new Date('2025-07-07T00:00:00-04:00');
-  const LP_REVIEW_END_DATE = new Date('2025-07-11T23:59:59-04:00');
-  const WINNER_ANNOUNCE_DATE = new Date('2025-07-11T12:00:00-04:00');
+  const SUBMISSION_END_DATE = new Date('2025-07-12T23:59:59-04:00');
+  const VOTING_START_DATE = new Date('2024-12-01T00:01:00-04:00'); // Voting open now
+  const VOTING_END_DATE = new Date('2025-07-12T23:59:59-04:00'); // Voting ends same time as submissions
+  const LP_REVIEW_START_DATE = new Date('2025-07-13T00:00:00-04:00');
+  const LP_REVIEW_END_DATE = new Date('2025-07-17T23:59:59-04:00');
+  const WINNER_ANNOUNCE_DATE = new Date('2025-07-17T12:00:00-04:00');
   
   // Legacy date for compatibility
   const CONTEST_END_DATE = WINNER_ANNOUNCE_DATE;
@@ -120,6 +128,7 @@ const CommunityShowcase = () => {
     
     return () => clearInterval(timer);
   }, []);
+
 
   useEffect(() => {
     filterAndSortPitches();
@@ -258,6 +267,7 @@ const CommunityShowcase = () => {
     }
   };
 
+
   const toggleSavePitch = (pitchId) => {
     const newSaved = new Set(savedPitches);
     if (newSaved.has(pitchId)) {
@@ -303,82 +313,83 @@ const CommunityShowcase = () => {
       return;
     }
     
-    if (votedPitches.has(pitch.id)) {
-      alert('You have already voted for this idea!');
-      return;
-    }
+    // Open vote modal to collect email
     setSelectedPitch(pitch);
     setShowVoteModal(true);
   };
 
-  const sendVerificationCode = async () => {
-    // Generate 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setSentCode(code);
-    
-    // CRITICAL: This must be replaced with server-side email sending before production
-    // The verification code should NEVER be visible client-side
-    // TODO: Implement Firebase Function to send verification emails
-    console.warn('DEMO MODE: Verification code visible - DO NOT USE IN PRODUCTION');
-    console.log('Verification code:', code);
-    alert(`DEMO MODE - Verification code: ${code}\n\nIn production, this will be sent to ${voterEmail}`);
-  };
-
-  const verifyAndVote = async () => {
-    if (verificationCode !== sentCode) {
-      alert('Invalid verification code!');
+  const submitVote = async () => {
+    if (!voterEmail || !voterEmail.includes('@')) {
+      alert('Please enter a valid email address');
       return;
     }
 
+    setIsVoting(true);
     try {
+      // Check if this email has already voted for this pitch
+      const votesQuery = query(
+        collection(db, 'votes'),
+        where('email', '==', voterEmail),
+        where('pitchId', '==', selectedPitch.id),
+        where('contest', '==', 'business-idea-challenge-2025')
+      );
+      const existingVotes = await getDocs(votesQuery);
+      
+      if (!existingVotes.empty) {
+        alert('This email has already voted for this pitch!');
+        setIsVoting(false);
+        return;
+      }
+
       // Update vote count
       const pitchRef = doc(db, 'pitches', selectedPitch.id);
       await updateDoc(pitchRef, {
         votes: increment(1)
       });
 
-      // Record vote
-      await setDoc(doc(collection(db, 'votes')), {
+      // Record vote with email
+      await addDoc(collection(db, 'votes'), {
         pitchId: selectedPitch.id,
         email: voterEmail,
         timestamp: new Date(),
         contest: 'business-idea-challenge-2025'
       });
 
-      // Add to newsletter
-      await setDoc(doc(collection(db, 'newsletter'), voterEmail), {
-        email: voterEmail,
-        source: 'contest-vote',
-        timestamp: new Date(),
-        subscribed: true
-      });
+      // Add to newsletter if checkbox is checked
+      const newsletterCheckbox = document.getElementById('newsletter-checkbox');
+      if (newsletterCheckbox && newsletterCheckbox.checked) {
+        await setDoc(doc(collection(db, 'newsletter'), voterEmail), {
+          email: voterEmail,
+          source: 'contest-vote',
+          timestamp: new Date(),
+          subscribed: true
+        });
+      }
 
-      saveVotedPitch(selectedPitch.id);
-      setEmailVerified(true);
-      
       // Update local state
+      saveVotedPitch(selectedPitch.id);
       setPitches(pitches.map(p => 
         p.id === selectedPitch.id 
           ? { ...p, votes: (p.votes || 0) + 1 }
           : p
       ));
-
-      setTimeout(() => {
-        setShowVoteModal(false);
-        resetVoteModal();
-        alert('Thank you for voting! Share this contest with your network!');
-      }, 2000);
+      
+      // Show success
+      alert('Thank you for voting! Share this contest with your network!');
+      setShowVoteModal(false);
+      resetVoteModal();
+      
     } catch (error) {
-      console.error('Error voting:', error);
+      console.error('Error submitting vote:', error);
       alert('Error submitting vote. Please try again.');
+    } finally {
+      setIsVoting(false);
     }
   };
 
+
   const resetVoteModal = () => {
     setVoterEmail('');
-    setVerificationCode('');
-    setSentCode('');
-    setEmailVerified(false);
     setSelectedPitch(null);
   };
 
@@ -7396,7 +7407,7 @@ Relevant files:
             onClick={() => {
               const now = new Date();
               if (now > SUBMISSION_END_DATE) {
-                alert('Submissions have closed. The contest ended on June 30th at 11:59 PM ET.');
+                alert('Submissions have closed. The contest ended on July 12th at 11:59 PM ET.');
                 return;
               }
               setShowSubmitForm(true);
@@ -7521,7 +7532,7 @@ Relevant files:
                     onClick={() => {
                       const now = new Date();
                       if (now > SUBMISSION_END_DATE) {
-                        alert('Submissions have closed. The contest ended on June 30th at 11:59 PM ET.');
+                        alert('Submissions have closed. The contest ended on July 12th at 11:59 PM ET.');
                         return;
                       }
                       setShowSubmitForm(true);
@@ -7553,7 +7564,7 @@ Relevant files:
                       <div className="timeline-content">
                         <h4>Phase 1</h4>
                         <p>Submissions Open</p>
-                        <span className="timeline-date">Now - June 30</span>
+                        <span className="timeline-date">Now - July 12</span>
                         {currentPhase === 'submission' && <span className="live-badge">LIVE NOW</span>}
                       </div>
                     </div>
@@ -7562,7 +7573,7 @@ Relevant files:
                       <div className="timeline-content">
                         <h4>Phase 2</h4>
                         <p>Community Voting</p>
-                        <span className="timeline-date">June 22 - July 6</span>
+                        <span className="timeline-date">Now - July 12</span>
                         {(currentPhase === 'voting' || currentPhase === 'submission-and-voting') && <span className="live-badge">LIVE NOW</span>}
                       </div>
                     </div>
@@ -7571,7 +7582,7 @@ Relevant files:
                       <div className="timeline-content">
                         <h4>Phase 3</h4>
                         <p>LP Review</p>
-                        <span className="timeline-date">July 7-11</span>
+                        <span className="timeline-date">July 13-17</span>
                         {currentPhase === 'lp-review' && <span className="live-badge">LIVE NOW</span>}
                       </div>
                     </div>
@@ -7579,9 +7590,8 @@ Relevant files:
                       <div className="timeline-icon">🎆</div>
                       <div className="timeline-content">
                         <h4>Phase 4</h4>
-                        <p>Winner Announced</p>
-                        <span className="timeline-date">July 11</span>
-                        {currentPhase === 'winner-announced' && <span className="live-badge">COMPLETED</span>}
+                        <p>Winner will be announced soon! Stay tuned!</p>
+                        <span className="timeline-date">Coming Soon!</span>
                       </div>
                     </div>
                   </div>
@@ -7782,11 +7792,13 @@ Relevant files:
                       <button 
                         className={`vote-btn ${votedPitches.has(pitch.id) ? 'voted' : ''}`}
                         onClick={() => handleVote(pitch)}
-                        disabled={votedPitches.has(pitch.id)}
+                        disabled={votedPitches.has(pitch.id) || isVoting}
                       >
-                        {new Date() < VOTING_START_DATE 
-                          ? '🔔 Get Notified' 
-                          : (votedPitches.has(pitch.id) ? '✓ Voted' : '❤️ Vote')
+                        {isVoting 
+                          ? 'Voting...'
+                          : new Date() < VOTING_START_DATE 
+                            ? '🔔 Get Notified' 
+                            : (votedPitches.has(pitch.id) ? '✓ Voted' : '❤️ Vote')
                         }
                       </button>
                       <button
@@ -7870,7 +7882,7 @@ Relevant files:
                   </div>
                   <div className="faq-item">
                     <h4>Is this replacing regular grants?</h4>
-                    <p>No! This is IN ADDITION to our standard quarterly micro-grants. Q2 applications also due June 30.</p>
+                    <p>No! This is IN ADDITION to our standard quarterly micro-grants. Q2 applications also due July 12.</p>
                   </div>
                   <div className="faq-item">
                     <h4>Is my pitch reviewed before posting?</h4>
@@ -7882,7 +7894,7 @@ Relevant files:
                   </div>
                   <div className="faq-item">
                     <h4>When do submissions close and voting begin?</h4>
-                    <p>Submissions close June 30th at 11:59 PM ET. Voting opens June 22nd, so there's an overlap period where both submissions and voting are active!</p>
+                    <p>Submissions close July 12th at 11:59 PM ET. Voting is open now! Both submissions and voting are active until July 12th.</p>
                   </div>
                 </div>
                 <button className="faq-more-btn" onClick={() => setActiveTab('about')}>
@@ -8244,7 +8256,7 @@ Relevant files:
                 </p>
                 {selectedPitch.website && (
                   <p>
-                    <strong>Website:</strong> <a href={selectedPitch.website} target="_blank" rel="noopener noreferrer">{selectedPitch.website}</a>
+                    <strong>Website:</strong> <a href={ensureProtocol(selectedPitch.website)} target="_blank" rel="noopener noreferrer">{selectedPitch.website}</a>
                   </p>
                 )}
               </div>
@@ -8311,9 +8323,10 @@ Relevant files:
                 <button 
                   className={`vote-btn-large ${votedPitches.has(selectedPitch.id) ? 'voted' : ''} ${new Date() > VOTING_END_DATE ? 'disabled' : ''}`}
                   onClick={() => handleVote(selectedPitch)}
-                  disabled={votedPitches.has(selectedPitch.id) || new Date() > VOTING_END_DATE}
+                  disabled={votedPitches.has(selectedPitch.id) || new Date() > VOTING_END_DATE || isVoting}
                 >
-                  {votedPitches.has(selectedPitch.id) ? '✓ Already Voted' : 
+                  {isVoting ? 'Voting...' :
+                   votedPitches.has(selectedPitch.id) ? '✓ Already Voted' : 
                    new Date() > VOTING_END_DATE ? '🔒 Voting Ended' :
                    new Date() < VOTING_START_DATE ? '🔔 Get Notified' : 
                    '❤️ Vote for This Idea'}
@@ -8353,53 +8366,33 @@ Relevant files:
             <h2>Cast Your Vote!</h2>
             <p>Vote for "{selectedPitch?.businessName}"</p>
             
-            {!sentCode ? (
-              <div className="email-step">
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={voterEmail}
-                  onChange={(e) => setVoterEmail(e.target.value)}
-                  className="email-input"
+            <div className="vote-form">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={voterEmail}
+                onChange={(e) => setVoterEmail(e.target.value)}
+                className="email-input"
+                required
+              />
+              
+              <label className="newsletter-check">
+                <input 
+                  type="checkbox" 
+                  id="newsletter-checkbox"
+                  defaultChecked 
                 />
-                <label className="newsletter-check">
-                  <input type="checkbox" defaultChecked />
-                  <span>Subscribe to updates about the contest</span>
-                </label>
-                <button 
-                  className="send-code-btn"
-                  onClick={sendVerificationCode}
-                  disabled={!voterEmail.includes('@')}
-                >
-                  Send Verification Code
-                </button>
-              </div>
-            ) : !emailVerified ? (
-              <div className="code-step">
-                <p>Enter the 6-digit code sent to {voterEmail}</p>
-                <input
-                  type="text"
-                  placeholder="000000"
-                  value={verificationCode}
-                  onChange={(e) => setVerificationCode(e.target.value)}
-                  className="code-input"
-                  maxLength="6"
-                />
-                <button 
-                  className="verify-btn"
-                  onClick={verifyAndVote}
-                  disabled={verificationCode.length !== 6}
-                >
-                  Confirm Vote
-                </button>
-              </div>
-            ) : (
-              <div className="success-step">
-                <div className="success-icon">🎉</div>
-                <h3>Vote Submitted!</h3>
-                <p>Thank you for participating!</p>
-              </div>
-            )}
+                <span>Inform me about the winner, future contests, and Good Neighbor Fund news</span>
+              </label>
+              
+              <button 
+                className="submit-vote-btn"
+                onClick={submitVote}
+                disabled={isVoting || !voterEmail.includes('@')}
+              >
+                {isVoting ? 'Submitting Vote...' : 'Submit Vote'}
+              </button>
+            </div>
             
             <button 
               className="cancel-btn"
@@ -8408,7 +8401,7 @@ Relevant files:
                 resetVoteModal();
               }}
             >
-              {emailVerified ? 'Close' : 'Cancel'}
+              Cancel
             </button>
           </div>
         </div>
@@ -8422,7 +8415,7 @@ Relevant files:
             
             <div className="modal-content">
               <h2>🔔 Get Notified When Voting Opens!</h2>
-              <p>Voting for "{selectedPitch?.businessName}" opens on June 16th.</p>
+              <p>Voting for "{selectedPitch?.businessName}" is open now!</p>
               
               <div className="countdown-display">
                 <span className="countdown-label">Voting opens in:</span>
@@ -8457,7 +8450,7 @@ Relevant files:
                 <p>Share this pitch with your network:</p>
                 <div className="share-buttons">
                   <button onClick={() => {
-                    const text = `I'm planning to vote for "${selectedPitch.businessName}" in the $1,000 Business Challenge when voting opens June 16!`;
+                    const text = `I'm voting for "${selectedPitch.businessName}" in the $1,000 Business Challenge! Vote now before July 12!`;
                     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(window.location.href)}`);
                   }}>
                     🐦 Twitter

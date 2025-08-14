@@ -1158,7 +1158,7 @@ const drawBadgeCard = async (canvas) => {
       const dateB = new Date(b.earnedAt || b.earnedDate || 0);
       return dateB - dateA;
     })
-    .slice(0, 6);
+    .slice(0, 5);
   
   if (recentBadges.length > 0) {
     // Badge showcase area with rounded corners
@@ -2288,8 +2288,8 @@ const NavigationItems = () => (
       🎨 Social Cards
     </button>
     
-    {/* Admin Panel - Only show if admin */}
-    {isAdmin && (
+    {/* Admin Panel - Only show if superAdmin */}
+    {isSuperAdmin && (
       <button
         onClick={() => handleTabChange('adminPanel')}
         style={{
@@ -3764,6 +3764,7 @@ return (
                           <div style={{ flexGrow: 1 }}>
                             <span style={{fontWeight: 'bold', fontSize: '1.1em'}}>{p.businessName || "No Business Name"}</span>
                             <span style={{fontWeight: 'normal', color: '#555', marginLeft: '5px'}}>-- {p.founderName || "No Founder Name"}</span>
+                            {p.isContest && <span style={{ marginLeft: '10px', color: '#7b3ff2', fontWeight: 'bold', fontSize: '0.9em', background: '#f3e8ff', padding: '1px 5px', borderRadius: '3px', border: '1px solid #d4b5ff', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>🏆 Contest Submission</span>}
                             {p.isWinner && <span style={{ marginLeft: '10px', color: 'green', fontWeight: 'bold', fontSize: '0.9em', background: '#d4edda', padding: '1px 5px', borderRadius: '3px', border: '1px solid #c3e6cb', display: 'inline-flex', alignItems: 'center', gap: '4px' }}> ✅ Grant Winner</span>} {/* Added Emoji */}
                           </div>
                           {/* Right side: Review Status Badge */}
@@ -3848,21 +3849,39 @@ return (
                 <div style={{ flex: '1 1 400px', minWidth: '300px', background: 'white', padding: '25px', border: '1px solid #e0e0e0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', maxHeight: 'calc(100vh - 250px)', overflowY:'auto' }}>
                   <div style={{ marginBottom: '20px' }}>
                     <h3 style={{ margin: '0 0 10px 0', fontSize: '20px', color: '#333' }}>{selectedPitch.businessName || "N/A"}</h3>
-                    {selectedPitch.isWinner && (
-                      <span style={{ 
-                        color: '#4CAF50', 
-                        fontWeight: '600', 
-                        background: '#E8F5E9', 
-                        padding: '6px 12px', 
-                        borderRadius: '4px', 
-                        fontSize: '13px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}>
-                        ✅ Grant Winner
-                      </span>
-                    )}
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                      {selectedPitch.isContest && (
+                        <span style={{ 
+                          color: '#7b3ff2', 
+                          fontWeight: '600', 
+                          background: '#f3e8ff', 
+                          padding: '6px 12px', 
+                          borderRadius: '4px', 
+                          fontSize: '13px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          border: '1px solid #d4b5ff'
+                        }}>
+                          🏆 Contest Submission
+                        </span>
+                      )}
+                      {selectedPitch.isWinner && (
+                        <span style={{ 
+                          color: '#4CAF50', 
+                          fontWeight: '600', 
+                          background: '#E8F5E9', 
+                          padding: '6px 12px', 
+                          borderRadius: '4px', 
+                          fontSize: '13px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          ✅ Grant Winner
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Contact Info Section */}
@@ -4348,7 +4367,7 @@ return (
       )}
 
       {/* --- Admin Panel Tab Content --- */}
-      {activeTab === 'adminPanel' && isAdmin && (
+      {activeTab === 'adminPanel' && isSuperAdmin && (
         <div style={{ background: '#fff', border: '1px solid #ccc', padding: '15px 20px', borderRadius: '4px' }}>
           {/* Admin Sub-Tabs Navigation - Reduced font, unabbreviated "Super Admin Tools" */}
           <div style={{ display: 'flex', borderBottom: '1px solid #aaa', marginBottom: '20px', marginTop: '-5px', fontSize: '0.9em' /* Reduced font */ }}>
@@ -4519,6 +4538,7 @@ return (
                         <span style={{ fontSize: '0.9em', color: '#777' }}>
                           Chapter: {p.chapter || "N/A"} | Quarter: {p.quarter || "N/A"} | Submitted: {formattedAdminDate}
                         </span>
+                        {p.isContest && <span style={{ marginLeft: '10px', color: '#7b3ff2', fontWeight: 'bold', background: '#f3e8ff', padding: '1px 5px', borderRadius: '3px', display:'inline-flex', alignItems:'center', gap:'4px', border: '1px solid #d4b5ff' }}>🏆 Contest Submission</span>}
                         {p.isWinner && <span style={{ marginLeft: '10px', color: 'green', fontWeight: 'bold', background: '#c3e6cb', padding: '1px 5px', borderRadius: '3px', display:'inline-flex', alignItems:'center', gap:'4px' }}> ✅ Grant Winner</span>} {/* Added Emoji */}
                       </div>
                       {/* Action Buttons - Reduced font, improved centering */}
@@ -5843,7 +5863,7 @@ return (
                   return (a.name || '').localeCompare(b.name || '');
                 })
                 .map(member => {
-                  // Get member's two most recent badges
+                  // Get member's six most recent badges
                   const memberBadges = (member.badges || [])
                     .filter(badge => badge.earnedAt || badge.earnedDate)
                     .sort((a, b) => {
@@ -5851,7 +5871,7 @@ return (
                       const dateB = new Date(b.earnedAt || b.earnedDate || 0);
                       return dateB - dateA;
                     })
-                    .slice(0, 2);
+                    .slice(0, 5);
                   
                   // Generate photo URL based on member name
                   const photoUrl = member.name 
@@ -5973,7 +5993,10 @@ return (
                           paddingTop: '10px',
                           display: 'flex',
                           gap: '8px',
-                          alignItems: 'center'
+                          alignItems: 'center',
+                          overflow: 'hidden',
+                          flexWrap: 'wrap',
+                          maxWidth: '100%'
                         }}>
                           <span style={{ fontSize: '11px', color: '#666' }}>Recent:</span>
                           {memberBadges.map((badge, idx) => {
@@ -5996,9 +6019,9 @@ return (
                               </div>
                             );
                           })}
-                          {member.badges && member.badges.length > 2 && (
+                          {member.badges && member.badges.length > 5 && (
                             <span style={{ fontSize: '11px', color: '#888' }}>
-                              +{member.badges.length - 2} more
+                              +{member.badges.length - 5} more
                             </span>
                           )}
                         </div>

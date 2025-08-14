@@ -1,60 +1,198 @@
 rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Allow read access to all documents
-    match /{document=**} {
-      allow read: if true;
-    }
-    
-    // Pitches collection rules
-    match /pitches/{pitchId} {
-      allow write: if request.auth != null;
-    }
-    
-    // Reviews collection rules
-    match /reviews/{reviewId} {
-      // Allow LP users to create and update reviews
-      allow create: if request.auth != null && 
-        (request.auth.token.role == 'lp' || request.auth.token.role == 'admin');
-      
-      // Allow LP users to update their own reviews
-      allow update: if request.auth != null && 
-        (request.auth.token.role == 'lp' || request.auth.token.role == 'admin') &&
-        request.auth.uid == resource.data.lpId;
-      
-      // Allow delete only for admins
-      allow delete: if request.auth != null && request.auth.token.role == 'admin';
-    }
-    
-    // Resources collection rules
-    match /resources/{resourceId} {
-      allow write: if request.auth != null && request.auth.token.role == 'admin';
-    }
-    
-    // Contest submissions
-    match /contestSubmissions/{submissionId} {
-      allow create: if true; // Allow public submissions
-      allow update, delete: if request.auth != null && request.auth.token.role == 'admin';
-    }
-    
-    // Badges collection
-    match /badges/{badgeId} {
-      allow write: if request.auth != null && request.auth.token.role == 'admin';
-    }
-    
-    // Users collection
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null && 
-        (request.auth.uid == userId || request.auth.token.role == 'admin');
-    }
-    
-    // LP-specific collections
-    match /limitedPartners/{lpId} {
-      allow read: if request.auth != null && 
-        (request.auth.uid == lpId || request.auth.token.role == 'admin');
-      allow write: if request.auth != null && 
-        (request.auth.uid == lpId || request.auth.token.role == 'admin');
+  service cloud.firestore {
+    match /databases/{database}/documents {
+
+      // --- Helpers ---
+      function getUserData(userId) {
+        return get(/databases/$(database)/documents/users/$(userId)).data;
+      }
+      function requestUserData() {
+        return request.auth != null ? getUserData(request.auth.uid) : null;
+      }
+      function hasRole(roles) {
+        let userData = requestUserData();
+        return userData != null && userData.role != null && 
+               (userData.role == 'lp' && 'lp' in roles) ||
+               (userData.role == 'admin' && 'admin' in roles) ||
+               (userData.role == 'superAdmin' && 'superAdmin' in roles);
+      }
+      function isAdminOrSuperAdmin() {
+        return hasRole(['admin', 'superAdmin']);
+      }
+      function isSuperAdmin() {
+        return hasRole(['superAdmin']);
+      }
+      function isValidUser() {
+        return hasRole(['lp', 'admin', 'superAdmin']);
+      }
+
+      // --- USERS COLLECTION ---
+      match /users/{userId} {
+        // Allow users to read their own data OR
+        // Allow valid users to read other users in the same chapter OR
+        // Allow admins to read any user
+        allow get: if request.auth.uid == userId
+                   || (isValidUser() && requestUserData().chapter == resource.data.chapter)
+                   || isAdminOrSuperAdmin();
+
+        // Allow valid users to list users in their chapter OR
+        // Allow admins to list all users
+        allow list: if (isValidUser() && request.auth != null)
+                    || isAdminOrSuperAdmin();
+
+        allow delete: if isAdminOrSuperAdmin() && request.auth.uid != userId;
+        allow create: if request.auth.uid == userId || isAdminOrSuperAdmin();
+        allow update: if
+          (request.auth.uid == userId &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']))
+          || (hasRole(['admin']) &&
+              resource.data.role != 'superAdmin' &&
+              request.resource.data.role != 'superAdmin')
+          || isSuperAdmin();
+      }
+
+      // --- PITCHES COLLECTION ---
+      match /pitches/{pitchId} {
+        // Allow anyone to read pitches (needed for public voting on showcase)
+        // Cloud Functions automatically have full access - no rule changes needed for them
+        allow read: if true;
+
+        // Allow anyone to create a pitch (needed for the submission form)
+        // This enables your form to work without authentication
+        allow create: if true;
+
+        // Allow anyone to update vote count only (for email-based voting)
+        // OR allow admins to update any fields
+        allow update: if (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
+                         && request.resource.data.votes == resource.data.votes + 1)
+                      || isAdminOrSuperAdmin();
+
+        // Only admins can delete pitches
+        allow delete: if isAdminOrSuperAdmin();
+      }
+
+      // --- REVIEWS COLLECTION ---
+      match /reviews/{reviewId} {
+        function isOwner() {
+          return request.auth.uid != null
+                 && request.auth.uid == reviewId.split('_')[0];
+        }
+        allow read: if isOwner() || isAdminOrSuperAdmin();
+        // Allow valid users (lp, admin, superAdmin) to write if reviewerId matches
+        allow write: if isValidUser()
+                     && request.auth.uid != null
+                     && (request.resource.data.reviewerId == request.auth.uid
+                         || isAdminOrSuperAdmin());
+        allow delete: if isOwner() || isAdminOrSuperAdmin();
+      }
+
+      // --- INVITATIONS COLLECTION ---
+      match /invitations/{inviteId} {
+        allow read, write: if isAdminOrSuperAdmin();
+      }
+
+      // --- GUEST MESSAGES COLLECTION ---
+      match /guestMessages/{msgId} {
+        allow create: if true;  // Anyone can leave a message
+        allow read: if true;    // Messages are publicly visible
+        allow update, delete: if isAdminOrSuperAdmin();  // Only admins can edit/delete
+      }
+
+      // --- BULLETIN POSTS COLLECTION ---
+      match /bulletinPosts/{postId} {
+        // Only valid users (lp, admin, superAdmin) can read bulletin posts
+        allow read: if isValidUser();
+
+        // Valid users can create posts
+        allow create: if isValidUser()
+                      && request.resource.data.author.uid == request.auth.uid;
+
+        // Users can update their own posts, admins can update any post
+        allow update: if isValidUser()
+                      && (resource.data.author.uid == request.auth.uid
+                          || isAdminOrSuperAdmin());
+
+        // Users can delete their own posts, admins can delete any post
+        allow delete: if isValidUser()
+                      && (resource.data.author.uid == request.auth.uid
+                          || isAdminOrSuperAdmin());
+      }
+
+      // --- BULLETIN MESSAGES COLLECTION (Chapter-specific) ---
+      match /bulletinMessages/{messageId} {
+        // Valid users can read messages from their own chapter only
+        allow read: if isValidUser()
+                    && requestUserData().chapter == resource.data.authorChapter;
+
+        // Valid users can create messages for their chapter
+        allow create: if isValidUser()
+                      && request.auth.uid == request.resource.data.authorId
+                      && request.resource.data.authorChapter == requestUserData().chapter;
+
+        // Users can update their own messages, admins can update any in their chapter
+        allow update: if isValidUser() && (
+          request.auth.uid == resource.data.authorId ||
+          (isAdminOrSuperAdmin() &&
+           resource.data.authorChapter == requestUserData().chapter)
+        );
+
+        // Users can delete their own messages, admins can delete any in their chapter  
+        allow delete: if isValidUser() && (
+          request.auth.uid == resource.data.authorId ||
+          (isAdminOrSuperAdmin() &&
+           resource.data.authorChapter == requestUserData().chapter)
+        );
+      }
+
+      // --- LIMITED PARTNERS COLLECTION ---
+      // Note: This collection might be deprecated in favor of the users collection with roles
+      match /limitedPartners/{lpId} {
+        // Only admins can read/write to limited partners collection
+        allow read: if isAdminOrSuperAdmin();
+        allow write: if isAdminOrSuperAdmin();
+      }
+
+      // --- RESOURCES COLLECTION ---
+      match /resources/{resourceId} {
+        // Anyone can read resources (public information)
+        allow read: if true;
+
+        // Only admins can create/update/delete resources
+        allow write: if isAdminOrSuperAdmin();
+      }
+
+      // --- VOTES COLLECTION ---
+      match /votes/{voteId} {
+        // Anyone can read votes (for transparency)
+        allow read: if true;
+        
+        // Allow anyone to create votes with email
+        // Email duplicate checking is done in the frontend
+        allow create: if request.resource.data.keys().hasAll(['email', 'pitchId', 'timestamp', 'contest'])
+                      && request.resource.data.email is string
+                      && request.resource.data.email.matches('.*@.*');
+        
+        // No updates or deletes allowed to maintain vote integrity
+        allow update: if false;
+        allow delete: if false;
+      }
+
+      // --- NEWSLETTER COLLECTION ---
+      match /newsletter/{email} {
+        // Allow public reads for admin purposes
+        allow read: if isAdminOrSuperAdmin();
+        
+        // Allow anyone to subscribe (public form)
+        allow create: if request.resource.data.keys().hasAll(['email', 'source', 'timestamp', 'subscribed'])
+                      && request.resource.data.subscribed == true;
+        
+        // Allow users to update their own subscription status
+        allow update: if request.resource.data.email == resource.data.email
+                      && request.resource.data.keys().hasAll(['email', 'source', 'timestamp', 'subscribed']);
+        
+        // Only admins can delete
+        allow delete: if isAdminOrSuperAdmin();
+      }
+
     }
   }
-}

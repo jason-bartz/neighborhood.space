@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Debug Helper Functions ---
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+    
+    function requestUserData() {
+      return request.auth != null ? getUserData(request.auth.uid) : null;
+    }
+    
+    // Fixed hasRole function - use array contains check
+    function hasRole(roles) {
+      let userData = requestUserData();
+      return userData != null && userData.role in roles;
+    }
+    
+    // Alternative hasRole implementation using proper array check
+    function hasRoleFixed(roles) {
+      let userData = requestUserData();
+      return userData != null && userData.role != null && roles.hasAny([userData.role]);
+    }
+    
+    // Debug functions to test individual conditions
+    function debugUserExists() {
+      return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+    
+    function debugUserHasRoleField() {
+      let userData = requestUserData();
+      return userData != null && 'role' in userData;
+    }
+    
+    function debugGetUserRole() {
+      let userData = requestUserData();
+      return userData != null ? userData.role : null;
+    }
+    
+    function isValidUser() {
+      return hasRoleFixed(['lp', 'admin', 'superAdmin']);
+    }
+    
+    function isAdminOrSuperAdmin() {
+      return hasRoleFixed(['admin', 'superAdmin']);
+    }
+
+    // --- DEBUG TEST COLLECTION ---
+    // Create a test collection to debug the permission issue
+    match /debugTest/{docId} {
+      // Test 1: Check if user is authenticated
+      allow get: if request.auth != null;
+      
+      // Test 2: Check if user document exists
+      allow create: if debugUserExists();
+      
+      // Test 3: Check if user has role field
+      allow update: if debugUserHasRoleField();
+      
+      // Test 4: Allow read to show debug info in response
+      allow read: if true;
+    }
+    
+    // --- DEBUG USER INFO COLLECTION ---
+    // This will help see what the actual user data looks like
+    match /debugUserInfo/{userId} {
+      allow read: if request.auth.uid == userId;
+      allow write: if request.auth.uid == userId && request.resource.data.keys().hasAll([
+        'authUid',
+        'userExists', 
+        'hasRoleField',
+        'roleValue',
+        'isValidUserOld',
+        'isValidUserFixed',
+        'timestamp'
+      ]);
+    }
+
+    // --- USERS COLLECTION (with debug) ---
+    match /users/{userId} {
+      // Debug: Allow authenticated users to read their own document
+      allow get: if request.auth.uid == userId;
+      
+      // Original rules with fixed hasRole
+      allow list: if (isValidUser() && request.auth != null)
+                  || isAdminOrSuperAdmin();
+      
+      allow delete: if isAdminOrSuperAdmin() && request.auth.uid != userId;
+      allow create: if request.auth.uid == userId || isAdminOrSuperAdmin();
+      allow update: if
+        (request.auth.uid == userId &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']))
+        || (hasRoleFixed(['admin']) &&
+            resource.data.role != 'superAdmin' &&
+            request.resource.data.role != 'superAdmin')
+        || hasRoleFixed(['superAdmin']);
+    }
+
+    // --- PITCHES COLLECTION (with fixed role check) ---
+    match /pitches/{pitchId} {
+      allow read: if isValidUser()
+                  || (resource.data.isWinner == true);
+      allow create: if true;
+      allow update: if isAdminOrSuperAdmin();
+      allow delete: if isAdminOrSuperAdmin();
+    }
+
+    // --- Other collections remain the same but use hasRoleFixed ---
+    // ... (rest of the collections with hasRoleFixed instead of hasRole)
+  }
+}

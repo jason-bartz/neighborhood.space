@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef } from "react";
 import WindowFrame from "./components/ui/WindowFrame/WindowFrame";
 
 export default function StickyNote({ onClose, zIndex = 1100, windowId, bringToFront }) {
+  // Commented out message cycling - displaying single message only
+  /*
   const messages = [
     "Have a business idea? Click Submit Pitch above for your shot at a $1,000 micro-grant! 💸",
     "👩‍💻 New founder looking for guidance? Click Neighborhood Resources for an interactive map!",
@@ -15,9 +17,13 @@ export default function StickyNote({ onClose, zIndex = 1100, windowId, bringToFr
   ];
 
   const [msgIndex, setMsgIndex] = useState(0);
+  */
+  
   const [wiggle, setWiggle] = useState(false);
   const nodeRef = useRef(null);
 
+  // Commented out message cycling
+  /*
   // Cycle through messages every 7 seconds
   useEffect(() => {
     const msgTimer = setInterval(() => {
@@ -25,6 +31,7 @@ export default function StickyNote({ onClose, zIndex = 1100, windowId, bringToFr
     }, 7000);
     return () => clearInterval(msgTimer);
   }, []);
+  */
 
   // Trigger a quick wiggle every 15 seconds
   useEffect(() => {
@@ -70,7 +77,7 @@ export default function StickyNote({ onClose, zIndex = 1100, windowId, bringToFr
         }}
       >
         <p style={{ margin: 0, lineHeight: 1.4 }}>
-          {messages[msgIndex]}
+          Welcome to Neighborhood OS! Explore our resources and connect with the community.
         </p>
         <img
           src="/assets/Clampie.webp"

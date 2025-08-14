@@ -1,0 +1,163 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helpers ---
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+    function requestUserData() {
+      return request.auth != null ? getUserData(request.auth.uid) : null;
+    }
+    
+    // FIXED: Use proper array contains check instead of 'in' operator
+    function hasRole(roles) {
+      let userData = requestUserData();
+      return userData != null && userData.role != null && roles.hasAny([userData.role]);
+    }
+    
+    function isAdminOrSuperAdmin() {
+      return hasRole(['admin', 'superAdmin']);
+    }
+    function isSuperAdmin() {
+      return hasRole(['superAdmin']);
+    }
+    function isValidUser() {
+      return hasRole(['lp', 'admin', 'superAdmin']);
+    }
+
+    // --- USERS COLLECTION ---
+    match /users/{userId} {
+      // Allow users to read their own data OR
+      // Allow valid users to read other users in the same chapter OR
+      // Allow admins to read any user
+      allow get: if request.auth.uid == userId
+                 || (isValidUser() && requestUserData().chapter == resource.data.chapter)
+                 || isAdminOrSuperAdmin();
+
+      // Allow valid users to list users in their chapter OR
+      // Allow admins to list all users
+      allow list: if (isValidUser() && request.auth != null)
+                  || isAdminOrSuperAdmin();
+
+      allow delete: if isAdminOrSuperAdmin() && request.auth.uid != userId;
+      allow create: if request.auth.uid == userId || isAdminOrSuperAdmin();
+      allow update: if
+        (request.auth.uid == userId &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']))
+        || (hasRole(['admin']) &&
+            resource.data.role != 'superAdmin' &&
+            request.resource.data.role != 'superAdmin')
+        || isSuperAdmin();
+    }
+
+    // --- PITCHES COLLECTION ---
+    match /pitches/{pitchId} {
+      // Allow signed-in LPs/admins full read,
+      // but also let anyone (even unauthenticated) read only those docs where isWinner == true
+      // Cloud Functions automatically have full access - no rule changes needed for them
+      allow read: if isValidUser()
+                  || (resource.data.isWinner == true);
+
+      // Allow anyone to create a pitch (needed for the submission form)
+      // This enables your form to work without authentication
+      allow create: if true;
+
+      // Only admins can update pitches (e.g., marking as winner)
+      allow update: if isAdminOrSuperAdmin();
+
+      // Only admins can delete pitches
+      allow delete: if isAdminOrSuperAdmin();
+    }
+
+    // --- REVIEWS COLLECTION ---
+    match /reviews/{reviewId} {
+      function isOwner() {
+        return request.auth.uid != null
+               && request.auth.uid == reviewId.split('_')[0];
+      }
+      allow read: if isOwner() || isAdminOrSuperAdmin();
+      // Allow valid users (lp, admin, superAdmin) to write if reviewerId matches
+      allow write: if isValidUser()
+                   && request.auth.uid != null
+                   && (request.resource.data.reviewerId == request.auth.uid
+                       || isAdminOrSuperAdmin());
+      allow delete: if isOwner() || isAdminOrSuperAdmin();
+    }
+
+    // --- INVITATIONS COLLECTION ---
+    match /invitations/{inviteId} {
+      allow read, write: if isAdminOrSuperAdmin();
+    }
+
+    // --- GUEST MESSAGES COLLECTION ---
+    match /guestMessages/{msgId} {
+      allow create: if true;  // Anyone can leave a message
+      allow read: if true;    // Messages are publicly visible
+      allow update, delete: if isAdminOrSuperAdmin();  // Only admins can edit/delete
+    }
+
+    // --- BULLETIN POSTS COLLECTION ---
+    match /bulletinPosts/{postId} {
+      // Only valid users (lp, admin, superAdmin) can read bulletin posts
+      allow read: if isValidUser();
+
+      // Valid users can create posts
+      allow create: if isValidUser()
+                    && request.resource.data.author.uid == request.auth.uid;
+
+      // Users can update their own posts, admins can update any post
+      allow update: if isValidUser()
+                    && (resource.data.author.uid == request.auth.uid
+                        || isAdminOrSuperAdmin());
+
+      // Users can delete their own posts, admins can delete any post
+      allow delete: if isValidUser()
+                    && (resource.data.author.uid == request.auth.uid
+                        || isAdminOrSuperAdmin());
+    }
+
+    // --- BULLETIN MESSAGES COLLECTION (Chapter-specific) ---
+    match /bulletinMessages/{messageId} {
+      // Valid users can read messages from their own chapter only
+      allow read: if isValidUser()
+                  && requestUserData().chapter == resource.data.authorChapter;
+
+      // Valid users can create messages for their chapter
+      allow create: if isValidUser()
+                    && request.auth.uid == request.resource.data.authorId
+                    && request.resource.data.authorChapter == requestUserData().chapter;
+
+      // Users can update their own messages, admins can update any in their chapter
+      allow update: if isValidUser() && (
+        request.auth.uid == resource.data.authorId ||
+        (isAdminOrSuperAdmin() &&
+         resource.data.authorChapter == requestUserData().chapter)
+      );
+
+      // Users can delete their own messages, admins can delete any in their chapter  
+      allow delete: if isValidUser() && (
+        request.auth.uid == resource.data.authorId ||
+        (isAdminOrSuperAdmin() &&
+         resource.data.authorChapter == requestUserData().chapter)
+      );
+    }
+
+    // --- LIMITED PARTNERS COLLECTION ---
+    // Note: This collection might be deprecated in favor of the users collection with roles
+    match /limitedPartners/{lpId} {
+      // Only admins can read/write to limited partners collection
+      allow read: if isAdminOrSuperAdmin();
+      allow write: if isAdminOrSuperAdmin();
+    }
+
+    // --- RESOURCES COLLECTION ---
+    match /resources/{resourceId} {
+      // Anyone can read resources (public information)
+      allow read: if true;
+
+      // Only admins can create/update/delete resources
+      allow write: if isAdminOrSuperAdmin();
+    }
+  }
+}

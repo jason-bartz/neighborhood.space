@@ -41,10 +41,10 @@ export default function ContestSubmissionForm({ onClose }) {
     e.preventDefault();
     
     // Check submission deadline
-    const SUBMISSION_END_DATE = new Date('2025-06-30T23:59:59-04:00');
+    const SUBMISSION_END_DATE = new Date('2025-07-12T23:59:59-04:00');
     const now = new Date();
     if (now > SUBMISSION_END_DATE) {
-      alert('Submissions have closed. The contest ended on June 30th at 11:59 PM ET.');
+      alert('Submissions have closed. The contest ended on July 12th at 11:59 PM ET.');
       onClose();
       return;
     }

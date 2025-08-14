@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firestore Permissions Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        #results {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Firestore Permissions Debug Test</h1>
+    
+    <div>
+        <button onclick="runAllTests()">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { 
+            getFirestore, 
+            doc, 
+            getDoc, 
+            setDoc, 
+            collection, 
+            query, 
+            limit, 
+            getDocs,
+            serverTimestamp 
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { 
+            getAuth, 
+            onAuthStateChanged 
+        } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // Import your Firebase config
+        import firebaseConfig from './firebaseConfig.js';
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        const resultsDiv = document.getElementById('results');
+
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}:</strong> ${message}`;
+            resultsDiv.appendChild(div);
+        }
+
+        window.clearResults = function() {
+            resultsDiv.innerHTML = '';
+        }
+
+        window.runAllTests = async function() {
+            clearResults();
+            
+            const user = auth.currentUser;
+            if (!user) {
+                addResult('No authenticated user. Please log in first.', 'error');
+                return;
+            }
+
+            addResult(`Testing with user: ${user.email} (${user.uid})`, 'info');
+
+            try {
+                // Test 1: Check if user document exists
+                addResult('Test 1: Checking if user document exists...', 'info');
+                const userDocRef = doc(db, 'users', user.uid);
+                const userDoc = await getDoc(userDocRef);
+                
+                if (userDoc.exists()) {
+                    addResult('✓ User document exists', 'success');
+                    const userData = userDoc.data();
+                    addResult(`User data: ${JSON.stringify(userData, null, 2)}`, 'info');
+                    
+                    // Check role field
+                    if (userData.role) {
+                        addResult(`✓ User has role: ${userData.role}`, 'success');
+                    } else {
+                        addResult('✗ User document missing role field', 'error');
+                    }
+                } else {
+                    addResult('✗ User document does not exist', 'error');
+                }
+
+                // Test 2: Try to read a pitch (tests isValidUser)
+                addResult('Test 2: Testing pitch read permissions...', 'info');
+                try {
+                    const pitchesQuery = query(collection(db, 'pitches'), limit(1));
+                    const pitchesSnapshot = await getDocs(pitchesQuery);
+                    addResult(`✓ Can read pitches (found ${pitchesSnapshot.size} documents)`, 'success');
+                } catch (error) {
+                    addResult(`✗ Cannot read pitches: ${error.message}`, 'error');
+                }
+
+                // Test 3: Write debug info to special collection
+                addResult('Test 3: Writing debug info...', 'info');
+                try {
+                    const debugData = {
+                        authUid: user.uid,
+                        userExists: userDoc.exists(),
+                        hasRoleField: userDoc.exists() && 'role' in userDoc.data(),
+                        roleValue: userDoc.exists() ? userDoc.data().role : null,
+                        isValidUserOld: false, // Will be determined by rules
+                        isValidUserFixed: false, // Will be determined by rules
+                        timestamp: serverTimestamp()
+                    };
+                    
+                    await setDoc(doc(db, 'debugUserInfo', user.uid), debugData);
+                    addResult('✓ Successfully wrote debug info', 'success');
+                } catch (error) {
+                    addResult(`✗ Failed to write debug info: ${error.message}`, 'error');
+                }
+
+                // Test 4: Test the debug collection
+                addResult('Test 4: Testing debug collection permissions...', 'info');
+                const debugTestRef = doc(db, 'debugTest', 'test-' + Date.now());
+                
+                // Test get (requires auth)
+                try {
+                    await getDoc(debugTestRef);
+                    addResult('✓ Test 1 passed: User is authenticated', 'success');
+                } catch (error) {
+                    addResult('✗ Test 1 failed: Authentication issue', 'error');
+                }
+                
+                // Test create (requires user doc exists)
+                try {
+                    await setDoc(debugTestRef, { test: 'create' });
+                    addResult('✓ Test 2 passed: User document exists', 'success');
+                } catch (error) {
+                    addResult('✗ Test 2 failed: User document does not exist', 'error');
+                }
+                
+                // Test update (requires role field)
+                try {
+                    await setDoc(debugTestRef, { test: 'update' }, { merge: true });
+                    addResult('✓ Test 3 passed: User has role field', 'success');
+                } catch (error) {
+                    addResult('✗ Test 3 failed: User missing role field', 'error');
+                }
+
+                // Test 5: Check bulletin posts (another isValidUser test)
+                addResult('Test 5: Testing bulletin posts read permissions...', 'info');
+                try {
+                    const bulletinQuery = query(collection(db, 'bulletinPosts'), limit(1));
+                    const bulletinSnapshot = await getDocs(bulletinQuery);
+                    addResult(`✓ Can read bulletin posts (found ${bulletinSnapshot.size} documents)`, 'success');
+                } catch (error) {
+                    addResult(`✗ Cannot read bulletin posts: ${error.message}`, 'error');
+                }
+
+            } catch (error) {
+                addResult(`Unexpected error: ${error.message}`, 'error');
+                console.error('Full error:', error);
+            }
+        }
+
+        // Monitor auth state
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                addResult(`Authenticated as: ${user.email}`, 'info');
+            } else {
+                addResult('Not authenticated. Please log in to run tests.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

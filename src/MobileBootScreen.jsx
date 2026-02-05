@@ -120,14 +120,15 @@ export default function MobileBootScreen({ onFinish }) {
         }}>
           <div
             className="boot-progress-bar"
-            style={{ 
-              width: `${progress}%`, 
+            style={{
+              width: `${progress}%`,
               height: '100%',
               background: 'linear-gradient(to right, #FFD6EC, #d48fc7)',
-              transition: 'width 0.11s ease-out' 
+              transition: 'width 0.11s ease-out'
             }}
           ></div>
         </div>
+        <p style={{ fontSize: '11px', color: '#999', marginTop: '10px', fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif' }}>Tap anywhere to skip</p>
       </div>
     </div>
   );

@@ -83,6 +83,7 @@ export default function BootScreen({ onFinish }) {
             style={{ width: `${progress}%`, transition: 'width 0.11s ease-out' }}
           ></div>
         </div>
+        <p style={{ fontSize: '11px', color: '#999', marginTop: '10px', fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif' }}>Press spacebar to skip</p>
       </div>
     </div>
   );

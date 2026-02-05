@@ -128,7 +128,7 @@ export default function MobileBootScreen({ onFinish }) {
             }}
           ></div>
         </div>
-        <p style={{ fontSize: '11px', color: '#999', marginTop: '10px', fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif' }}>Tap anywhere to skip</p>
+        <p style={{ fontSize: '12px', color: '#888', marginTop: '14px', marginBottom: '0', fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif' }}>Tap anywhere to skip</p>
       </div>
     </div>
   );

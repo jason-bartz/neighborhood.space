@@ -136,8 +136,8 @@
   color: var(--mb-chalk) !important;
   font-family: var(--font-pixel) !important;
   font-size: 11px !important;
-  letter-spacing: 0.14em !important;
-  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  text-transform: none !important;
   border-bottom: 1px solid rgba(255,255,255,0.1) !important;
 }
 
@@ -167,8 +167,8 @@
   color: var(--mb-chalk) !important;
   font-family: var(--font-pixel) !important;
   font-size: 11px !important;
-  letter-spacing: 0.14em !important;
-  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  text-transform: none !important;
   border-bottom: 1px solid rgba(255,255,255,0.1) !important;
 }
 .retro-title-bar button {
@@ -777,6 +777,7 @@
    COMMUNITY GALLERY — marquee + click-to-enlarge lightbox
    ================================================================ */
 
+/* Every gallery tile becomes clickable to open the lightbox */
 .win95-image-grid .win95-image,
 .win95-gallery-marquee .win95-image {
   cursor: zoom-in;
@@ -788,6 +789,8 @@
   box-shadow: var(--shadow-hard-lg);
 }
 
+/* Marquee: used when there are enough images to warrant horizontal scroll.
+   Track duplicates the image list in JSX to make the loop seamless. */
 .win95-gallery-marquee {
   overflow: hidden;
   border: var(--border-ink-2);
@@ -795,6 +798,7 @@
   box-shadow: var(--shadow-hard);
   background: var(--mb-chalk);
   margin-top: var(--space-4);
+  /* fade edges so images don't pop in/out */
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
   mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
 }
@@ -831,6 +835,7 @@
 
 @keyframes win95-marquee-scroll {
   0%   { transform: translateX(0); }
+  /* Translate by half the duplicated track so the loop is seamless */
   100% { transform: translateX(calc(-50% - 8px)); }
 }
 
@@ -843,6 +848,7 @@
   }
 }
 
+/* Lightbox — click any gallery image to open */
 .win95-lightbox {
   position: fixed;
   inset: 0;
@@ -1364,9 +1370,9 @@ body::after {
   box-shadow: none !important;
   font-family: var(--font-pixel) !important;
   font-size: 11px !important;
-  letter-spacing: 0.14em !important;
-  text-transform: uppercase !important;
-  padding: 10px 16px !important;
+  letter-spacing: 0.04em !important;
+  text-transform: none !important;
+  padding: 4px 16px !important;
 }
 
 .taskbar .taskbar-left,
@@ -1625,4 +1631,699 @@ body::after {
   bottom: -2px;
   height: 2px;
   background: var(--mb-magenta);
+}
+
+/* ================================================================
+   PITCH REVIEW LAYOUT
+   Modernized two-column layout for LP pitch review. Drops the old
+   win95-inset bevels and chunky pink outlines in favor of clean
+   Millennium Bug tiles with ink borders, hard shadow, and pixel-font
+   eyebrows. Pairs with .pr-* utility classes in this block.
+   ================================================================ */
+
+.pr-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .pr-grid { grid-template-columns: 1fr; }
+}
+
+.pr-card {
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  padding: 28px 28px 24px;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  font-family: var(--font-content);
+  color: var(--mb-ink);
+}
+
+/* Header — business name + status chips */
+.pr-header { margin-bottom: 20px; }
+
+.pr-header__title {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(24px, 2.4vw, 30px);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--mb-ink);
+}
+
+.pr-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mb-ink);
+  background: var(--mb-butter-soft);
+  border: 1px solid var(--mb-ink);
+}
+.pr-chip--winner { background: var(--mb-grape-soft, #e8e1f5); }
+.pr-chip--contest { background: var(--mb-magenta-soft); }
+
+/* Identity row — founder + email + action buttons on the left */
+.pr-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 18px;
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+
+.pr-identity__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pr-identity__label {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+}
+
+.pr-identity__value {
+  color: var(--mb-ink);
+  font-weight: 600;
+}
+
+.pr-identity a {
+  color: var(--mb-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  font-weight: 500;
+}
+.pr-identity a:hover {
+  color: var(--mb-magenta);
+  text-decoration-thickness: 2px;
+}
+
+.pr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.pr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-family: var(--font-content);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mb-chalk);
+  background: var(--mb-ink);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  cursor: pointer;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out, background 80ms ease-out;
+  text-decoration: none;
+}
+.pr-btn:hover {
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard);
+}
+.pr-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0 0 0 0 var(--mb-ink);
+}
+.pr-btn--ghost {
+  background: var(--mb-chalk);
+  color: var(--mb-ink);
+}
+.pr-btn--ghost:hover {
+  background: var(--mb-butter);
+  color: var(--mb-ink);
+}
+
+/* AI Summary — subtle butter tile with a left accent bar */
+.pr-ai {
+  position: relative;
+  background: var(--mb-butter-soft);
+  border-left: 4px solid var(--mb-magenta);
+  padding: 16px 18px;
+  margin-bottom: 28px;
+}
+
+.pr-eyebrow {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mb-magenta);
+  margin-bottom: 8px;
+}
+
+.pr-ai__body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--mb-ink);
+}
+
+/* Field list — clean label/value pairs, no boxes */
+.pr-section {
+  padding-top: 20px;
+  margin-top: 20px;
+  border-top: 1px solid var(--mb-ink-15);
+}
+.pr-section:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.pr-field { margin-bottom: 18px; }
+.pr-field:last-child { margin-bottom: 0; }
+
+.pr-field__label {
+  display: block;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+  margin-bottom: 6px;
+}
+
+.pr-field__value {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--mb-ink);
+}
+
+.pr-field--inline {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.pr-field--inline .pr-field__label { margin-bottom: 0; }
+
+.pr-yes {
+  color: var(--mb-ink);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pr-yes::before {
+  content: "●";
+  color: #2e8540;
+  font-size: 10px;
+}
+.pr-no {
+  color: var(--mb-ink-60);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pr-no::before {
+  content: "○";
+  color: var(--mb-ink-60);
+  font-size: 10px;
+}
+
+/* ---- Review form ---- */
+
+.pr-form__title {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+
+.pr-form__subtitle {
+  font-size: 13px;
+  color: var(--mb-ink-60);
+  margin-bottom: 22px;
+}
+
+.pr-form__group { margin-bottom: 18px; }
+
+.pr-form__group-head {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+  margin: 26px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--mb-ink-15);
+}
+
+.pr-form__label {
+  display: block;
+  font-family: var(--font-content);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mb-ink);
+  margin-bottom: 6px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.pr-form__required {
+  color: var(--mb-magenta);
+  font-weight: 600;
+  font-size: 11px;
+  margin-left: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pr-form__optional {
+  color: var(--mb-ink-60);
+  font-weight: 400;
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+.pr-select,
+.pr-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--font-content);
+  font-size: 14px;
+  color: var(--mb-ink);
+  background: var(--mb-chalk);
+  border: 1.5px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  outline: none;
+  transition: box-shadow 80ms ease-out, transform 80ms ease-out;
+  box-sizing: border-box;
+}
+
+.pr-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12'><path d='M2 4 L6 8 L10 4' fill='none' stroke='%23141419' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px 12px;
+  height: 42px;
+  cursor: pointer;
+}
+
+.pr-textarea {
+  min-height: 110px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.pr-select:focus,
+.pr-textarea:focus {
+  outline: 2px solid var(--mb-magenta);
+  outline-offset: 2px;
+  box-shadow: var(--shadow-hard-sm);
+}
+
+.pr-select:disabled {
+  background-color: var(--mb-paper-deep, #f5ecd6);
+  color: var(--mb-ink-60);
+  cursor: not-allowed;
+}
+
+/* Required recommendation gets a subtle magenta left accent instead
+   of a heavy outlined box */
+.pr-form__group--required {
+  padding: 14px 16px;
+  background: var(--mb-magenta-soft);
+  border-left: 4px solid var(--mb-magenta);
+  margin-bottom: 22px;
+}
+.pr-form__group--required .pr-form__label { margin-bottom: 8px; }
+
+/* Team notes panel — clean stack, no bevel */
+.pr-team-notes {
+  background: var(--mb-paper-deep, #f5ecd6);
+  border: 1px solid var(--mb-ink-15);
+  padding: 4px 14px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.pr-team-note { padding: 12px 0; border-bottom: 1px solid var(--mb-ink-15); }
+.pr-team-note:last-child { border-bottom: none; }
+
+.pr-team-note__who {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+  margin-bottom: 4px;
+}
+
+.pr-team-note__text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--mb-ink);
+}
+
+/* Primary submit + secondary "next" action row */
+.pr-submit-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--mb-ink-15);
+}
+
+.pr-submit-row .pr-btn {
+  flex: 1;
+  justify-content: center;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.pr-submit-row .pr-btn--primary {
+  background: var(--mb-magenta);
+  box-shadow: var(--shadow-hard);
+}
+.pr-submit-row .pr-btn--primary:hover {
+  background: var(--mb-magenta-deep);
+  box-shadow: var(--shadow-hard-lg);
+}
+
+/* Back to list — low-chrome link */
+.pr-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mb-ink);
+  background: transparent;
+  border: 1px solid var(--mb-ink);
+  cursor: pointer;
+  align-self: flex-start;
+  transition: background 80ms ease-out;
+}
+.pr-back:hover { background: var(--mb-butter-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-btn, .pr-select, .pr-textarea { transition: none; }
+}
+
+/* ================================================================
+   LP LOGIN SCREEN
+   Editorial-style sign-in card. Drops the win95 titlebar + old
+   Google graphic for a clean Millennium Bug tile with pixel-font
+   eyebrow, display-font title, and a simple inline Google SVG.
+   ================================================================ */
+
+.lp-login {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: var(--mb-paper);
+  box-sizing: border-box;
+}
+
+.lp-login__card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-lg);
+  padding: 40px 36px 32px;
+  font-family: var(--font-content);
+  color: var(--mb-ink);
+}
+
+.lp-login__eyebrow {
+  display: block;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mb-magenta);
+  margin-bottom: 12px;
+}
+
+.lp-login__title {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(32px, 4vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  color: var(--mb-ink);
+}
+.lp-login__title em {
+  font-style: italic;
+  color: var(--mb-magenta);
+}
+
+.lp-login__lede {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--mb-ink-60);
+}
+
+.lp-login__form { margin: 0; }
+
+.lp-login__label {
+  display: block;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+  margin-bottom: 6px;
+}
+
+.lp-login__input {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  font-family: var(--font-content);
+  font-size: 15px;
+  color: var(--mb-ink);
+  background: var(--mb-chalk);
+  border: 1.5px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  outline: none;
+  box-sizing: border-box;
+  transition: box-shadow 80ms ease-out;
+}
+.lp-login__input:focus,
+.lp-login__input:focus-visible {
+  outline: 2px solid var(--mb-magenta);
+  outline-offset: 2px;
+}
+
+.lp-login__submit {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px 16px;
+  font-family: var(--font-content);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mb-chalk);
+  background: var(--mb-magenta);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  cursor: pointer;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out, background 80ms ease-out;
+}
+.lp-login__submit:hover:not(:disabled) {
+  background: var(--mb-magenta-deep);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard-lg);
+}
+.lp-login__submit:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 0 0 0 0 var(--mb-ink);
+}
+.lp-login__submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* --- divider --- */
+.lp-login__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 26px 0 20px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+}
+.lp-login__divider::before,
+.lp-login__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--mb-ink-15);
+}
+
+/* --- Google button --- */
+.lp-login__google {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 16px;
+  font-family: var(--font-content);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--mb-ink);
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  cursor: pointer;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out, background 80ms ease-out;
+}
+.lp-login__google:hover {
+  background: var(--mb-butter-soft);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard);
+}
+.lp-login__google:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0 0 0 0 var(--mb-ink);
+}
+.lp-login__google svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* --- link-sent confirmation --- */
+.lp-login__sent {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+.lp-login__sent-icon {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+.lp-login__sent-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+  color: var(--mb-ink);
+}
+.lp-login__sent-body {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--mb-ink-60);
+  margin: 0 0 18px;
+}
+.lp-login__sent-body strong { color: var(--mb-ink); }
+
+.lp-login__use-different {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-content);
+  font-size: 13px;
+  color: var(--mb-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.lp-login__use-different:hover {
+  color: var(--mb-magenta);
+  text-decoration-thickness: 2px;
+}
+
+/* --- footer --- */
+.lp-login__footer {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--mb-ink-15);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--mb-ink-60);
+  text-align: center;
+}
+.lp-login__footer p { margin: 0 0 6px; }
+.lp-login__footer p:last-child { margin-bottom: 0; }
+
+.lp-login__apply {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--mb-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.lp-login__apply:hover {
+  color: var(--mb-magenta);
+  text-decoration-thickness: 2px;
+}
+
+/* --- inline error --- */
+.lp-login__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--mb-tangerine-deep);
+  background: var(--mb-tangerine-soft);
+  border-left: 4px solid var(--mb-tangerine);
+  text-align: left;
+}
+.lp-login__error strong { color: var(--mb-tangerine-deep); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-login__submit,
+  .lp-login__google,
+  .lp-login__input { transition: none; }
 }

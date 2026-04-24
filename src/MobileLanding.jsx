@@ -10,7 +10,7 @@ import HitCounter from "./components/ui/HitCounter";
 import DockIcon from "./components/icons/DockIcon";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "./firebaseConfig";
-import "./App.css";
+import "./styles/App.css";
 
 const AWARDEES_CACHE_KEY = "gnf:awardees:v1";
 

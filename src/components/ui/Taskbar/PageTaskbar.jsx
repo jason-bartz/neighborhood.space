@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import "../../../App.css";
+import "../../../styles/App.css";
 
 export default function PageTaskbar() {
   const navigate = useNavigate();

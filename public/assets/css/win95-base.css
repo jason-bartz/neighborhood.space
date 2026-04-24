@@ -1349,6 +1349,38 @@ h4, .win95-h4 {
   flex-grow: 1;
 }
 
+/* Force the filter bar onto a single row. Leaves overflow visible so
+   absolutely-positioned children (e.g. MultiSelectDropdown panels) are not
+   clipped — setting overflow-x here would force overflow-y to compute as
+   auto and cut off the dropdown. */
+.filter-bar--one-row {
+  flex-wrap: nowrap;
+}
+
+.filter-bar--one-row > select,
+.filter-bar--one-row > input[type="text"],
+.filter-bar--one-row > input[type="search"],
+.filter-bar--one-row > button,
+.filter-bar--one-row > .retro-toggle {
+  flex-shrink: 0;
+}
+
+.filter-bar--one-row > input[type="text"],
+.filter-bar--one-row > input[type="search"] {
+  min-width: 160px;
+}
+
+/* Normalize button height to match the 34px selects/inputs in this row. */
+.filter-bar--one-row > button,
+.filter-bar--one-row > .retro-toggle,
+.filter-bar--one-row > .win95-btn {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 14px;
+  line-height: 1;
+  font-size: 13px;
+}
+
 /* ── Toolbar (row of action buttons) ── */
 .retro-toolbar {
   display: flex;
@@ -2061,8 +2093,30 @@ h4, .win95-h4 {
   line-height: 1.5;
   color: var(--mb-ink);
   margin: 10px 0 0;
-  max-height: 4.8em;
-  overflow: hidden;
+}
+
+.lp-pitch-card__ai-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-content);
+  font-size: 10px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--mb-ink-60);
+  margin-bottom: 6px;
+}
+
+.lp-pitch-card__ai-badge {
+  display: inline-block;
+  padding: 1px 5px;
+  background: var(--mb-aqua-deep, var(--mb-magenta));
+  color: var(--mb-chalk);
+  border: 1px solid var(--mb-ink);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
 }
 
 .lp-pitch-card__summary em {

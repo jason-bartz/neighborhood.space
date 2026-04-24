@@ -12,10 +12,10 @@ import NotFoundPage from "./NotFoundPage";
 import StandaloneLPPortal from "./StandaloneLPPortal";
 import ChapterPage from "./ChapterPage";
 import "./mock-fs"; // Import mock filesystem
-import "./win95-tokens.css"; // Design tokens (CSS custom properties) — must load first
-import "./win95-base.css";   // Global resets + utility classes — must load before App.css
-import "./theme-tokens.css"; // "Millennium Bug" retro-modern content theme (overrides/extends)
-import "./App.css";
+import "./styles/win95-tokens.css"; // Design tokens (CSS custom properties) — must load first
+import "./styles/win95-base.css";   // Global resets + utility classes — must load before App.css
+import "./styles/theme-tokens.css"; // "Millennium Bug" retro-modern content theme (overrides/extends)
+import "./styles/App.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>

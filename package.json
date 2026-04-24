@@ -2,8 +2,11 @@
   "name": "neighborhood-space",
   "version": "1.0.0",
   "scripts": {
+    "prestart": "node scripts/sync-styles.js",
     "start": "react-scripts start",
-    "build": "react-scripts build"
+    "prebuild": "node scripts/sync-styles.js",
+    "build": "react-scripts build",
+    "sync-styles": "node scripts/sync-styles.js"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

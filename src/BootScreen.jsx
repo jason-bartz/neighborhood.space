@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import "./App.css";
+import "./styles/App.css";
 
 const bootMessages = [
   "Booting NeighborhoodOS v3.1...",

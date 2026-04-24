@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import LimitedPartnerPortal from './components/limited-partner/LimitedPartnerPortal/LimitedPartnerPortal';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebaseConfig";
-import './App.css';
+import './styles/App.css';
 
 export default function StandaloneLPPortal() {
   const [currentTime, setCurrentTime] = useState("");

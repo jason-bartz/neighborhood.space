@@ -11,7 +11,7 @@ import BuddyMessenger from "../../../components/BuddyMessenger";
 import FounderMap from '../../../components/FounderMap';
 import MobileLanding from "../../../MobileLanding";
 import Dock from "../../../components/Dock/Dock";
-import "../../../App.css";
+import "../../../styles/App.css";
 // import BlockParty from "../../../BlockParty"; // BlockParty component removed
 
 export default function DesktopEnvironment() {

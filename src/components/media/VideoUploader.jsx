@@ -2,9 +2,16 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 
-// Yolo 🫣
-const API_KEY = 'yfUUdHKF9HYorVvjWJMu7mkav3NWxKvrUnDUZ6rCul1';
-const API_BASE_URL = 'https://ws.api.video'; // Yolo
+// SECURITY DEBT: api.video authentication flows through the browser and
+// requires the raw API key to mint a delegated upload token. Moving the
+// key to a REACT_APP_ env var gets it out of git, but CRA bundles
+// process.env.REACT_APP_* into the client JS at build time, so it is still
+// visible in shipped code. The proper fix is a server-side token endpoint
+// (like the retired root server.js) that keeps the secret in Cloud
+// Functions / Cloud Run and returns only the short-lived upload token.
+// Tracked for follow-up; do not deploy publicly without rotating the key.
+const API_KEY = process.env.REACT_APP_API_VIDEO_KEY;
+const API_BASE_URL = 'https://ws.api.video';
 
 const VideoUploader = ({ onVideoUploaded }) => {
   const [isLoading, setIsLoading] = useState(false);

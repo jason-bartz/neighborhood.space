@@ -5,6 +5,12 @@ node_modules/
 build/
 dist/
 
+# Firebase Hosting deploy cache (regenerated on each deploy)
+.firebase/
+
+# Runtime / debug logs
+*.log
+
 # misc
 .DS_Store
 .env

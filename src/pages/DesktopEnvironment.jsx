@@ -1,14 +1,14 @@
 // DesktopEnvironment.jsx
 import React, { useEffect, useState, useRef } from "react";
-import BootScreen from "../BootScreen";
+import BootScreen from "../components/layout/BootScreen";
 import WindowFrame from "../components/ui/WindowFrame/WindowFrame";
 import GrantApplicationForm from "../components/grant/GrantApplicationForm";
 import LPApplication from "./standalone/LPApplication";
 import LimitedPartnerPortal from "../components/lp/LimitedPartnerPortal";
-import BrowserWindow from "../BrowserWindow";
+import BrowserWindow from "../components/layout/BrowserWindow";
 import BuddyMessenger from "../components/BuddyMessenger";
 import FounderMap from "../components/FounderMap";
-import MobileLanding from "../MobileLanding";
+import MobileLanding from "../components/layout/MobileLanding";
 import Dock from "../components/Dock/Dock";
 import "../styles/App.css";
 

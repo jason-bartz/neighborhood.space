@@ -1,16 +1,16 @@
 // MobileLanding.jsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import PitchPage from "./pages/standalone/PitchPage";
-import LPApplication from "./pages/standalone/LPApplication";
-import MobileNeighborhoodResources from "./components/MobileNeighborhoodResources";
-import MobileBuddyMessenger from "./components/MobileBuddyMessenger";
-import MobileLPPortal from "./components/lp/MobileLPPortal";
+import PitchPage from "../../pages/standalone/PitchPage";
+import LPApplication from "../../pages/standalone/LPApplication";
+import MobileNeighborhoodResources from "../MobileNeighborhoodResources";
+import MobileBuddyMessenger from "../MobileBuddyMessenger";
+import MobileLPPortal from "../lp/MobileLPPortal";
 import MobileBootScreen from "./MobileBootScreen";
-import HitCounter from "./components/ui/HitCounter";
-import DockIcon from "./components/icons/DockIcon";
+import HitCounter from "../ui/HitCounter";
+import DockIcon from "../icons/DockIcon";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { db } from "./firebaseConfig";
-import "./styles/App.css";
+import { db } from "../../firebaseConfig";
+import "../../styles/App.css";
 
 const AWARDEES_CACHE_KEY = "gnf:awardees:v1";
 

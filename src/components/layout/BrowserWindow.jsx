@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "./firebaseConfig";
+import { db } from "../../firebaseConfig";
 import Marquee from "react-fast-marquee";
-import HitCounter from "./components/ui/HitCounter";
-import NeighborhoodResources from "./components/NeighborhoodResources";
+import HitCounter from "../ui/HitCounter";
+import NeighborhoodResources from "../NeighborhoodResources";
 
 const AWARDEES_CACHE_KEY = "gnf:awardees:v1";
 

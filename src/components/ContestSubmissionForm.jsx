@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { db } from "../firebaseConfig";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
 import Draggable from "react-draggable";
-import VideoUploader from "../VideoUploader";
+import VideoUploader from "./media/VideoUploader";
 import Confetti from "react-confetti";
 
 export default function ContestSubmissionForm({ onClose }) {

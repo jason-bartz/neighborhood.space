@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
-import VideoUploader from "../../VideoUploader";
+import VideoUploader from "../../components/media/VideoUploader";
 import Confetti from "react-confetti";
 import { useNavigate, useLocation } from "react-router-dom";
 import PageTaskbar from "../../components/ui/Taskbar/PageTaskbar";

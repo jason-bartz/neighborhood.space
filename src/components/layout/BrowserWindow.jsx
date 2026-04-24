@@ -1040,7 +1040,7 @@ const ChaptersPage = ({ setPage, onLpApplicationClick }) => {
         </div>
         <div style={{ position: "relative", overflow: "hidden", minHeight: "360px", borderLeft: "var(--border-chalk-2)" }}>
           <img
-            src="/assets/_DSC1129.webp"
+            src="/assets/chapters-hero.webp"
             alt="Good Neighbor Fund chapter community gathering"
             width="800"
             height="600"
@@ -1223,7 +1223,7 @@ const DonatePage = () => (
 
         <div style={{ position: "relative", overflow: "hidden", minHeight: "360px", borderLeft: "var(--border-chalk-2)" }}>
           <img
-            src="/assets/IMG_0740.webp"
+            src="/assets/support-hero.webp"
             alt="Support Good Neighbor Fund — fueling belief capital for neighborhood founders"
             width="800"
             height="600"

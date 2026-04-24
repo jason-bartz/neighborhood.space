@@ -3,7 +3,7 @@ import React, { useEffect, useState, useRef } from "react";
 import BootScreen from "../BootScreen";
 import WindowFrame from "../components/ui/WindowFrame/WindowFrame";
 import GrantApplicationForm from "../components/grant/GrantApplicationForm";
-import StandaloneLPApplication from "../StandaloneLPApplication";
+import LPApplication from "./standalone/LPApplication";
 import LimitedPartnerPortal from "../components/lp/LimitedPartnerPortal";
 import BrowserWindow from "../BrowserWindow";
 import BuddyMessenger from "../components/BuddyMessenger";
@@ -341,7 +341,7 @@ export default function DesktopEnvironment() {
           bringToFront={bringWindowToFront}
           cascadeOffset={cascadeOffsetFor('lpApplication')}
         >
-          <StandaloneLPApplication
+          <LPApplication
             onClose={() => {
               setOpenApps(prev => prev.filter(app => app !== 'lpApplication'));
               if (openApp === 'lpApplication') setOpenApp(null);

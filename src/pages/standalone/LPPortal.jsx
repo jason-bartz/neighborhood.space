@@ -1,11 +1,11 @@
-// StandaloneLPPortal.jsx
+// LPPortal.jsx
 import React, { useState, useEffect } from 'react';
-import LimitedPartnerPortal from './components/lp/LimitedPartnerPortal';
+import LimitedPartnerPortal from '../../components/lp/LimitedPartnerPortal';
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "./firebaseConfig";
-import './styles/App.css';
+import { auth } from "../../firebaseConfig";
+import '../../styles/App.css';
 
-export default function StandaloneLPPortal() {
+export default function LPPortal() {
   const [currentTime, setCurrentTime] = useState("");
   const [currentDate, setCurrentDate] = useState("");
 

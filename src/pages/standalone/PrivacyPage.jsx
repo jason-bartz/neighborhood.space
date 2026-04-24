@@ -1,9 +1,9 @@
-// StandalonePrivacyPage.jsx
+// PrivacyPage.jsx
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import PageTaskbar from "./components/ui/Taskbar/PageTaskbar";
+import PageTaskbar from "../../components/ui/Taskbar/PageTaskbar";
 
-export default function StandalonePrivacyPage() {
+export default function PrivacyPage() {
   const navigate = useNavigate();
 
   useEffect(() => {

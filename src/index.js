@@ -3,13 +3,13 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DesktopEnvironment from "./pages/DesktopEnvironment";
-import StandalonePitchPage from "./StandalonePitchPage";
+import PitchPage from "./pages/standalone/PitchPage";
 import PitchDetailPage from "./pages/PitchDetailPage";
-import StandaloneLPApplication from "./StandaloneLPApplication";
-import StandaloneTermsPage from "./StandaloneTermsPage";
-import StandalonePrivacyPage from "./StandalonePrivacyPage";
+import LPApplication from "./pages/standalone/LPApplication";
+import TermsPage from "./pages/standalone/TermsPage";
+import PrivacyPage from "./pages/standalone/PrivacyPage";
 import NotFoundPage from "./pages/NotFoundPage";
-import StandaloneLPPortal from "./StandaloneLPPortal";
+import LPPortal from "./pages/standalone/LPPortal";
 import ChapterPage from "./pages/ChapterPage";
 import "./mock-fs"; // Import mock filesystem
 import "./styles/win95-tokens.css"; // Design tokens (CSS custom properties) — must load first
@@ -22,12 +22,12 @@ ReactDOM.createRoot(document.getElementById("root")).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<DesktopEnvironment />} />
-        <Route path="/pitch" element={<StandalonePitchPage />} />
+        <Route path="/pitch" element={<PitchPage />} />
         <Route path="/pitch/:pitchId" element={<PitchDetailPage />} />
-        <Route path="/lp-application" element={<StandaloneLPApplication />} />
-        <Route path="/terms" element={<StandaloneTermsPage />} />
-        <Route path="/privacy" element={<StandalonePrivacyPage />} />
-        <Route path="/portal" element={<StandaloneLPPortal />} />
+        <Route path="/lp-application" element={<LPApplication />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/portal" element={<LPPortal />} />
         {/* Dynamic chapter page. For slugs matching a /chapters doc with no
             hand-built static HTML file at public/<slug>.html. The static file
             wins in Firebase Hosting before the SPA fallback routes here. */}

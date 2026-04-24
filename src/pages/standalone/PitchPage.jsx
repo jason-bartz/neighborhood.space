@@ -1,17 +1,17 @@
-// StandalonePitchPage.jsx
+// PitchPage.jsx
 import React, { useState, useEffect } from "react";
 import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore";
-import { db } from "./firebaseConfig";
-import VideoUploader from "./VideoUploader";
+import { db } from "../../firebaseConfig";
+import VideoUploader from "../../VideoUploader";
 import Confetti from "react-confetti";
 import { useNavigate, useLocation } from "react-router-dom";
-import PageTaskbar from "./components/ui/Taskbar/PageTaskbar";
+import PageTaskbar from "../../components/ui/Taskbar/PageTaskbar";
 
 // Fallback chapter names used while /chapters is loading or if the fetch fails.
 const FALLBACK_PITCH_CHAPTERS = ["Western New York", "Denver", "Upstate New York", "Capital Region"];
 
 
-export default function StandalonePitchPage({ onClose }) {
+export default function PitchPage({ onClose }) {
   const [form, setForm] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);

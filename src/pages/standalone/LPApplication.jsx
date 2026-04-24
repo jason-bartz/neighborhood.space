@@ -1,10 +1,10 @@
-// StandaloneLPApplication.jsx
+// LPApplication.jsx
 import React, { useState, useEffect } from "react";
 import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore";
-import { db } from "./firebaseConfig";
+import { db } from "../../firebaseConfig";
 import Confetti from "react-confetti";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import PageTaskbar from "./components/ui/Taskbar/PageTaskbar";
+import PageTaskbar from "../../components/ui/Taskbar/PageTaskbar";
 
 // Fallback chapter list used while the /chapters collection is loading or
 // unavailable. Keeps the form functional for the four legacy chapters.
@@ -17,7 +17,7 @@ const FALLBACK_CHAPTERS = [
 // Quick lookup used to pre-populate the chapter select from a ?chapter=slug query param.
 const FALLBACK_CHAPTER_SLUG_TO_NAME = Object.fromEntries(FALLBACK_CHAPTERS.map(c => [c.slug, c.name]));
 
-export default function StandaloneLPApplication({ onClose, initialChapter, hideFrame = false }) {
+export default function LPApplication({ onClose, initialChapter, hideFrame = false }) {
   const [searchParams] = useSearchParams();
   const chapterFromQuery = FALLBACK_CHAPTER_SLUG_TO_NAME[searchParams.get("chapter")];
   const defaultChapter = initialChapter || chapterFromQuery || "";

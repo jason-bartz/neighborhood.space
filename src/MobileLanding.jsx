@@ -1,7 +1,7 @@
 // MobileLanding.jsx
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import StandalonePitchPage from "./StandalonePitchPage";
-import StandaloneLPApplication from "./StandaloneLPApplication";
+import PitchPage from "./pages/standalone/PitchPage";
+import LPApplication from "./pages/standalone/LPApplication";
 import MobileNeighborhoodResources from "./components/MobileNeighborhoodResources";
 import MobileBuddyMessenger from "./components/MobileBuddyMessenger";
 import MobileLPPortal from "./components/lp/MobileLPPortal";
@@ -1199,9 +1199,9 @@ export default function MobileLanding({ initialBootDone = false }) {
 
       {/* If app is active, render that instead of main content */}
       {activeApp === "submit" ? (
-        <StandalonePitchPage onClose={() => setActiveApp(null)} />
+        <PitchPage onClose={() => setActiveApp(null)} />
       ) : activeApp === "lpApplication" ? (
-        <StandaloneLPApplication
+        <LPApplication
           onClose={() => setActiveApp(null)}
           initialChapter={lpApplicationChapter}
         />

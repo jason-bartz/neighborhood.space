@@ -1,0 +1,31 @@
+# Good Neighbor Fund
+
+> Good Neighbor Fund (GNF) is a collective-giving nonprofit that awards $1,000 micro-grants to early-stage entrepreneurs. No pitch decks. No business plans. No equity. Just belief capital from local Limited Partners (LPs) who pool their own money each quarter to fund the boldest new ideas in their city.
+
+Good Neighbor Fund operates as four city/region chapters, each with its own LPs and pitch review cycle:
+
+- **Western New York (WNY)** — Buffalo, Niagara Falls, Rochester, and 8 counties (Erie, Niagara, Cattaraugus, Chautauqua, Allegany, Genesee, Wyoming, Orleans).
+- **Denver, Colorado** — Denver metro and surrounding counties (Denver, Jefferson, Arapahoe, Adams, Douglas, Boulder).
+- **Upstate / Central New York** — Syracuse, Ithaca, Binghamton, Utica, and 8 counties (Onondaga, Tompkins, Broome, Oneida, Madison, Cortland, Tioga, Chemung).
+- **Capital Region, New York** — Albany, Schenectady, Troy, Saratoga Springs, and 8 counties (Albany, Schenectady, Rensselaer, Saratoga, Columbia, Greene, Washington, Warren).
+
+Anyone in these regions with a business idea can apply by submitting a 60-second video pitch — no formal application or financials required. Selected founders receive $1,000 with no equity, no repayment, and no strings.
+
+Since 2023, Good Neighbor Fund has awarded 34+ micro-grants totaling over $34,000. 80% of recipients are women-owned businesses; 52% are BIPOC-owned.
+
+## Apply for a grant
+- [Submit a pitch](https://www.goodneighbor.fund/pitch): 60-second video pitch — the only application required to be considered for a $1,000 micro-grant.
+- [Field Guide](https://www.goodneighbor.fund/fieldguide): Resources, tools, and learning content for early-stage founders.
+
+## Chapters
+- [Western New York chapter](https://www.goodneighbor.fund/wny): Buffalo + 8-county WNY region. Includes local LPs, FAQ, and how-to-apply guide.
+- [Denver chapter](https://www.goodneighbor.fund/denver): Denver metro + Colorado Front Range. Includes local LPs, FAQ, and how-to-apply guide.
+- [Upstate / Central NY chapter](https://www.goodneighbor.fund/upstate): Syracuse, Ithaca, Binghamton, Utica + 8 counties. Includes FAQ and how-to-apply guide.
+- [Capital Region chapter](https://www.goodneighbor.fund/capital-region): Albany, Schenectady, Troy, Saratoga Springs + 8 counties. Includes FAQ and how-to-apply guide.
+
+## Get involved
+- [Become a Limited Partner](https://www.goodneighbor.fund/lp-application): Pool capital with other local operators to fund your city's next wave of founders.
+
+## Site
+- [Home](https://www.goodneighbor.fund/): Overview, founder map, and grant winners showcase.
+- [Sitemap](https://www.goodneighbor.fund/sitemap.xml)

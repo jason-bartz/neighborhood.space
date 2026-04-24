@@ -1,0 +1,178 @@
+/* win95-tokens.css — Windows 95 Pastel Design Tokens
+   Central source of truth for the GNF Win95 design system.
+   SYNC: public/assets/css/win95-tokens.css must be kept identical
+   so static HTML chapter pages render the same. */
+
+:root {
+  /* ================================================================
+     PASTEL PALETTE — Locked 3-shade ramps
+     ================================================================ */
+
+  /* Pink — primary brand */
+  --pink-light: #ffeaf5;   /* backgrounds, titlebar gradient tail */
+  --pink-mid:   #ffd6ec;   /* buttons, accents, soft fills */
+  --pink-dark:  #d48fc7;   /* borders, shadow bevel, titlebar head */
+
+  /* Blue — secondary (impact stats, links) */
+  --blue-light: #e8f0ff;
+  --blue-mid:   #d0eaff;
+  --blue-dark:  #7aa7d9;
+
+  /* Yellow — accent (notices, mission section) */
+  --yellow-light: #fffde7;
+  --yellow-mid:   #ffe6b3;
+  --yellow-dark:  #d4b96a;
+
+  /* Green — accent (success, hit counter text) */
+  --green-light: #e8f7ee;
+  --green-mid:   #b3e6cc;
+  --green-dark:  #5ba87d;
+
+  /* Purple — accent (LP sections, visited links) */
+  --purple-light: #f0e4ff;
+  --purple-mid:   #e8c8ff;
+  --purple-dark:  #9d6dbc;
+
+  /* === Legacy aliases — keep existing code working ===
+     Prefer the new 3-shade names in new code. */
+  --gnf-pink-100: var(--pink-light);
+  --gnf-pink-200: var(--pink-mid);
+  --gnf-pink-300: #ffbde2;
+  --gnf-pink-400: #ff69b4;
+  --gnf-pink-500: #ff4ba8;
+  --gnf-blue-100: var(--blue-light);
+  --gnf-blue-200: var(--blue-mid);
+  --gnf-blue-300: #b3d9ff;
+  --gnf-yellow-100: var(--yellow-light);
+  --gnf-yellow-200: var(--yellow-mid);
+  --gnf-green-100: var(--green-mid);
+  --gnf-green-200: #90ee90;
+  --gnf-purple-100: var(--purple-mid);
+  --gnf-purple-200: #d0b0ff;
+  --gnf-border-pink: var(--pink-dark);
+  --gnf-border-pink-light: #f2c0de;
+  --gnf-border-pink-dark: #b06da8;
+
+  /* ================================================================
+     NEUTRALS
+     ================================================================ */
+  --gnf-text: #2d2d2d;
+  --gnf-text-secondary: #555;
+  --gnf-text-muted: #888;
+  --gnf-bg: #fff;
+  --gnf-bg-gray: #f0f0f0;
+  --gnf-bg-silver: #e0e0e0;
+  --gnf-bg-dark: #1a1a1a;
+
+  /* ================================================================
+     WINDOWS 95 BEVEL SYSTEM (pastel-adapted)
+     ================================================================ */
+  --bevel-highlight: #fff;
+  --bevel-shadow: var(--pink-dark);
+  --bevel-shadow-dark: var(--gnf-border-pink-dark);
+
+  /* 4-value border-color shorthand: top right bottom left */
+  --bevel-outset: var(--bevel-highlight) var(--bevel-shadow) var(--bevel-shadow) var(--bevel-highlight);
+  --bevel-inset:  var(--bevel-shadow) var(--bevel-highlight) var(--bevel-highlight) var(--bevel-shadow);
+
+  /* Inset box-shadows for depth */
+  --shadow-outset: inset 1px 1px 0 rgba(255, 255, 255, 0.7), inset -1px -1px 0 rgba(180, 100, 160, 0.3);
+  --shadow-inset:  inset 1px 1px 0 rgba(180, 100, 160, 0.3), inset -1px -1px 0 rgba(255, 255, 255, 0.7);
+
+  /* Window drop shadow — offset, never soft-blurred */
+  --window-shadow: 2px 2px 0 var(--gnf-pink-300);
+
+  /* ================================================================
+     TYPOGRAPHY
+     ================================================================ */
+  --font-body: "MS Sans Serif", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --font-heading: "Arial Black", Impact, Haettenschweiler, sans-serif;
+  --font-mono: "Courier New", Courier, monospace;
+  --font-decorative: "Comic Sans MS", "ComicRetro", "Pixelify Sans", cursive;
+
+  /* Type scale — locked. No font-size should fall outside this set. */
+  --text-xs:  11px;  /* badges, fine print */
+  --text-sm:  12px;  /* captions, labels */
+  --text-base: 13px; /* body copy, buttons, titlebar */
+  --text-md:  14px;  /* clock, taskbar */
+  --text-lg:  16px;  /* section body, CTAs */
+  --text-xl:  18px;  /* large CTAs */
+  --text-2xl: 20px;  /* h3 */
+  --text-3xl: 24px;  /* h2 */
+  --text-4xl: 28px;  /* h1 / boot title */
+  --text-5xl: 36px;  /* hero h1 */
+
+  /* Line heights */
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-loose: 1.6;
+
+  /* ================================================================
+     SPACING — 4px grid
+     ================================================================ */
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ================================================================
+     WINDOW CHROME
+     ================================================================ */
+  --window-border-width: 2px;
+  --window-bg: var(--gnf-bg);
+  --titlebar-bg: linear-gradient(90deg, var(--pink-dark), var(--pink-light));
+  --titlebar-text: var(--gnf-text);
+  --titlebar-padding: 4px 8px;
+  --titlebar-min-height: 28px;
+  --close-btn-size: 18px;
+  --close-btn-bg: var(--gnf-bg-silver);
+
+  /* ================================================================
+     BUTTONS
+     ================================================================ */
+  --btn-bg: var(--gnf-bg-silver);
+  --btn-primary-bg: var(--pink-mid);
+  --btn-border-width: 2px;
+  --btn-padding: 6px 16px;
+  --btn-font-size: var(--text-base);
+
+  /* ================================================================
+     FOCUS (Windows 95 authentic)
+     ================================================================ */
+  --focus-outline: 2px dotted #000;
+  --focus-offset: 2px;
+
+  /* ================================================================
+     LINKS
+     ================================================================ */
+  --link-color: #0077cc;             /* classic hyperlink blue */
+  --link-visited: var(--purple-dark);
+  --link-hover: var(--pink-dark);
+
+  /* ================================================================
+     HIT COUNTER
+     ================================================================ */
+  --counter-bg: var(--gnf-bg-dark);
+  --counter-text: var(--gnf-green-200);
+  --counter-font: var(--font-mono);
+
+  /* ================================================================
+     STATUS COLORS (warn / error — not in pastel palette)
+     ================================================================ */
+  --warn-bg: #fff7e0;
+  --warn-text: #b55800;
+  --error-bg: #ffe0e0;
+  --error-text: #c0392b;
+
+  /* ================================================================
+     CONSTRUCTION STRIPES
+     ================================================================ */
+  --stripe-color-1: var(--pink-mid);
+  --stripe-color-2: #fff;
+  --stripe-size: 20px;
+}

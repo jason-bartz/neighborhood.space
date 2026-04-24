@@ -1,0 +1,97 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // --- Helpers ---
+    // Pull the calling user's portal record (role + chapter live here).
+    function callerData() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;
+    }
+    function isAuthed() {
+      return request.auth != null;
+    }
+    function isSuperAdmin() {
+      return isAuthed() && callerData().role == 'superAdmin';
+    }
+    // Caller is a chapter director whose chapter matches the given chapter name.
+    function isChapterDirectorOf(chapterName) {
+      return isAuthed()
+        && callerData().role == 'chapter_director'
+        && callerData().chapter == chapterName;
+    }
+    // Caller is any authenticated portal user (lp / chapter_director / superAdmin).
+    function isPortalUser() {
+      return isAuthed()
+        && callerData().role in ['lp', 'chapter_director', 'superAdmin'];
+    }
+    function isImageUnderLimit() {
+      return request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+
+    // --- LP member photos ---
+    // Path: LP-photos/{targetUserId}/{fileName}
+    // Public read so the static chapter pages (and the in-portal directory)
+    // can render the URL directly. Writes are scoped:
+    //   - superAdmin: any member
+    //   - chapter_director: only members of their own chapter
+    //   - any authed user: their own photo (mirrors the /users self-edit rule
+    //     in firestore.rules which permits self-update of photoUrl)
+    match /LP-photos/{targetUserId}/{fileName} {
+      allow read: if true;
+      allow write: if isImageUnderLimit() && (
+        isSuperAdmin()
+        || (isAuthed() && request.auth.uid == targetUserId)
+        || isChapterDirectorOf(
+             firestore.get(/databases/(default)/documents/users/$(targetUserId)).data.chapter
+           )
+      );
+      allow delete: if isSuperAdmin()
+        || (isAuthed() && request.auth.uid == targetUserId)
+        || isChapterDirectorOf(
+             firestore.get(/databases/(default)/documents/users/$(targetUserId)).data.chapter
+           );
+    }
+
+    // --- Pitch photos (preserves existing behavior) ---
+    // Uploaded from the LP portal admin flow. Public read so the showcase
+    // and pitch pages render them.
+    match /pitch-photos/{fileName} {
+      allow read: if true;
+      allow write: if isPortalUser() && isImageUnderLimit();
+      allow delete: if isPortalUser();
+    }
+
+    // --- Founder / grant winner photos (preserves existing behavior) ---
+    match /founders/{fileName} {
+      allow read: if true;
+      allow write: if isPortalUser() && isImageUnderLimit();
+      allow delete: if isPortalUser();
+    }
+
+    // --- Chapter landing-page photos (hero + community gallery) ---
+    // Path: chapter-photos/{chapterSlug}/{fileName}
+    // Public read so /<slug> pages render the URL directly.
+    // Writes: superAdmin for any chapter, or a chapter_director whose
+    // /users.chapter matches the chapter's /chapters.name.
+    match /chapter-photos/{chapterSlug}/{fileName} {
+      allow read: if true;
+      allow write: if isImageUnderLimit() && (
+        isSuperAdmin()
+        || isChapterDirectorOf(
+             firestore.get(/databases/(default)/documents/chapters/$(chapterSlug)).data.name
+           )
+      );
+      allow delete: if isSuperAdmin()
+        || isChapterDirectorOf(
+             firestore.get(/databases/(default)/documents/chapters/$(chapterSlug)).data.name
+           );
+    }
+
+    // --- Default deny ---
+    match /{allPaths=**} {
+      allow read: if false;
+      allow write: if false;
+    }
+  }
+}

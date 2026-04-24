@@ -1,0 +1,2329 @@
+/* theme-tokens.css — "Millennium Bug" retro-modern hybrid layer
+ *
+ * Loads AFTER win95-tokens.css, so it overrides/extends the existing design
+ * system without breaking anything. The OS chrome (taskbar, dock, window
+ * frame) continues to use the legacy `--gnf-*` pastel tokens; *content*
+ * inside windows uses the new color-block + editorial-type system below.
+ *
+ * Retro cues (at ~4/10): pixel-font eyebrows, monospace numerals,
+ * hard 1px ink borders, offset hard shadows on cards.
+ * Modern moves: saturated color blocks, Instrument Serif display,
+ * Inter body, generous content spacing, restrained soft-shadow
+ * elevation on floating UI only.
+ */
+
+/* ================================================================
+   FONT LOADING — pulled from Google Fonts
+   Instrument Serif = editorial display; Inter = body;
+   JetBrains Mono = numerals/data; Pixelify Sans = micro-labels
+   ================================================================ */
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Pixelify+Sans:wght@400;500;700&display=swap");
+
+:root {
+  /* ================================================================
+     "MILLENNIUM BUG" PALETTE — saturated, slightly rounded
+     ================================================================ */
+  --mb-magenta:    #e93a7d;  /* primary brand, CTA, hero */
+  --mb-magenta-deep: #c21d61;
+  --mb-magenta-soft: #fde0ec;
+
+  --mb-grape:      #6b4fbb;
+  --mb-grape-deep: #4a2f95;
+  --mb-grape-soft: #e7dffa;
+
+  --mb-aqua:       #2bb3c4;
+  --mb-aqua-deep:  #157b8a;
+  --mb-aqua-soft:  #d5f1f4;
+
+  --mb-tangerine:  #f28c3b;
+  --mb-tangerine-deep: #c66915;
+  --mb-tangerine-soft: #fde7d0;
+
+  --mb-butter:     #f0c94b;
+  --mb-butter-deep: #c89918;
+  --mb-butter-soft: #fbf1cc;
+
+  --mb-paper:      #faf4e3;  /* warm cream relief */
+  --mb-paper-deep: #ede0bd;
+
+  --mb-ink:        #141419;  /* hard borders + body on light blocks */
+  --mb-ink-60:     rgba(20, 20, 25, 0.6);
+  --mb-ink-15:     rgba(20, 20, 25, 0.15);
+  --mb-chalk:      #ffffff;  /* text on dark/saturated blocks */
+
+  /* ================================================================
+     CONTENT TYPOGRAPHY — Pair A (Editorial Modern)
+     OS chrome still uses --font-body (MS Sans Serif) from win95-tokens.
+     Content inside windows uses these.
+     ================================================================ */
+  --font-display:  "Instrument Serif", "Times New Roman", Georgia, serif;
+  --font-content:  "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-numeral:  "JetBrains Mono", "Menlo", "Courier New", monospace;
+  --font-pixel:    "Pixelify Sans", "Courier New", monospace;
+  --font-quirky:   "Arial Black", Impact, Haettenschweiler, sans-serif;
+
+  /* Content type scale — editorial, larger than OS chrome */
+  --tc-eyebrow:  11px;   /* pixel label */
+  --tc-micro:    12px;   /* fine print, meta */
+  --tc-body:     15px;   /* paragraphs (bumped from 13) */
+  --tc-lede:     19px;   /* intro / lede */
+  --tc-h4:       22px;
+  --tc-h3:       28px;
+  --tc-h2:       40px;
+  --tc-h1:       56px;   /* hero */
+  --tc-display:  88px;   /* reserved for huge moments */
+
+  --tc-numeral-sm: 20px;
+  --tc-numeral-md: 36px;
+  --tc-numeral-lg: 64px;  /* stats hero */
+
+  /* ================================================================
+     SPACING — content rhythm (generous)
+     ================================================================ */
+  --s-block-pad-y: 72px;   /* vertical padding inside a content block */
+  --s-block-pad-x: 48px;   /* horizontal padding */
+  --s-block-gap:    48px;  /* gap between blocks */
+  --s-stack:        24px;  /* paragraph/element rhythm */
+  --s-tight:        12px;
+
+  /* ================================================================
+     BORDERS — retro cue: crisp, uncompromising
+     ================================================================ */
+  --border-ink:      1px solid var(--mb-ink);
+  --border-ink-2:    2px solid var(--mb-ink);
+  --border-chalk:    1px solid var(--mb-chalk);
+  --border-chalk-2:  2px solid var(--mb-chalk);
+
+  /* ================================================================
+     SHADOWS — dual system
+     --shadow-hard: retro offset, used on cards / buttons
+     --shadow-soft: modern diffused, used on floating UI only
+     ================================================================ */
+  --shadow-hard:     3px 3px 0 0 var(--mb-ink);
+  --shadow-hard-sm:  2px 2px 0 0 var(--mb-ink);
+  --shadow-hard-lg:  5px 5px 0 0 var(--mb-ink);
+  --shadow-hard-chalk: 3px 3px 0 0 var(--mb-chalk);
+
+  --shadow-soft-sm:  0 2px 6px rgba(0, 0, 0, 0.08);
+  --shadow-soft-md:  0 6px 20px rgba(0, 0, 0, 0.12);
+  --shadow-soft-lg:  0 14px 40px rgba(0, 0, 0, 0.14);
+
+  /* ================================================================
+     RADIUS — modest (retro with modern softening)
+     Remember: win95-base.css has a nuclear `border-radius: 0 !important;`
+     reset. New utility classes below opt back in with `!important`.
+     ================================================================ */
+  --r-sm: 3px;
+  --r-md: 6px;
+  --r-lg: 12px;
+  --r-pill: 999px;
+}
+
+/* ================================================================
+   CHROME — titlebar is now ink with pixel-font white text to match the
+   new aesthetic. All window frames using --titlebar-bg pick this up.
+   ================================================================ */
+:root {
+  --titlebar-bg: var(--mb-ink);
+  --titlebar-text: var(--mb-chalk);
+  --close-btn-bg: var(--mb-magenta);
+}
+
+/* Override the Win95 titlebar typography at the class level so even
+   existing .win95-titlebar markup picks up the new look. */
+.win95-titlebar {
+  background: var(--mb-ink) !important;
+  color: var(--mb-chalk) !important;
+  font-family: var(--font-pixel) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.04em !important;
+  text-transform: none !important;
+  border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+}
+
+/* Close button — solid magenta on ink, no bevel */
+.win95-close-btn {
+  background: var(--mb-magenta) !important;
+  border: 1px solid var(--mb-chalk) !important;
+  box-shadow: none !important;
+  color: var(--mb-chalk) !important;
+  font-size: 14px !important;
+  font-family: var(--font-content) !important;
+  width: 22px !important;
+  height: 22px !important;
+  min-width: 22px !important;
+  min-height: 22px !important;
+}
+.win95-close-btn:hover { background: var(--mb-magenta-deep) !important; }
+.win95-close-btn:active {
+  border-color: var(--mb-chalk) !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* Retro-title-bar (legacy class used by older components) */
+.retro-title-bar {
+  background: var(--mb-ink) !important;
+  color: var(--mb-chalk) !important;
+  font-family: var(--font-pixel) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.04em !important;
+  text-transform: none !important;
+  border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+}
+.retro-title-bar button {
+  background: var(--mb-magenta) !important;
+  color: var(--mb-chalk) !important;
+  border: 1px solid var(--mb-chalk) !important;
+  box-shadow: none !important;
+}
+
+/* Win95 window outer frame — ink border, hard shadow */
+.win95-window,
+.retro-window {
+  background: var(--mb-chalk) !important;
+  border: 2px solid var(--mb-ink) !important;
+  box-shadow: var(--shadow-hard-lg) !important;
+}
+
+/* ================================================================
+   CONTENT-LEVEL UTILITY CLASSES
+   Prefix: .mb- (for "millennium bug")
+   These are meant to be used INSIDE windows, not on OS chrome.
+   ================================================================ */
+
+/* Typography ----------------------------------------------------- */
+
+.mb-content {
+  font-family: var(--font-content);
+  font-size: var(--tc-body);
+  line-height: 1.55;
+  color: var(--mb-ink);
+}
+
+.mb-eyebrow {
+  font-family: var(--font-pixel);
+  font-size: var(--tc-eyebrow);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  display: inline-block;
+  margin-bottom: var(--s-tight);
+}
+
+.mb-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.mb-h1      { font-family: var(--font-display); font-weight: 400; font-size: var(--tc-h1); line-height: 1.04; letter-spacing: -0.02em; margin: 0; }
+.mb-h2      { font-family: var(--font-display); font-weight: 400; font-size: var(--tc-h2); line-height: 1.05; letter-spacing: -0.015em; margin: 0; }
+.mb-h3      { font-family: var(--font-display); font-weight: 400; font-size: var(--tc-h3); line-height: 1.1;  letter-spacing: -0.01em;  margin: 0; }
+.mb-h4      { font-family: var(--font-content); font-weight: 700; font-size: var(--tc-h4); line-height: 1.25; margin: 0; }
+
+.mb-lede    { font-family: var(--font-content); font-size: var(--tc-lede); line-height: 1.4; color: var(--mb-ink); margin: 0; }
+.mb-body    { font-family: var(--font-content); font-size: var(--tc-body); line-height: 1.55; color: var(--mb-ink); margin: 0; }
+.mb-micro   { font-family: var(--font-content); font-size: var(--tc-micro); line-height: 1.4; color: var(--mb-ink-60); }
+.mb-italic  { font-family: var(--font-display); font-style: italic; font-weight: 400; }
+
+.mb-numeral {
+  font-family: var(--font-numeral);
+  font-feature-settings: "tnum" 1, "zero" 1;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.mb-numeral-hero {
+  font-family: var(--font-numeral);
+  font-feature-settings: "tnum" 1, "zero" 1;
+  font-weight: 700;
+  font-size: var(--tc-numeral-lg);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+/* Color blocks --------------------------------------------------- */
+
+.mb-block {
+  padding: var(--s-block-pad-y) var(--s-block-pad-x);
+  position: relative;
+  border: var(--border-ink-2);
+  margin-bottom: calc(-2px); /* blocks stack edge-to-edge sharing the ink border */
+}
+
+.mb-block-magenta {
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+  --block-accent: var(--mb-butter);
+  --block-card-bg: var(--mb-chalk);
+  --block-card-fg: var(--mb-ink);
+  --block-ink: var(--mb-chalk);
+}
+
+.mb-block-grape {
+  background: var(--mb-grape);
+  color: var(--mb-chalk);
+  --block-accent: var(--mb-aqua);
+  --block-card-bg: var(--mb-chalk);
+  --block-card-fg: var(--mb-ink);
+  --block-ink: var(--mb-chalk);
+}
+
+.mb-block-aqua {
+  background: var(--mb-aqua);
+  color: var(--mb-ink);
+  --block-accent: var(--mb-magenta);
+  --block-card-bg: var(--mb-paper);
+  --block-card-fg: var(--mb-ink);
+  --block-ink: var(--mb-ink);
+}
+
+.mb-block-tangerine {
+  background: var(--mb-tangerine);
+  color: var(--mb-ink);
+  --block-accent: var(--mb-grape);
+  --block-card-bg: var(--mb-paper);
+  --block-card-fg: var(--mb-ink);
+  --block-ink: var(--mb-ink);
+}
+
+.mb-block-butter {
+  background: var(--mb-butter);
+  color: var(--mb-ink);
+  --block-accent: var(--mb-magenta);
+  --block-card-bg: var(--mb-chalk);
+  --block-card-fg: var(--mb-ink);
+  --block-ink: var(--mb-ink);
+}
+
+.mb-block-paper {
+  background: var(--mb-paper);
+  color: var(--mb-ink);
+  --block-accent: var(--mb-magenta);
+  --block-card-bg: var(--mb-chalk);
+  --block-card-fg: var(--mb-ink);
+  --block-ink: var(--mb-ink);
+}
+
+.mb-block-ink {
+  background: var(--mb-ink);
+  color: var(--mb-chalk);
+  --block-accent: var(--mb-magenta);
+  --block-card-bg: #1f1f27;
+  --block-card-fg: var(--mb-chalk);
+  --block-ink: var(--mb-chalk);
+}
+
+/* Inside dark/saturated blocks, eyebrow + headlines take block-ink */
+.mb-block-magenta .mb-eyebrow,
+.mb-block-grape   .mb-eyebrow,
+.mb-block-ink     .mb-eyebrow { color: var(--mb-chalk); }
+
+/* Cards ---------------------------------------------------------- */
+/* Hard-bordered card that floats on the colored block. Uses block's
+   --block-card-* variables so the card contrasts correctly on any bg. */
+
+.mb-card {
+  background: var(--block-card-bg, var(--mb-chalk));
+  color: var(--block-card-fg, var(--mb-ink));
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  padding: 24px;
+  position: relative;
+}
+
+.mb-card-sm    { padding: 16px; box-shadow: var(--shadow-hard-sm); }
+.mb-card-lg    { padding: 32px; box-shadow: var(--shadow-hard-lg); }
+
+/* When a card sits on ink block, it gets chalk border/shadow */
+.mb-block-ink .mb-card {
+  border-color: var(--mb-chalk);
+  box-shadow: var(--shadow-hard-chalk);
+  background: transparent;
+  color: var(--mb-chalk);
+}
+
+/* Buttons -------------------------------------------------------- */
+/* One primary, one secondary. Both retro-offset (hard shadow) with a
+   tiny press state. Primary is magenta on dark blocks, ink on light. */
+
+.mb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 24px;
+  font-family: var(--font-content);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  border: 2px solid var(--mb-ink);
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+  box-shadow: var(--shadow-hard);
+  transition: transform 60ms ease-out, box-shadow 60ms ease-out;
+  box-sizing: border-box;
+  /* Offset trailing letter-spacing so uppercase text reads optically centered */
+  text-indent: 0.08em;
+}
+
+/* When the button is width-expanded (common on card CTAs), switch to block
+   flex so centering is reliable across <button> and <a> elements. */
+.mb-btn[style*="width: 100%"],
+.mb-btn.mb-btn-full {
+  display: flex;
+  width: 100%;
+}
+
+.mb-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard-lg);
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+  text-decoration: none;
+}
+
+.mb-btn:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 0 var(--mb-ink);
+}
+
+.mb-btn:focus-visible {
+  outline: 2px solid var(--mb-ink);
+  outline-offset: 4px;
+}
+
+.mb-btn-ink {
+  background: var(--mb-ink);
+  color: var(--mb-chalk);
+}
+.mb-btn-chalk {
+  background: var(--mb-chalk);
+  color: var(--mb-ink);
+}
+.mb-btn-aqua      { background: var(--mb-aqua);      color: var(--mb-ink); }
+.mb-btn-butter    { background: var(--mb-butter);    color: var(--mb-ink); }
+.mb-btn-tangerine { background: var(--mb-tangerine); color: var(--mb-ink); }
+.mb-btn-grape     { background: var(--mb-grape);     color: var(--mb-chalk); }
+
+/* Ghost button for within saturated blocks — chalk border, transparent */
+.mb-btn-ghost {
+  background: transparent;
+  color: var(--block-ink, var(--mb-chalk));
+  border-color: currentColor;
+  box-shadow: var(--shadow-hard-chalk);
+}
+
+.mb-block-aqua .mb-btn-ghost,
+.mb-block-butter .mb-btn-ghost,
+.mb-block-tangerine .mb-btn-ghost,
+.mb-block-paper .mb-btn-ghost {
+  color: var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+}
+
+/* Arrow accent for CTAs */
+.mb-btn-arrow {
+  font-family: var(--font-content);
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Dividers / ornaments ------------------------------------------ */
+
+.mb-rule {
+  border: none;
+  border-top: 2px solid var(--mb-ink);
+  margin: 0;
+}
+.mb-rule-chalk { border-top-color: var(--mb-chalk); }
+
+.mb-marker {
+  /* Small rectangle marker, left-border for pull-quotes / highlights */
+  border-left: 4px solid var(--mb-magenta);
+  padding-left: 16px;
+}
+
+/* Section header group ------------------------------------------ */
+/* Pixel eyebrow + big display heading with consistent rhythm */
+
+.mb-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 40px;
+}
+
+/* Grids / layout ------------------------------------------------ */
+
+.mb-grid {
+  display: grid;
+  gap: 24px;
+}
+.mb-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.mb-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.mb-grid-4 { grid-template-columns: repeat(4, 1fr); }
+
+@media (max-width: 900px) {
+  .mb-grid-4 { grid-template-columns: repeat(2, 1fr); }
+  .mb-grid-3 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 600px) {
+  .mb-grid-2,
+  .mb-grid-3,
+  .mb-grid-4 { grid-template-columns: 1fr; }
+  :root {
+    --s-block-pad-y: 48px;
+    --s-block-pad-x: 24px;
+  }
+}
+
+/* Pull-out stat ------------------------------------------------- */
+
+.mb-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mb-stat-num {
+  font-family: var(--font-numeral);
+  font-size: var(--tc-numeral-lg);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+  color: var(--block-accent, var(--mb-magenta));
+  display: block;
+}
+.mb-stat-label {
+  font-family: var(--font-content);
+  font-size: var(--tc-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--block-ink, var(--mb-ink));
+  opacity: 0.85;
+}
+
+/* Tag / chip ---------------------------------------------------- */
+
+.mb-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border: 1.5px solid currentColor;
+  background: transparent;
+}
+
+/* Badge — solid rectangle with mono label */
+.mb-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  font-family: var(--font-numeral);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--mb-ink);
+  color: var(--mb-chalk);
+}
+
+/* Footer link */
+.mb-link-underline {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.mb-link-underline:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* ================================================================
+   OVERRIDE the global `border-radius: 0 !important` ONLY for
+   our new utility classes that want subtle softening.
+   Keep the rest of the OS crisp.
+   ================================================================ */
+.mb-btn,
+.mb-btn:hover,
+.mb-card,
+.mb-card-sm,
+.mb-card-lg,
+.mb-badge,
+.mb-tag {
+  border-radius: 0 !important; /* stay crisp — the retro cue */
+}
+
+/* ================================================================
+   SMALL MEDIA ADJUSTMENTS
+   ================================================================ */
+@media (max-width: 780px) {
+  :root {
+    --tc-h1: 40px;
+    --tc-h2: 30px;
+    --tc-h3: 24px;
+    --tc-numeral-lg: 48px;
+  }
+}
+
+/* ================================================================
+   LEGACY .win95-* UTILITY CASCADE
+   Overrides to bring existing .win95-btn / .win95-cta / .win95-section
+   / .win95-stat / .win95-hero / .win95-panel into the new Millennium
+   Bug theme. Components still using these classes auto-upgrade.
+   Only visual styling is overridden — layout/sizing stays so nothing
+   shifts position.
+   ================================================================ */
+
+.win95-btn {
+  border: var(--border-ink-2) !important;
+  border-color: var(--mb-ink) !important;
+  background: var(--mb-chalk);
+  box-shadow: var(--shadow-hard-sm) !important;
+  font-family: var(--font-content) !important;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--mb-ink);
+  transition: transform 60ms ease-out, box-shadow 60ms ease-out !important;
+}
+.win95-btn:hover {
+  background: var(--mb-butter);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard) !important;
+}
+.win95-btn:active {
+  border-color: var(--mb-ink) !important;
+  box-shadow: 0 0 0 0 var(--mb-ink) !important;
+  transform: translate(2px, 2px);
+}
+.win95-btn-primary { background: var(--mb-magenta); color: var(--mb-chalk); }
+.win95-btn-primary:hover { background: var(--mb-magenta-deep); color: var(--mb-chalk); }
+
+.win95-cta,
+.win95-cta:visited {
+  background: var(--mb-magenta);
+  border: var(--border-ink-2) !important;
+  border-color: var(--mb-ink) !important;
+  box-shadow: var(--shadow-hard) !important;
+  padding: 14px 24px;
+  font-family: var(--font-content) !important;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mb-chalk) !important;
+  transition: transform 60ms ease-out, box-shadow 60ms ease-out !important;
+}
+.win95-cta:hover {
+  background: var(--mb-magenta-deep);
+  color: var(--mb-chalk) !important;
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard-lg) !important;
+}
+.win95-cta:active {
+  box-shadow: 0 0 0 0 var(--mb-ink) !important;
+  transform: translate(3px, 3px);
+}
+.win95-cta--alt,
+.win95-cta--alt:visited { background: var(--mb-grape); color: var(--mb-chalk) !important; }
+.win95-cta--alt:hover { background: var(--mb-grape-deep); color: var(--mb-chalk) !important; }
+
+/* On the pink hero, the magenta CTA disappears into the background.
+   Swap to a chalk button with ink text so the action reads clearly. */
+.win95-hero .win95-cta,
+.win95-hero .win95-cta:visited {
+  background: var(--mb-chalk);
+  color: var(--mb-ink) !important;
+}
+.win95-hero .win95-cta:hover {
+  background: var(--mb-butter);
+  color: var(--mb-ink) !important;
+}
+
+.win95-section {
+  background: var(--mb-chalk) !important;
+  border: var(--border-ink-2) !important;
+  border-color: var(--mb-ink) !important;
+  box-shadow: var(--shadow-hard) !important;
+  padding: 32px;
+  font-family: var(--font-content);
+  color: var(--mb-ink);
+}
+.win95-section--pink    { background: var(--mb-magenta-soft) !important; }
+.win95-section--blue    { background: var(--mb-aqua-soft)    !important; }
+.win95-section--yellow  { background: var(--mb-butter-soft)  !important; }
+.win95-section--green   { background: #d6f0e0                !important; }
+.win95-section--purple  { background: var(--mb-grape-soft)   !important; }
+
+.win95-section h2 {
+  font-family: var(--font-display) !important;
+  font-weight: 400 !important;
+  font-size: var(--tc-h2) !important;
+  line-height: 1.08 !important;
+  letter-spacing: -0.015em;
+  border-bottom: 1px solid var(--mb-ink) !important;
+  padding-bottom: 16px !important;
+  color: var(--mb-ink) !important;
+}
+
+.win95-hero {
+  background: var(--mb-magenta);
+  border: var(--border-ink-2) !important;
+  border-color: var(--mb-ink) !important;
+  box-shadow: var(--shadow-hard-lg) !important;
+}
+.win95-hero-left  { background: var(--mb-magenta); color: var(--mb-chalk); }
+.win95-hero-right { background: var(--mb-magenta-deep); }
+.win95-hero-title {
+  font-family: var(--font-display) !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.02em;
+  color: var(--mb-chalk) !important;
+}
+
+.win95-panel {
+  background: var(--mb-chalk) !important;
+  border: var(--border-ink-2) !important;
+  border-color: var(--mb-ink) !important;
+  box-shadow: var(--shadow-hard-sm) !important;
+}
+
+.win95-stat {
+  background: var(--mb-chalk) !important;
+  border: var(--border-ink-2) !important;
+  border-color: var(--mb-ink) !important;
+  box-shadow: var(--shadow-hard) !important;
+}
+.win95-stat-num {
+  font-family: var(--font-numeral) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.04em;
+}
+.win95-stat-num--pink   { color: var(--mb-magenta)  !important; }
+.win95-stat-num--blue   { color: var(--mb-aqua-deep) !important; }
+.win95-stat-num--green  { color: #2d7a52            !important; }
+.win95-stat-num--purple { color: var(--mb-grape)    !important; }
+.win95-stat-num--yellow { color: var(--mb-tangerine-deep) !important; }
+.win95-stat p {
+  font-family: var(--font-content) !important;
+  color: var(--mb-ink) !important;
+  font-weight: 600;
+}
+
+.win95-chip {
+  background: var(--mb-chalk) !important;
+  border: var(--border-ink) !important;
+  box-shadow: var(--shadow-hard-sm) !important;
+  font-family: var(--font-content) !important;
+  color: var(--mb-ink) !important;
+}
+
+.win95-lp-card {
+  background: var(--mb-chalk) !important;
+  border: var(--border-ink-2) !important;
+  border-color: var(--mb-ink) !important;
+  box-shadow: var(--shadow-hard) !important;
+  position: relative;
+  font-family: var(--font-content) !important;
+}
+.win95-lp-card img {
+  border: var(--border-ink) !important;
+  box-shadow: var(--shadow-hard-sm) !important;
+  filter: grayscale(100%);
+  transition: filter 200ms ease-out;
+}
+.win95-lp-card:hover img {
+  filter: grayscale(0%);
+}
+.win95-lp-card h3 {
+  font-family: var(--font-display) !important;
+  font-weight: 400 !important;
+}
+
+/* Chapter director badge — small pixel-label pinned to the card's top-right */
+.win95-lp-director-tag {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 1.5px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  line-height: 1.4;
+  z-index: 1;
+}
+
+/* ================================================================
+   COMMUNITY GALLERY — marquee + click-to-enlarge lightbox
+   ================================================================ */
+
+/* Every gallery tile becomes clickable to open the lightbox */
+.win95-image-grid .win95-image,
+.win95-gallery-marquee .win95-image {
+  cursor: zoom-in;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+.win95-image-grid .win95-image:hover,
+.win95-gallery-marquee .win95-image:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-hard-lg);
+}
+
+/* Marquee: used when there are enough images to warrant horizontal scroll.
+   Track duplicates the image list in JSX to make the loop seamless. */
+.win95-gallery-marquee {
+  overflow: hidden;
+  border: var(--border-ink-2);
+  border-color: var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  background: var(--mb-chalk);
+  margin-top: var(--space-4);
+  /* fade edges so images don't pop in/out */
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 6%, #000 94%, transparent 100%);
+}
+
+.win95-gallery-marquee-track {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  width: max-content;
+  animation: win95-marquee-scroll 45s linear infinite;
+  will-change: transform;
+}
+
+.win95-gallery-marquee:hover .win95-gallery-marquee-track {
+  animation-play-state: paused;
+}
+
+.win95-gallery-marquee .win95-image {
+  flex: 0 0 auto;
+  width: 260px;
+  height: 180px;
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  overflow: hidden;
+  background: var(--mb-chalk);
+}
+
+.win95-gallery-marquee .win95-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+@keyframes win95-marquee-scroll {
+  0%   { transform: translateX(0); }
+  /* Translate by half the duplicated track so the loop is seamless */
+  100% { transform: translateX(calc(-50% - 8px)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .win95-gallery-marquee-track { animation: none; }
+  .win95-gallery-marquee {
+    overflow-x: auto;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* Lightbox — click any gallery image to open */
+.win95-lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 20, 25, 0.88);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  padding: 40px;
+  cursor: zoom-out;
+  animation: win95-lightbox-fade 120ms ease-out;
+}
+
+@keyframes win95-lightbox-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.win95-lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border: 3px solid var(--mb-chalk);
+  box-shadow: 8px 8px 0 0 var(--mb-magenta);
+  cursor: default;
+}
+
+.win95-lightbox-close {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+  border: 2px solid var(--mb-chalk);
+  box-shadow: var(--shadow-hard-chalk);
+  font-family: var(--font-content);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.win95-lightbox-close:hover {
+  background: var(--mb-magenta-deep);
+  transform: translate(-1px, -1px);
+}
+
+.win95-final-cta {
+  background: var(--mb-ink) !important;
+  color: var(--mb-chalk);
+  border: var(--border-ink-2) !important;
+  border-color: var(--mb-ink) !important;
+  box-shadow: var(--shadow-hard-lg) !important;
+}
+.win95-final-cta h2 {
+  font-family: var(--font-display) !important;
+  font-weight: 400 !important;
+  color: var(--mb-chalk) !important;
+  text-shadow: none !important;
+  border-bottom: none !important;
+}
+.win95-final-cta p {
+  background: transparent !important;
+  color: var(--mb-chalk) !important;
+  opacity: 0.9;
+  font-family: var(--font-content) !important;
+  font-size: var(--tc-lede) !important;
+}
+
+.win95-tab {
+  font-family: var(--font-content) !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  border-color: var(--mb-ink) !important;
+  border-width: 2px !important;
+  background: var(--mb-paper) !important;
+  color: var(--mb-ink) !important;
+}
+.win95-tab:hover {
+  background: var(--mb-butter-soft) !important;
+}
+.win95-tab.is-active {
+  background: var(--mb-chalk) !important;
+  border-bottom-color: var(--mb-chalk) !important;
+  font-weight: 700 !important;
+}
+
+/* Footer: light paper block so it reads as a clean, distinct zone
+   AFTER the dark final-cta (no more two-stacked-black-boxes effect). */
+.win95-footer {
+  background: var(--mb-paper-deep) !important;
+  color: var(--mb-ink) !important;
+  border: var(--border-ink-2) !important;
+  border-color: var(--mb-ink) !important;
+  box-shadow: var(--shadow-hard) !important;
+  font-family: var(--font-content) !important;
+  padding: 28px 24px !important;
+  margin-top: var(--space-6);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 20px 28px;
+}
+.win95-footer a {
+  color: var(--mb-ink);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.win95-footer a:visited { color: var(--mb-ink); }
+.win95-footer a:hover { color: var(--mb-magenta); }
+
+.win95-footer-logo {
+  display: block;
+  width: 64px;
+  height: auto;
+  flex-shrink: 0;
+}
+
+.win95-footer-contact {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  grid-column: 2;
+}
+
+.win95-footer-contact-label {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+}
+
+.win95-footer-mailto {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--mb-magenta);
+  color: var(--mb-chalk) !important;
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  font-family: var(--font-content);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none !important;
+  transition: transform 60ms ease-out, box-shadow 60ms ease-out, background 60ms ease-out;
+}
+.win95-footer-mailto:hover {
+  background: var(--mb-magenta-deep);
+  color: var(--mb-chalk) !important;
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard);
+}
+.win95-footer-mailto:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 0 var(--mb-ink);
+}
+
+.win95-footer-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  font-family: var(--font-content);
+  font-size: 12px;
+}
+
+.win95-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 12px;
+}
+
+.win95-footer-copy {
+  font-family: var(--font-numeral);
+  font-size: 11px;
+  color: var(--mb-ink-60);
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+@media (max-width: 640px) {
+  .win95-footer {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+    padding: 24px 20px !important;
+  }
+  .win95-footer-contact {
+    grid-column: 1;
+    align-items: center;
+  }
+  .win95-footer-meta {
+    align-items: center;
+  }
+  .win95-footer-links { justify-content: center; }
+}
+
+/* Tighter final-cta so the big black block isn't so dominant. */
+.win95-final-cta {
+  padding: 40px 24px !important;
+}
+.win95-final-cta h2 {
+  font-size: var(--tc-h3) !important;
+  margin-bottom: 12px !important;
+}
+.win95-final-cta p {
+  font-size: var(--tc-body) !important;
+  max-width: 520px;
+  margin: 0 auto 20px !important;
+  padding: 0 !important;
+  line-height: 1.5 !important;
+}
+
+/* The "Now!" pulse badge becomes a solid ink block w/ magenta accent */
+.win95-badge-new {
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+  padding: 2px 8px;
+  text-shadow: none;
+  animation: none;
+  font-family: var(--font-pixel) !important;
+  letter-spacing: 0.1em;
+}
+
+/* Page wrapper for static chapter pages — give them a paper base */
+.win95-container {
+  background: var(--mb-paper);
+  color: var(--mb-ink);
+  font-family: var(--font-content);
+}
+
+/* Body typography when .win95-container present */
+.win95-container h1, .win95-container h2, .win95-container h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+.win95-body { font-family: var(--font-content) !important; color: var(--mb-ink) !important; }
+.win95-caption { font-family: var(--font-numeral) !important; letter-spacing: 0.04em; }
+
+/* Hit counter mono + ink */
+.win95-hit-counter {
+  background: var(--mb-ink) !important;
+  color: var(--mb-butter) !important;
+  font-family: var(--font-numeral) !important;
+  border: var(--border-ink-2) !important;
+  box-shadow: var(--shadow-hard-sm) !important;
+}
+
+/* ================================================================
+   STANDALONE PAGE / FORM SHELL
+   Apply .mb-form-shell to any container to auto-theme its inputs,
+   labels, selects, and legacy structure. Used by pitch form, LP
+   application, grant form, contest form, auth login, etc.
+   ================================================================ */
+
+.mb-form-shell {
+  font-family: var(--font-content);
+  color: var(--mb-ink);
+}
+
+.mb-form-shell label {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mb-ink);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 8px !important;
+}
+
+/* Radio/checkbox labels wrap their input — they're content labels, not
+   field labels. Restore readable sentence-case styling so "Yes", "No",
+   and consent statements don't render as tiny pixel uppercase. */
+.mb-form-shell label:has(> input[type="checkbox"]),
+.mb-form-shell label:has(> input[type="radio"]) {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-family: var(--font-content) !important;
+  font-size: 14px !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  font-weight: 500 !important;
+  color: var(--mb-ink);
+  margin-bottom: 0 !important;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.mb-form-shell label:has(> input[type="checkbox"]) input,
+.mb-form-shell label:has(> input[type="radio"]) input {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+
+.mb-form-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.mb-form-shell textarea,
+.mb-form-shell select {
+  font-family: var(--font-content) !important;
+  font-size: 14px !important;
+  color: var(--mb-ink) !important;
+  background: var(--mb-chalk) !important;
+  border: 2px solid var(--mb-ink) !important;
+  box-shadow: var(--shadow-hard-sm) !important;
+  padding: 10px 12px !important;
+  line-height: 1.4 !important;
+  height: auto !important;
+}
+
+.mb-form-shell input:focus,
+.mb-form-shell textarea:focus,
+.mb-form-shell select:focus {
+  outline: 2px solid var(--mb-magenta) !important;
+  outline-offset: 2px !important;
+}
+
+.mb-form-shell textarea {
+  min-height: 90px !important;
+  resize: vertical;
+}
+
+.mb-form-shell select {
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  background-color: var(--mb-chalk) !important;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12'><path d='M2 4 L6 8 L10 4' fill='none' stroke='%23141419' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 12px 12px !important;
+  padding-right: 40px !important;
+}
+.mb-form-shell select::-ms-expand { display: none; }
+
+.mb-form-shell small {
+  font-family: var(--font-content) !important;
+  font-size: 12px !important;
+  color: var(--mb-ink-60) !important;
+  margin-top: 6px !important;
+  display: block;
+}
+
+.mb-form-shell h1,
+.mb-form-shell h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  color: var(--mb-ink);
+}
+
+.mb-form-shell h3 {
+  font-family: var(--font-content);
+  font-weight: 700;
+  color: var(--mb-ink);
+}
+
+.mb-form-shell ul {
+  padding-left: 20px;
+}
+
+/* Legacy inset panel inside form shell becomes a soft intro card */
+.mb-form-shell .win95-inset {
+  background: var(--mb-magenta-soft) !important;
+  border: 2px solid var(--mb-ink) !important;
+  box-shadow: none !important;
+  color: var(--mb-ink);
+}
+
+/* ================================================================
+   STANDALONE PAGE WRAPPER
+   Drop the wallpaper; paper backdrop. Titlebar retained but retuned.
+   ================================================================ */
+
+.mb-page {
+  min-height: 100vh;
+  background: var(--mb-paper);
+  font-family: var(--font-content);
+  color: var(--mb-ink);
+}
+
+.mb-page-window {
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-lg);
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  width: 95%;
+  max-width: 720px;
+}
+
+.mb-page-titlebar {
+  background: var(--mb-ink);
+  color: var(--mb-chalk);
+  padding: 10px 16px;
+  min-height: 32px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-family: var(--font-pixel);
+  user-select: none;
+}
+
+.mb-page-close {
+  width: 22px;
+  height: 22px;
+  background: var(--mb-magenta);
+  border: 1px solid var(--mb-chalk);
+  color: var(--mb-chalk);
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mb-page-close:hover { background: var(--mb-magenta-deep); }
+
+/* ================================================================
+   ANIMATED "GRITTY" GRADIENT WALLPAPER
+   Replaces gnf-wallpaper.svg everywhere.
+   Two layers:
+     1. Slow-drifting multi-stop conic/linear gradient in the MB palette
+     2. SVG noise texture overlay for the "gritty" feel
+   Applied via .mb-wallpaper (fixed, full-viewport, behind everything).
+   ================================================================ */
+
+.mb-wallpaper,
+body {
+  background: var(--mb-ink);
+}
+
+.mb-wallpaper::before,
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 30%, var(--mb-magenta) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, var(--mb-grape) 0%, transparent 50%),
+    radial-gradient(ellipse 90% 60% at 75% 85%, var(--mb-aqua) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 50% at 25% 90%, var(--mb-tangerine) 0%, transparent 45%),
+    radial-gradient(ellipse 55% 40% at 55% 50%, var(--mb-butter) 0%, transparent 35%),
+    var(--mb-ink);
+  background-size: 220% 220%, 200% 200%, 240% 240%, 210% 210%, 180% 180%, 100% 100%;
+  filter: saturate(0.95) brightness(0.85);
+  animation: mb-drift 40s ease-in-out infinite alternate;
+  will-change: background-position, filter;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.22;
+  mix-blend-mode: overlay;
+  /* High-frequency fractal noise for the "gritty" layer */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.6' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.9 0'/></filter><rect width='200' height='200' filter='url(%23n)'/></svg>");
+  background-size: 200px 200px;
+}
+
+@keyframes mb-drift {
+  0% {
+    background-position:
+      0% 0%, 100% 0%, 100% 100%, 0% 100%, 50% 50%, 0 0;
+    filter: saturate(0.9) brightness(0.82);
+  }
+  50% {
+    background-position:
+      30% 20%, 70% 30%, 60% 70%, 40% 80%, 55% 45%, 0 0;
+    filter: saturate(1.0) brightness(0.88);
+  }
+  100% {
+    background-position:
+      60% 40%, 40% 60%, 30% 30%, 70% 60%, 45% 55%, 0 0;
+    filter: saturate(0.9) brightness(0.82);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mb-wallpaper::before,
+  body::before { animation: none; }
+}
+
+/* ================================================================
+   TASKBAR — paper-deep cream with ink text. Differentiates system
+   chrome (top) from window chrome (ink titlebars) for a cleaner
+   hierarchy. Overrides both .taskbar (desktop) and .win95-taskbar.
+   ================================================================ */
+
+.taskbar,
+.win95-taskbar {
+  background: var(--mb-paper-deep) !important;
+  color: var(--mb-ink) !important;
+  border-bottom: 1px solid var(--mb-ink) !important;
+  box-shadow: none !important;
+  font-family: var(--font-pixel) !important;
+  font-size: 11px !important;
+  letter-spacing: 0.04em !important;
+  text-transform: none !important;
+  padding: 4px 16px !important;
+}
+
+.taskbar .taskbar-left,
+.win95-taskbar-left {
+  color: var(--mb-ink) !important;
+  gap: 10px !important;
+}
+
+.taskbar-right,
+.win95-taskbar-right {
+  font-family: var(--font-numeral) !important;
+  font-size: 12px !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  color: var(--mb-ink) !important;
+  margin-right: 8px !important;
+}
+
+.retro-clock {
+  font-family: var(--font-numeral) !important;
+  font-size: 12px !important;
+  color: var(--mb-ink);
+}
+
+/* Taskbar social icons — ink fill, pop-on-hover magenta */
+.taskbar-right a svg,
+.win95-taskbar-right a svg {
+  fill: var(--mb-ink) !important;
+}
+.taskbar-right a:hover svg,
+.win95-taskbar-right a:hover svg {
+  fill: var(--mb-magenta) !important;
+}
+
+/* ================================================================
+   DOCK — compact, floating ink bar (macOS-style sizing)
+   Sits centered with a small gap from the viewport bottom; only as
+   wide as its contents. No shadow on the individual icon tiles.
+   ================================================================ */
+
+.dock-container {
+  padding-bottom: 16px !important;
+}
+
+.dock {
+  background: var(--mb-ink) !important;
+  border: none !important;
+  box-shadow: var(--shadow-hard-chalk) !important;
+  width: auto !important;
+  padding: 8px !important;
+  gap: 8px !important;
+}
+
+.dock-icon-wrapper {
+  background: var(--mb-paper) !important;
+  border: 2px solid var(--mb-chalk) !important;
+  box-shadow: none !important;
+  width: 48px !important;
+  height: 48px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background 80ms ease-out, transform 60ms ease-out !important;
+}
+.dock-icon-wrapper:hover {
+  background: var(--mb-butter) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: none !important;
+}
+.dock-icon-wrapper:active {
+  transform: translateY(1px) !important;
+  box-shadow: none !important;
+}
+
+.dock-icon {
+  width: 30px !important;
+  height: 30px !important;
+}
+
+.dock-tooltip {
+  background: var(--mb-magenta) !important;
+  color: var(--mb-chalk) !important;
+  border: 1px solid var(--mb-chalk) !important;
+  font-family: var(--font-pixel) !important;
+  font-size: 10px !important;
+  letter-spacing: 0.14em !important;
+  text-transform: uppercase !important;
+  padding: 4px 8px !important;
+  margin-bottom: 6px !important;
+}
+
+.dock-indicator {
+  background: var(--mb-magenta) !important;
+  height: 3px !important;
+  bottom: -3px !important;
+}
+
+/* ================================================================
+   BROWSER CHROME — Neighborhood Navigator
+   Single ink bar combining nav controls + URL; tabs below.
+   Replaces the old 3-row Win95 browser chrome.
+   ================================================================ */
+
+.mb-browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--mb-ink);
+  color: var(--mb-chalk);
+  border-bottom: 2px solid var(--mb-ink);
+  flex-shrink: 0;
+}
+
+.mb-browser-nav {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.mb-nav-btn {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mb-paper);
+  color: var(--mb-ink);
+  border: 2px solid var(--mb-ink);
+  cursor: pointer;
+  padding: 0;
+  box-shadow: none;
+  transition: background 80ms ease-out, transform 60ms ease-out;
+  font-family: inherit;
+}
+
+.mb-nav-btn:hover:not(:disabled) {
+  background: var(--mb-butter);
+}
+
+.mb-nav-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+}
+
+.mb-nav-btn:disabled {
+  background: #4a4a52;
+  color: #2d2d35;
+  cursor: not-allowed;
+  border-color: #2d2d35;
+}
+
+.mb-nav-btn:focus-visible {
+  outline: 2px solid var(--mb-magenta);
+  outline-offset: 2px;
+}
+
+.mb-browser-url {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  border: 2px solid var(--mb-chalk);
+  overflow: hidden;
+}
+
+.mb-browser-url-tag {
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+  padding: 0 10px;
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.mb-browser-url-path {
+  flex: 1;
+  padding: 0 12px;
+  font-family: var(--font-numeral);
+  font-size: 12px;
+  color: var(--mb-chalk);
+  letter-spacing: 0.02em;
+  background: var(--mb-ink);
+  height: 100%;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ================================================================
+   TAB SYSTEM — editorial, pixel-font labels, magenta active state
+   ================================================================ */
+
+.mb-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0;
+  background: var(--mb-paper);
+  border-bottom: 2px solid var(--mb-ink);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+
+.mb-tab {
+  position: relative;
+  padding: 12px 18px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink);
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--mb-ink-15);
+  cursor: pointer;
+  transition: background 80ms ease-out, color 80ms ease-out;
+  white-space: nowrap;
+  font-family: var(--font-pixel);
+}
+
+.mb-tab:hover {
+  background: var(--mb-butter);
+}
+
+.mb-tab:focus-visible {
+  outline: 2px solid var(--mb-magenta);
+  outline-offset: -2px;
+}
+
+.mb-tab.is-active {
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+}
+
+/* The active tab's underline accent — sits on top of the bottom border
+   so it visually "connects" to the content below. */
+.mb-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 2px;
+  background: var(--mb-magenta);
+}
+
+/* ================================================================
+   PITCH REVIEW LAYOUT
+   Modernized two-column layout for LP pitch review. Drops the old
+   win95-inset bevels and chunky pink outlines in favor of clean
+   Millennium Bug tiles with ink borders, hard shadow, and pixel-font
+   eyebrows. Pairs with .pr-* utility classes in this block.
+   ================================================================ */
+
+.pr-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .pr-grid { grid-template-columns: 1fr; }
+}
+
+.pr-card {
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  padding: 28px 28px 24px;
+  max-height: calc(100vh - 220px);
+  overflow-y: auto;
+  font-family: var(--font-content);
+  color: var(--mb-ink);
+}
+
+/* Header — business name + status chips */
+.pr-header { margin-bottom: 20px; }
+
+.pr-header__title {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(24px, 2.4vw, 30px);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--mb-ink);
+}
+
+.pr-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pr-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mb-ink);
+  background: var(--mb-butter-soft);
+  border: 1px solid var(--mb-ink);
+}
+.pr-chip--winner { background: var(--mb-grape-soft, #e8e1f5); }
+.pr-chip--contest { background: var(--mb-magenta-soft); }
+
+/* Identity row — founder + email + action buttons on the left */
+.pr-identity {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 18px;
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+
+.pr-identity__item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pr-identity__label {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+}
+
+.pr-identity__value {
+  color: var(--mb-ink);
+  font-weight: 600;
+}
+
+.pr-identity a {
+  color: var(--mb-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  font-weight: 500;
+}
+.pr-identity a:hover {
+  color: var(--mb-magenta);
+  text-decoration-thickness: 2px;
+}
+
+.pr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.pr-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-family: var(--font-content);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mb-chalk);
+  background: var(--mb-ink);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  cursor: pointer;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out, background 80ms ease-out;
+  text-decoration: none;
+}
+.pr-btn:hover {
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard);
+}
+.pr-btn:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0 0 0 0 var(--mb-ink);
+}
+.pr-btn--ghost {
+  background: var(--mb-chalk);
+  color: var(--mb-ink);
+}
+.pr-btn--ghost:hover {
+  background: var(--mb-butter);
+  color: var(--mb-ink);
+}
+
+/* AI Summary — subtle butter tile with a left accent bar */
+.pr-ai {
+  position: relative;
+  background: var(--mb-butter-soft);
+  border-left: 4px solid var(--mb-magenta);
+  padding: 16px 18px;
+  margin-bottom: 28px;
+}
+
+.pr-eyebrow {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mb-magenta);
+  margin-bottom: 8px;
+}
+
+.pr-ai__body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--mb-ink);
+}
+
+/* Field list — clean label/value pairs, no boxes */
+.pr-section {
+  padding-top: 20px;
+  margin-top: 20px;
+  border-top: 1px solid var(--mb-ink-15);
+}
+.pr-section:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+
+.pr-field { margin-bottom: 18px; }
+.pr-field:last-child { margin-bottom: 0; }
+
+.pr-field__label {
+  display: block;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+  margin-bottom: 6px;
+}
+
+.pr-field__value {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--mb-ink);
+}
+
+.pr-field--inline {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.pr-field--inline .pr-field__label { margin-bottom: 0; }
+
+.pr-yes {
+  color: var(--mb-ink);
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pr-yes::before {
+  content: "●";
+  color: #2e8540;
+  font-size: 10px;
+}
+.pr-no {
+  color: var(--mb-ink-60);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pr-no::before {
+  content: "○";
+  color: var(--mb-ink-60);
+  font-size: 10px;
+}
+
+/* ---- Review form ---- */
+
+.pr-form__title {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+}
+
+.pr-form__subtitle {
+  font-size: 13px;
+  color: var(--mb-ink-60);
+  margin-bottom: 22px;
+}
+
+.pr-form__group { margin-bottom: 18px; }
+
+.pr-form__group-head {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+  margin: 26px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--mb-ink-15);
+}
+
+.pr-form__label {
+  display: block;
+  font-family: var(--font-content);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mb-ink);
+  margin-bottom: 6px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.pr-form__required {
+  color: var(--mb-magenta);
+  font-weight: 600;
+  font-size: 11px;
+  margin-left: 6px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.pr-form__optional {
+  color: var(--mb-ink-60);
+  font-weight: 400;
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+.pr-select,
+.pr-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--font-content);
+  font-size: 14px;
+  color: var(--mb-ink);
+  background: var(--mb-chalk);
+  border: 1.5px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  outline: none;
+  transition: box-shadow 80ms ease-out, transform 80ms ease-out;
+  box-sizing: border-box;
+}
+
+.pr-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 40px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12'><path d='M2 4 L6 8 L10 4' fill='none' stroke='%23141419' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px 12px;
+  height: 42px;
+  cursor: pointer;
+}
+
+.pr-textarea {
+  min-height: 110px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.pr-select:focus,
+.pr-textarea:focus {
+  outline: 2px solid var(--mb-magenta);
+  outline-offset: 2px;
+  box-shadow: var(--shadow-hard-sm);
+}
+
+.pr-select:disabled {
+  background-color: var(--mb-paper-deep, #f5ecd6);
+  color: var(--mb-ink-60);
+  cursor: not-allowed;
+}
+
+/* Required recommendation gets a subtle magenta left accent instead
+   of a heavy outlined box */
+.pr-form__group--required {
+  padding: 14px 16px;
+  background: var(--mb-magenta-soft);
+  border-left: 4px solid var(--mb-magenta);
+  margin-bottom: 22px;
+}
+.pr-form__group--required .pr-form__label { margin-bottom: 8px; }
+
+/* Team notes panel — clean stack, no bevel */
+.pr-team-notes {
+  background: var(--mb-paper-deep, #f5ecd6);
+  border: 1px solid var(--mb-ink-15);
+  padding: 4px 14px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.pr-team-note { padding: 12px 0; border-bottom: 1px solid var(--mb-ink-15); }
+.pr-team-note:last-child { border-bottom: none; }
+
+.pr-team-note__who {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+  margin-bottom: 4px;
+}
+
+.pr-team-note__text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--mb-ink);
+}
+
+/* Primary submit + secondary "next" action row */
+.pr-submit-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--mb-ink-15);
+}
+
+.pr-submit-row .pr-btn {
+  flex: 1;
+  justify-content: center;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.pr-submit-row .pr-btn--primary {
+  background: var(--mb-magenta);
+  box-shadow: var(--shadow-hard);
+}
+.pr-submit-row .pr-btn--primary:hover {
+  background: var(--mb-magenta-deep);
+  box-shadow: var(--shadow-hard-lg);
+}
+
+/* Back to list — low-chrome link */
+.pr-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mb-ink);
+  background: transparent;
+  border: 1px solid var(--mb-ink);
+  cursor: pointer;
+  align-self: flex-start;
+  transition: background 80ms ease-out;
+}
+.pr-back:hover { background: var(--mb-butter-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-btn, .pr-select, .pr-textarea { transition: none; }
+}
+
+/* ================================================================
+   LP LOGIN SCREEN
+   Editorial-style sign-in card. Drops the win95 titlebar + old
+   Google graphic for a clean Millennium Bug tile with pixel-font
+   eyebrow, display-font title, and a simple inline Google SVG.
+   ================================================================ */
+
+.lp-login {
+  width: 100%;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  background: var(--mb-paper);
+  box-sizing: border-box;
+}
+
+.lp-login__card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-lg);
+  padding: 40px 36px 32px;
+  font-family: var(--font-content);
+  color: var(--mb-ink);
+}
+
+.lp-login__eyebrow {
+  display: block;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mb-magenta);
+  margin-bottom: 12px;
+}
+
+.lp-login__title {
+  margin: 0 0 10px;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(32px, 4vw, 40px);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  color: var(--mb-ink);
+}
+.lp-login__title em {
+  font-style: italic;
+  color: var(--mb-magenta);
+}
+
+.lp-login__lede {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--mb-ink-60);
+}
+
+.lp-login__form { margin: 0; }
+
+.lp-login__label {
+  display: block;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+  margin-bottom: 6px;
+}
+
+.lp-login__input {
+  display: block;
+  width: 100%;
+  padding: 12px 14px;
+  font-family: var(--font-content);
+  font-size: 15px;
+  color: var(--mb-ink);
+  background: var(--mb-chalk);
+  border: 1.5px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  outline: none;
+  box-sizing: border-box;
+  transition: box-shadow 80ms ease-out;
+}
+.lp-login__input:focus,
+.lp-login__input:focus-visible {
+  outline: 2px solid var(--mb-magenta);
+  outline-offset: 2px;
+}
+
+.lp-login__submit {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px 16px;
+  font-family: var(--font-content);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mb-chalk);
+  background: var(--mb-magenta);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  cursor: pointer;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out, background 80ms ease-out;
+}
+.lp-login__submit:hover:not(:disabled) {
+  background: var(--mb-magenta-deep);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard-lg);
+}
+.lp-login__submit:active:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 0 0 0 0 var(--mb-ink);
+}
+.lp-login__submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+/* --- divider --- */
+.lp-login__divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 26px 0 20px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+}
+.lp-login__divider::before,
+.lp-login__divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--mb-ink-15);
+}
+
+/* --- Google button --- */
+.lp-login__google {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 16px;
+  font-family: var(--font-content);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--mb-ink);
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  cursor: pointer;
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out, background 80ms ease-out;
+}
+.lp-login__google:hover {
+  background: var(--mb-butter-soft);
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard);
+}
+.lp-login__google:active {
+  transform: translate(1px, 1px);
+  box-shadow: 0 0 0 0 var(--mb-ink);
+}
+.lp-login__google svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* --- link-sent confirmation --- */
+.lp-login__sent {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+.lp-login__sent-icon {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 10px;
+}
+.lp-login__sent-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  margin-bottom: 8px;
+  color: var(--mb-ink);
+}
+.lp-login__sent-body {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--mb-ink-60);
+  margin: 0 0 18px;
+}
+.lp-login__sent-body strong { color: var(--mb-ink); }
+
+.lp-login__use-different {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--font-content);
+  font-size: 13px;
+  color: var(--mb-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.lp-login__use-different:hover {
+  color: var(--mb-magenta);
+  text-decoration-thickness: 2px;
+}
+
+/* --- footer --- */
+.lp-login__footer {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--mb-ink-15);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--mb-ink-60);
+  text-align: center;
+}
+.lp-login__footer p { margin: 0 0 6px; }
+.lp-login__footer p:last-child { margin-bottom: 0; }
+
+.lp-login__apply {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--mb-ink);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.lp-login__apply:hover {
+  color: var(--mb-magenta);
+  text-decoration-thickness: 2px;
+}
+
+/* --- inline error --- */
+.lp-login__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 18px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--mb-tangerine-deep);
+  background: var(--mb-tangerine-soft);
+  border-left: 4px solid var(--mb-tangerine);
+  text-align: left;
+}
+.lp-login__error strong { color: var(--mb-tangerine-deep); }
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-login__submit,
+  .lp-login__google,
+  .lp-login__input { transition: none; }
+}

@@ -1,6 +1,6 @@
 // MobileLPPortal.jsx
 import React from "react";
-import LimitedPartnerPortal from "./limited-partner/LimitedPartnerPortal/LimitedPartnerPortal";
+import LimitedPartnerPortal from "./LimitedPartnerPortal";
 
 // Mobile adaptation of the desktop LPPortal for full functionality
 export default function MobileLPPortal({ onClose }) {

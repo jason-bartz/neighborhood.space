@@ -9,19 +9,19 @@ import {
   onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut,
   isSignInWithEmailLink, signInWithEmailLink
 } from "firebase/auth";
-import { db, auth, storage, functions } from "../../../firebaseConfig.js";
+import { db, auth, storage, functions } from "../../firebaseConfig.js";
 import { httpsCallable } from "firebase/functions";
 import Papa from "papaparse";
 import { saveAs } from "file-saver";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import Confetti from "react-confetti";
-import StatsBar from "../../StatsBar";
-import { BadgeNotification, TrophyCase } from "../../BadgeDisplay";
-import { BADGES } from "../../../data/badgeDefinitions";
-import { getChapterMembershipLinks } from "../../../data/chapterConfig";
-import BadgeIcon from "../../icons/BadgeIcon";
-import ReviewRatingIcon from "../../icons/ReviewRatingIcon";
-import PitchMap from "../../PitchMap";
+import StatsBar from "../StatsBar";
+import { BadgeNotification, TrophyCase } from "../BadgeDisplay";
+import { BADGES } from "../../data/badgeDefinitions";
+import { getChapterMembershipLinks } from "../../data/chapterConfig";
+import BadgeIcon from "../icons/BadgeIcon";
+import ReviewRatingIcon from "../icons/ReviewRatingIcon";
+import PitchMap from "../PitchMap";
 import {
   trackReviewSubmission,
   initializeUserStats,
@@ -29,7 +29,7 @@ import {
   updateWinnerPredictions,
   calculateChapterRankings,
   getCurrentQuarter
-} from "../../../services/statsTracking";
+} from "../../services/statsTracking";
 import {
   RetroButton,
   RetroPill,
@@ -37,13 +37,13 @@ import {
   ConfirmDialog,
   AdminTabStrip,
   useConfirm,
-} from "../../ui/retro";
+} from "../ui/retro";
 import {
   roleLabel,
   roleTonePill,
   ratingTonePill,
   dashIfEmpty,
-} from "../../../helpers/labels";
+} from "../../helpers/labels";
 import ResourceLibrary from "./resources/ResourceLibrary";
 
 // --- Constants ---

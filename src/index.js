@@ -2,7 +2,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import DesktopEnvironment from "./pages/desktop/DesktopEnvironment/DesktopEnvironment";
+import DesktopEnvironment from "./pages/DesktopEnvironment";
 import StandalonePitchPage from "./StandalonePitchPage";
 import PitchDetailPage from "./PitchDetailPage";
 import StandaloneLPApplication from "./StandaloneLPApplication";

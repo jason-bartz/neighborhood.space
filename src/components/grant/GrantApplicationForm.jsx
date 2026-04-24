@@ -1,10 +1,10 @@
 // GrantApplicationForm.jsx
 import React, { useState, useRef, useEffect } from "react";
-import { db } from "../../../firebaseConfig";
+import { db } from "../../firebaseConfig";
 import { collection, addDoc, Timestamp } from "firebase/firestore";
-import VideoUploader from "../../../VideoUploader";
+import VideoUploader from "../../VideoUploader";
 import Confetti from "react-confetti";
-import WindowFrame from "../../ui/WindowFrame/WindowFrame";
+import WindowFrame from "../ui/WindowFrame/WindowFrame";
 
 const REQUIRED_FIELDS = [
   { name: "founder", label: "Founder Name" },
@@ -141,7 +141,7 @@ export default function GrantApplicationForm({ onClose, zIndex, windowId, bringT
 
       // Also submit to Google Sheets (non-blocking)
       try {
-        const { submitToGoogleSheets } = await import('../../../services/googleSheets');
+        const { submitToGoogleSheets } = await import('../../services/googleSheets');
         await submitToGoogleSheets({ ...pitchData, id: docRef.id });
       } catch (sheetsError) {
         console.error('Failed to save to Google Sheets:', sheetsError);

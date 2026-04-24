@@ -1,6 +1,6 @@
 // StandaloneLPPortal.jsx
 import React, { useState, useEffect } from 'react';
-import LimitedPartnerPortal from './components/limited-partner/LimitedPartnerPortal/LimitedPartnerPortal';
+import LimitedPartnerPortal from './components/lp/LimitedPartnerPortal';
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./firebaseConfig";
 import './styles/App.css';

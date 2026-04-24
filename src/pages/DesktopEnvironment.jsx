@@ -1,18 +1,16 @@
-// DesktopEnvironment.jsx - Updated to fix double window issue and margin
+// DesktopEnvironment.jsx
 import React, { useEffect, useState, useRef } from "react";
-import BootScreen from "../../../BootScreen";
-import WindowFrame from "../../../components/ui/WindowFrame/WindowFrame";
-import GrantApplicationForm from "../../../components/grant-management/GrantApplicationForm/GrantApplicationForm";
-import StandaloneLPApplication from "../../../StandaloneLPApplication";
-import LimitedPartnerPortal from "../../../components/limited-partner/LimitedPartnerPortal/LimitedPartnerPortal";
-import BrowserWindow from "../../../BrowserWindow";
-import BuddyMessenger from "../../../components/BuddyMessenger";
-// Regular imports for map components
-import FounderMap from '../../../components/FounderMap';
-import MobileLanding from "../../../MobileLanding";
-import Dock from "../../../components/Dock/Dock";
-import "../../../styles/App.css";
-// import BlockParty from "../../../BlockParty"; // BlockParty component removed
+import BootScreen from "../BootScreen";
+import WindowFrame from "../components/ui/WindowFrame/WindowFrame";
+import GrantApplicationForm from "../components/grant/GrantApplicationForm";
+import StandaloneLPApplication from "../StandaloneLPApplication";
+import LimitedPartnerPortal from "../components/lp/LimitedPartnerPortal";
+import BrowserWindow from "../BrowserWindow";
+import BuddyMessenger from "../components/BuddyMessenger";
+import FounderMap from "../components/FounderMap";
+import MobileLanding from "../MobileLanding";
+import Dock from "../components/Dock/Dock";
+import "../styles/App.css";
 
 export default function DesktopEnvironment() {
   // Skip the boot screen if the user has already booted this session

@@ -4,7 +4,7 @@ import StandalonePitchPage from "./StandalonePitchPage";
 import StandaloneLPApplication from "./StandaloneLPApplication";
 import MobileNeighborhoodResources from "./components/MobileNeighborhoodResources";
 import MobileBuddyMessenger from "./components/MobileBuddyMessenger";
-import MobileLPPortal from "./components/MobileLPPortal";
+import MobileLPPortal from "./components/lp/MobileLPPortal";
 import MobileBootScreen from "./MobileBootScreen";
 import HitCounter from "./components/ui/HitCounter";
 import DockIcon from "./components/icons/DockIcon";

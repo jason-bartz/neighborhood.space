@@ -8145,7 +8145,7 @@ Relevant files:
                 <h3>Our Impact Since 2023</h3>
                 <div className="stats-grid">
                   <div className="stat-card">
-                    <div className="stat-number">25</div>
+                    <div className="stat-number">34</div>
                     <div className="stat-label">New Business Ideas Funded</div>
                   </div>
                   <div className="stat-card">
@@ -8157,7 +8157,7 @@ Relevant files:
                     <div className="stat-label">BIPOC-Owned Businesses</div>
                   </div>
                   <div className="stat-card">
-                    <div className="stat-number">$25,000+</div>
+                    <div className="stat-number">$34,000+</div>
                     <div className="stat-label">In Micro-Grants Awarded</div>
                   </div>
                 </div>
@@ -8219,8 +8219,8 @@ Relevant files:
 
               <div className="about-cta">
                 <p>Want to learn more or get involved?</p>
-                <a href="https://neighborhoods.space" className="gnf-link">
-                  Visit neighborhoods.space →
+                <a href="https://www.goodneighbor.fund" className="gnf-link">
+                  Visit goodneighbor.fund →
                 </a>
               </div>
             </div>
@@ -8434,7 +8434,7 @@ Relevant files:
                 style={{
                   background: 'linear-gradient(135deg, #FFB6D9, #FFC0E0)',
                   border: '2px solid #FF69B4',
-                  borderRadius: '6px',
+                  
                   padding: '12px 25px',
                   fontSize: '14px',
                   fontWeight: 'bold',

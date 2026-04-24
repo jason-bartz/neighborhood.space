@@ -10,33 +10,40 @@ if (!Papa || !Papa.parse) {
   console.warn('PapaParse library not available - CSV parsing may not work correctly');
 }
 import WindowFrame from "../components/ui/WindowFrame/WindowFrame";
+import ResourceIcon from "./icons/ResourceIcon";
+import { Tree, Vehicle } from "./icons/MapDecorations";
 
-// Resource emoji mapping
-const resourceEmojis = {
-  "Funding": "🏦", 
-  "Incubator/Accelerator": "🏭",
-  "Mentorship": "🧑‍🏫",
-  "Legal": "⚖️",
-  "Education": "🏫",
-  "Community": "🏘️",
-  "Government": "🏛️",
-  "Venture Capital": "💰",
-  "Angel Group": "👼",
-  "Coworking": "🏢",
-  "Nonprofit": "🏥",
-  "Corporate Venture": "🏙️",
-  "Private Equity": "💵",
-  "Investment Platform": "💼",
-  "Venture Studio": "🏗️"
+// Stage accent — indexes into the Win95 palette for consistent tile colors
+// across the list, map tiles, and modal tags.
+const STAGE_ACCENT = {
+  "Ideation": "pink",
+  "Early Stage": "yellow",
+  "Early": "yellow",
+  "Growth": "green",
+  "Established": "blue",
+  "All": "purple",
 };
 
-// Neighborhood colors
+// Neighborhood colors — Millennium Bug soft palette, sunrise → evening
 const neighborhoodColors = {
-  "Ideation": "#FFD6EC", // Pastel pink
-  "Early Stage": "#FFE6B3", // Pastel yellow
-  "Growth": "#B3E6CC", // Pastel green
-  "Established": "#B3D9FF" // Pastel blue
+  "Ideation":    "#fde0ec", // magenta-soft
+  "Early Stage": "#fde7d0", // tangerine-soft
+  "Growth":      "#d5f1f4", // aqua-soft
+  "Established": "#e7dffa", // grape-soft
 };
+
+// Park / greenspace blobs — organic ellipses placed between streets so
+// they sit on empty lots, not on buildings or roads.
+const FIXED_PARKS = [
+  { key: "p1", cx: 210,  cy: 240, rx: 78,  ry: 42, tone: "light" },
+  { key: "p2", cx: 1120, cy: 240, rx: 96,  ry: 52, tone: "dark"  },
+  { key: "p3", cx: 880,  cy: 420, rx: 74,  ry: 44, tone: "light" },
+  { key: "p4", cx: 160,  cy: 600, rx: 72,  ry: 40, tone: "dark"  },
+  { key: "p5", cx: 1360, cy: 600, rx: 80,  ry: 46, tone: "light" },
+  { key: "p6", cx: 520,  cy: 780, rx: 90,  ry: 50, tone: "dark"  },
+  { key: "p7", cx: 1240, cy: 960, rx: 70,  ry: 40, tone: "light" },
+  { key: "p8", cx: 380,  cy: 960, rx: 66,  ry: 38, tone: "light" },
+];
 
 // District definitions
 const districts = {
@@ -72,12 +79,11 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
   const [selectedResource, setSelectedResource] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState({
-    county: "",
+    chapter: "",
     stage: "",
     type: ""
   });
   const [carPositions, setCarPositions] = useState([]);
-  const [legendCollapsed, setLegendCollapsed] = useState(false);
   const [hoveredResource, setHoveredResource] = useState(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const mapRef = useRef(null);
@@ -109,6 +115,7 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
             "Focus Area": item.FocusArea || item["Focus Area"] || item.focusArea || '',
             "Business Stage": item.Stage || item["Business Stage"] || item.businessStage || "Ideation",
             "Counties Served": item.CountiesServed || item["Counties Served"] || item.countiesServed || '',
+            Chapter: item.Chapter || item.chapter || "Western New York",
             URL: item.Website || item.URL || item.url || '',
             "Expanded Details": item.About || item["Expanded Details"] || item.expandedDetails || '',
             "Average Check Size": item.AverageCheckSize || item["Average Check Size"] || item.averageCheckSize || '',
@@ -319,7 +326,7 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
           "Focus Area": "Micro-grants for under-resourced founders",
           "Relocation Required?": "No",
           "Counties Served": "All 8 counties",
-          URL: "https://www.neighborhoods.space/",
+          URL: "https://www.goodneighbor.fund/",
           "Expanded Details": "Nonprofit micro-grant fund awarding $1,000 grants to founders from underrepresented backgrounds, emphasizing community-driven entrepreneurship. No equity taken.",
           "Average Check Size": "NA",
           "Business Stage": "Ideation"
@@ -709,39 +716,40 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
     loadCSV();
   }, []);
 
-  // Near the top of your component, add this constant for tree positions
+  // Near the top of your component, add this constant for tree positions.
+  // `variant` picks between the two tree glyphs in MapDecorations.
   const FIXED_TREES = [
-    { key: "tree-1", x: 250, y: 120, type: "🌲" },
-    { key: "tree-2", x: 450, y: 220, type: "🌳" },
-    { key: "tree-3", x: 650, y: 80, type: "🌲" },
-    { key: "tree-4", x: 850, y: 180, type: "🌳" },
-    { key: "tree-5", x: 1050, y: 120, type: "🌲" },
-    { key: "tree-6", x: 1250, y: 220, type: "🌳" },
-    { key: "tree-7", x: 1450, y: 180, type: "🌲" },
-    
-    { key: "tree-8", x: 200, y: 380, type: "🌳" },
-    { key: "tree-9", x: 400, y: 420, type: "🌲" },
-    { key: "tree-10", x: 600, y: 350, type: "🌳" },
-    { key: "tree-11", x: 800, y: 420, type: "🌲" },
-    { key: "tree-12", x: 1000, y: 350, type: "🌳" },
-    { key: "tree-13", x: 1200, y: 420, type: "🌲" },
-    { key: "tree-14", x: 1400, y: 380, type: "🌳" },
-    
-    { key: "tree-15", x: 150, y: 650, type: "🌲" },
-    { key: "tree-16", x: 350, y: 580, type: "🌳" },
-    { key: "tree-17", x: 550, y: 650, type: "🌲" },
-    { key: "tree-18", x: 750, y: 580, type: "🌳" },
-    { key: "tree-19", x: 950, y: 650, type: "🌲" },
-    { key: "tree-20", x: 1150, y: 580, type: "🌳" },
-    { key: "tree-21", x: 1350, y: 650, type: "🌲" },
-    
-    { key: "tree-22", x: 300, y: 980, type: "🌳" },
-    { key: "tree-23", x: 500, y: 880, type: "🌲" },
-    { key: "tree-24", x: 700, y: 980, type: "🌳" },
-    { key: "tree-25", x: 900, y: 880, type: "🌲" },
-    { key: "tree-26", x: 1100, y: 980, type: "🌳" },
-    { key: "tree-27", x: 1300, y: 880, type: "🌲" },
-    { key: "tree-28", x: 1500, y: 980, type: "🌳" },
+    { key: "tree-1", x: 250, y: 120, variant: "pine" },
+    { key: "tree-2", x: 450, y: 220, variant: "round" },
+    { key: "tree-3", x: 650, y: 80, variant: "pine" },
+    { key: "tree-4", x: 850, y: 180, variant: "round" },
+    { key: "tree-5", x: 1050, y: 120, variant: "pine" },
+    { key: "tree-6", x: 1250, y: 220, variant: "round" },
+    { key: "tree-7", x: 1450, y: 180, variant: "pine" },
+
+    { key: "tree-8", x: 200, y: 380, variant: "round" },
+    { key: "tree-9", x: 400, y: 420, variant: "pine" },
+    { key: "tree-10", x: 600, y: 350, variant: "round" },
+    { key: "tree-11", x: 800, y: 420, variant: "pine" },
+    { key: "tree-12", x: 1000, y: 350, variant: "round" },
+    { key: "tree-13", x: 1200, y: 420, variant: "pine" },
+    { key: "tree-14", x: 1400, y: 380, variant: "round" },
+
+    { key: "tree-15", x: 150, y: 650, variant: "pine" },
+    { key: "tree-16", x: 350, y: 580, variant: "round" },
+    { key: "tree-17", x: 550, y: 650, variant: "pine" },
+    { key: "tree-18", x: 750, y: 580, variant: "round" },
+    { key: "tree-19", x: 950, y: 650, variant: "pine" },
+    { key: "tree-20", x: 1150, y: 580, variant: "round" },
+    { key: "tree-21", x: 1350, y: 650, variant: "pine" },
+
+    { key: "tree-22", x: 300, y: 980, variant: "round" },
+    { key: "tree-23", x: 500, y: 880, variant: "pine" },
+    { key: "tree-24", x: 700, y: 980, variant: "round" },
+    { key: "tree-25", x: 900, y: 880, variant: "pine" },
+    { key: "tree-26", x: 1100, y: 980, variant: "round" },
+    { key: "tree-27", x: 1300, y: 880, variant: "pine" },
+    { key: "tree-28", x: 1500, y: 980, variant: "round" },
   ];
 
   // Process the resources and position them on the map
@@ -766,6 +774,7 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
     rawResources.forEach(resource => {
       const businessStage = resource["Business Stage"] || "Ideation";
       const resourceType = resource["Type"] || "Other";
+      const chapter = resource.Chapter || resource.chapter || "Western New York";
       
       // Special case for specific resources that should be in Town Square
       if (resource.Resource === "BootSector" || 
@@ -787,8 +796,9 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
           ...resource,
           businessStage,
           resourceType,
+          chapter,
           district,
-          emoji: resourceEmojis[resourceType] || "🏢"
+          accent: STAGE_ACCENT[businessStage] || "pink"
         });
         return; // Skip the normal district assignment
       }
@@ -815,8 +825,9 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
         ...resource,
         businessStage,
         resourceType,
+        chapter,
         district,
-        emoji: resourceEmojis[resourceType] || "🏢"
+        accent: STAGE_ACCENT[businessStage] || "pink"
       });
     });
     
@@ -942,10 +953,10 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
       );
     }
     
-    // Apply county filter
-    if (filter.county) {
-      filtered = filtered.filter(resource => 
-        resource["Counties Served"]?.includes(filter.county)
+    // Apply chapter filter
+    if (filter.chapter) {
+      filtered = filtered.filter(resource =>
+        resource.chapter === filter.chapter
       );
     }
     
@@ -1029,49 +1040,37 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
     // Create car animations only once
     const initCars = () => {
       const cars = [];
-      // Add more car types
-      const carEmojis = {
-        car: ["🚗", "🚙", "🚕"],
-        special: ["🚓", "🚌"] // Police car and bus
+      const vehicleTypes = {
+        car: ["car", "coupe", "taxi"],
+        special: ["police", "bus"]
       };
-      
-      // Create 7 cars instead of 5 (adding 2 more)
+
+      // Create 7 cars (two specials + five regulars)
       for (let i = 0; i < 7; i++) {
-        // Randomly choose horizontal or vertical street
         const isHorizontal = Math.random() > 0.5;
-        
-        // Determine car type - make sure police car and bus appear at least once
-        let carType;
-        if (i < 2) {
-          // First two cars are special vehicles (police, bus)
-          carType = carEmojis.special[i % carEmojis.special.length];
-        } else {
-          // Regular cars for the rest
-          const randomIndex = Math.floor(Math.random() * carEmojis.car.length);
-          carType = carEmojis.car[randomIndex];
-        }
-        
+        const variant = i < 2
+          ? vehicleTypes.special[i % vehicleTypes.special.length]
+          : vehicleTypes.car[Math.floor(Math.random() * vehicleTypes.car.length)];
+
         if (isHorizontal) {
-          // Pick a random horizontal street
           const streetIndex = Math.floor(Math.random() * horizontalStreets.length);
-          const y = 1200 * (0.125 + streetIndex * 0.15); // Position along one of the horizontal streets
-          
+          const y = 1200 * (0.125 + streetIndex * 0.15);
+
           cars.push({
             id: `car-h-${i}`,
-            emoji: carType,
-            x: 1600, // Start from right side
+            variant,
+            x: 1600,
             y,
             direction: "left",
             speed: 1 + Math.random() * 2
           });
         } else {
-          // Pick a random vertical street
           const streetIndex = Math.floor(Math.random() * verticalStreets.length);
           const x = 1600 * ((1 + streetIndex) / (verticalStreets.length + 1));
-          
+
           cars.push({
             id: `car-v-${i}`,
-            emoji: carType,
+            variant,
             x,
             y: 0,
             direction: "down",
@@ -1137,14 +1136,9 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
     
     const values = new Set();
     
-    if (field === "county") {
-      // Counties are comma-separated
+    if (field === "chapter") {
       resources.forEach(resource => {
-        const counties = resource["Counties Served"]?.split(",") || [];
-        counties.forEach(county => {
-          const trimmed = county.trim();
-          if (trimmed) values.add(trimmed);
-        });
+        if (resource.chapter) values.add(resource.chapter);
       });
     } else if (field === "stage") {
       resources.forEach(resource => {
@@ -1167,6 +1161,16 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
   const handleCloseModal = () => {
     setSelectedResource(null);
   };
+
+  // Close modal on Escape
+  useEffect(() => {
+    if (!selectedResource) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setSelectedResource(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedResource]);
 
   const handleFilterChange = (field, value) => {
     setFilter(prev => ({ ...prev, [field]: value }));
@@ -1193,13 +1197,13 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
         />
         
         <div style={{ display: "flex", flexWrap: "nowrap", gap: "10px", flexGrow: 1 }}>
-          <select 
-            value={filter.county}
-            onChange={(e) => handleFilterChange("county", e.target.value)}
+          <select
+            value={filter.chapter}
+            onChange={(e) => handleFilterChange("chapter", e.target.value)}
           >
-            <option value="">All Counties</option>
-            {getUniqueValues("county").map(county => (
-              <option key={county} value={county}>{county}</option>
+            <option value="">All Chapters</option>
+            {getUniqueValues("chapter").map(chapter => (
+              <option key={chapter} value={chapter}>{chapter}</option>
             ))}
           </select>
           
@@ -1213,7 +1217,7 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
             ))}
           </select>
           
-          <select 
+          <select
             value={filter.type}
             onChange={(e) => handleFilterChange("type", e.target.value)}
           >
@@ -1234,12 +1238,22 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
             {[...filteredResources]
               .sort((a, b) => a.Resource?.localeCompare(b.Resource || ""))
               .map(resource => (
-                <div 
-                  key={resource.id} 
-                  className="resource-item"
+                <div
+                  key={resource.id}
+                  className={`resource-item resource-item--${resource.accent || "pink"}`}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleResourceClick(resource)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleResourceClick(resource);
+                    }
+                  }}
                 >
-                  <span className="resource-emoji">{resource.emoji}</span>
+                  <span className="resource-icon-tile" aria-hidden="true">
+                    <ResourceIcon type={resource.resourceType} size={28} />
+                  </span>
                   <div className="resource-text">
                     <div className="resource-name">{resource.Resource}</div>
                     <div className="resource-type">{resource.resourceType}</div>
@@ -1252,51 +1266,6 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
         {/* Map */}
         <div className="resources-map-container">
           <div className="resources-map" ref={mapRef}>
-            {/* Tooltip for hovered resource */}
-            {hoveredResource && (
-              <div 
-                className="resource-name-tooltip" 
-                style={{ 
-                  position: 'fixed',
-                  left: mousePosition.x + 15,
-                  top: mousePosition.y + 15,
-                  zIndex: 9999,
-                  background: 'rgba(0,0,0,0.8)',
-                  color: 'white',
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  pointerEvents: 'none'
-                }}
-              >
-                {hoveredResource.Resource}
-              </div>
-            )}
-            
-            {/* Map Legend */}
-            <div className="map-legend">
-              <div className="legend-header" onClick={() => setLegendCollapsed(!legendCollapsed)}>
-                <h4>Map Legend</h4>
-                <button 
-                  className="legend-toggle-button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setLegendCollapsed(!legendCollapsed);
-                  }}
-                >
-                  {legendCollapsed ? "Show ▼" : "Hide ▲"}
-                </button>
-              </div>
-              {!legendCollapsed && (
-                <div className="legend-items">
-                  {Object.entries(resourceEmojis).map(([type, emoji]) => (
-                    <div key={type} className="legend-item">
-                      <span>{emoji}</span> {type}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
             {/* SVG Map */}
             <svg viewBox="0 0 1600 1200" className="map-svg">
               {/* Draw neighborhoods backgrounds first */}
@@ -1336,51 +1305,42 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
                   
                   return (
                     <>
-                      {/* Draw district background shapes without borders */}
+                      {/* Draw district background shapes without borders.
+                          Labels are rendered later in .district-labels so
+                          they sit above streets and buildings. */}
                       {districtNames.map((district, index) => {
                         const x = index * districtWidth;
-                        
+
                         return (
                           <g key={district} className="district">
-                            <rect 
+                            <rect
                               x={x}
                               y={0}
                               width={districtWidth}
                               height={1200}
                               fill="rgba(255,255,255,0.05)"
-                              stroke="none" // Explicitly remove any stroke
+                              stroke="none"
                               className="district-area"
                             />
-                            <text 
-                              x={x + districtWidth/2} 
-                              y="1180" 
-                              className="district-label"
-                              style={{ fontSize: "26px", fontWeight: "bold", fill: "#4a2770", stroke: "white", strokeWidth: "0.8px", paintOrder: "stroke" }}
-                            >
-                              {district}
-                            </text>
                           </g>
                         );
                       })}
                       
-                      {/* Draw only the 4 vertical dividing lines */}
+                      {/* Subtle district dividers — thin dotted ink */}
                       {[1, 2, 3, 4].map(i => {
                         const x = i * districtWidth;
-                        
-                        // Create a slightly varied line for visual interest
-                        const pathData = `M ${x} 0 L ${x + (Math.sin(i * 5) * 20)} 300 
-                                         L ${x + (Math.cos(i * 3) * 30)} 600 
-                                         L ${x + (Math.sin(i * 4) * 25)} 900 
+                        const pathData = `M ${x} 0 L ${x + (Math.sin(i * 5) * 14)} 300
+                                         L ${x + (Math.cos(i * 3) * 18)} 600
+                                         L ${x + (Math.sin(i * 4) * 16)} 900
                                          L ${x} 1200`;
-                        
                         return (
-                          <path 
+                          <path
                             key={`divider-${i}`}
                             d={pathData}
                             fill="none"
-                            stroke="white"
-                            strokeWidth="7"
-                            strokeDasharray="6,10"
+                            stroke="rgba(20,20,25,0.12)"
+                            strokeWidth="2"
+                            strokeDasharray="2,8"
                             className="district-divider"
                           />
                         );
@@ -1390,188 +1350,241 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
                 }, [districts])}
               </g>
               
-              {/* Draw streets */}
+              {/* Parks / greenspace — behind streets and buildings */}
+              <g className="parks">
+                {FIXED_PARKS.map(park => (
+                  <ellipse
+                    key={park.key}
+                    cx={park.cx}
+                    cy={park.cy}
+                    rx={park.rx}
+                    ry={park.ry}
+                    className={park.tone === "dark" ? "park-shape-dark" : "park-shape"}
+                  />
+                ))}
+              </g>
+
+              {/* Streets — two-layer asphalt with dashed center lane */}
               <g className="streets">
                 {/* Horizontal streets */}
                 <g className="horizontal-streets">
                   {horizontalStreets.map((street, index) => {
                     const y = 150 + index * 180;
-                    
+                    const d = `M 0 ${y} C ${400} ${y + 10}, ${1200} ${y - 10}, ${1600} ${y}`;
                     return (
                       <g key={street} className="street">
-                        <path 
-                          d={`M 0 ${y} C ${400} ${y+30}, ${1200} ${y-30}, ${1600} ${y}`} 
-                          className="street-path"
-                        />
+                        <path d={d} className="street-curb" />
+                        <path d={d} className="street-asphalt" />
+                        <path d={d} className="street-lane" />
                       </g>
                     );
                   })}
                 </g>
-                
+
                 {/* Vertical streets */}
                 <g className="vertical-streets">
                   {verticalStreets.map((street, index) => {
                     const streetX = (1 + index) * (1600 / (verticalStreets.length + 1));
-                    
+                    const d = `M ${streetX} 0 C ${streetX + 10} ${300}, ${streetX - 10} ${900}, ${streetX} ${1200}`;
                     return (
                       <g key={street} className="street">
-                        <path 
-                          d={`M ${streetX} 0 C ${streetX+30} ${300}, ${streetX-30} ${900}, ${streetX} ${1200}`} 
-                          className="street-path"
-                          style={{ stroke: "#aaaaaa", strokeWidth: "8" }}
-                        />
+                        <path d={d} className="street-curb" />
+                        <path d={d} className="street-asphalt" />
+                        <path d={d} className="street-lane" />
                       </g>
                     );
                   })}
                 </g>
               </g>
-              
+
               {/* Add trees */}
               <g className="trees">
                 {FIXED_TREES.map(tree => (
-                  <text 
-                    key={tree.key} 
-                    x={tree.x} 
-                    y={tree.y} 
-                    fontSize="24"
-                    className="tree"
-                  >
-                    {tree.type}
-                  </text>
-                ))}
-              </g>
-              
-              {/* Moving cars */}
-              <g className="cars">
-                {carPositions.map(car => (
-                  <text 
-                    key={car.id} 
-                    x={car.x} 
-                    y={car.y} 
-                    fontSize="20"
-                    className="car"
-                  >
-                    {car.emoji}
-                  </text>
-                ))}
-              </g>
-              
-              {/* Resource buildings */}
-              <g className="resources-buildings">
-                {filteredResources.map(resource => (
-                  <g 
-                    key={resource.id} 
-                    className="resource-building"
-                    onClick={(e) => handleResourceClick(resource, e)}
-                    onMouseEnter={(e) => {
-                      setHoveredResource(resource);
-                      setMousePosition({ x: e.clientX, y: e.clientY });
-                    }}
-                    onMouseMove={(e) => {
-                      setMousePosition({ x: e.clientX, y: e.clientY });
-                    }}
-                    onMouseLeave={() => {
-                      setHoveredResource(null);
-                    }}
-                  >
-                    <rect 
-                      x={resource.x - 20} 
-                      y={resource.y - 20} 
-                      width="40" 
-                      height="40" 
-                      rx="5"
-                      className="resource-bg"
-                      style={{
-                        fill: hoveredResource?.id === resource.id ? "#FFD6EC" : "#ffffff",
-                        stroke: hoveredResource?.id === resource.id ? "#d48fc7" : "#ccc",
-                        strokeWidth: hoveredResource?.id === resource.id ? 2 : 1,
-                        transition: "fill 0.2s, stroke 0.2s"
-                      }}
-                    >
-                      <title>{resource.Resource}</title>
-                    </rect>
-                    <text 
-                      x={resource.x} 
-                      y={resource.y} 
-                      fontSize="30"
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      className="resource-emoji"
-                    >
-                      {resource.emoji}
-                      <title>{resource.Resource}</title>
-                    </text>
-                  </g>
+                  <Tree
+                    key={tree.key}
+                    x={tree.x}
+                    y={tree.y}
+                    variant={tree.variant}
+                  />
                 ))}
               </g>
 
-              {/* Immediate Resource Name Popup */}
-              {/* Bold text with outline instead of rectangle background */}
-              {hoveredResource && hoveredResource.x !== undefined && (
-                <g transform={`translate(${hoveredResource.x}, ${hoveredResource.y - 40})`}>
-                  {/* Text shadow/outline effect - multiple offset copies of the text */}
-                  <text
-                    x="0"
-                    y="0"
-                    textAnchor="middle"
-                    fill="black"
-                    fontSize="30"
-                    fontWeight="bold"
-                    style={{ pointerEvents: 'none' }}
-                    strokeWidth="6"
-                    stroke="black"
-                    paintOrder="stroke"
-                  >
-                    {hoveredResource.Resource || "Resource"}
-                  </text>
-                  
-                  {/* Main text on top */}
-                  <text
-                    x="0"
-                    y="0"
-                    textAnchor="middle"
-                    fill="pink"
-                    fontSize="30"
-                    fontWeight="bold"
-                    style={{ pointerEvents: 'none' }}
-                  >
-                    {hoveredResource.Resource || "Resource"}
-                  </text>
-                </g>
-              )}
+              {/* Moving cars */}
+              <g className="cars">
+                {carPositions.map(car => (
+                  <Vehicle
+                    key={car.id}
+                    x={car.x}
+                    y={car.y}
+                    variant={car.variant}
+                    direction={car.direction}
+                  />
+                ))}
+              </g>
               
-              {/* Street Names - Now on top */}
+              {/* Resource buildings — stage-tinted bevel tile with inline pictogram */}
+              <g className="resources-buildings">
+                {filteredResources.map(resource => {
+                  const isHovered = hoveredResource?.id === resource.id;
+                  const stageFill = {
+                    pink:   "#fde0ec", // magenta-soft
+                    yellow: "#fde7d0", // tangerine-soft
+                    green:  "#d5f1f4", // aqua-soft
+                    blue:   "#d5f1f4", // aqua-soft
+                    purple: "#e7dffa", // grape-soft
+                  }[resource.accent || "pink"];
+                  return (
+                    <g
+                      key={resource.id}
+                      className="resource-building"
+                      onClick={(e) => handleResourceClick(resource, e)}
+                      onMouseEnter={(e) => {
+                        setHoveredResource(resource);
+                        setMousePosition({ x: e.clientX, y: e.clientY });
+                      }}
+                      onMouseMove={(e) => {
+                        setMousePosition({ x: e.clientX, y: e.clientY });
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredResource(null);
+                      }}
+                    >
+                      {/* Bevel shadow */}
+                      <rect
+                        x={resource.x - 22}
+                        y={resource.y - 18}
+                        width="44"
+                        height="44"
+                        fill="#2d2d2d"
+                        opacity="0.18"
+                      />
+                      {/* Stage-tinted accent bar (top of tile) */}
+                      <rect
+                        x={resource.x - 24}
+                        y={resource.y - 22}
+                        width="48"
+                        height="6"
+                        fill={stageFill}
+                        stroke="#2d2d2d"
+                        strokeWidth="1.25"
+                      />
+                      {/* Main tile */}
+                      <rect
+                        x={resource.x - 24}
+                        y={resource.y - 16}
+                        width="48"
+                        height="38"
+                        fill={isHovered ? "#ffffff" : "#f7f7f7"}
+                        stroke="#2d2d2d"
+                        strokeWidth={isHovered ? 1.75 : 1.25}
+                        className="resource-bg"
+                      >
+                        <title>{resource.Resource}</title>
+                      </rect>
+                      <ResourceIcon
+                        type={resource.resourceType}
+                        size={34}
+                        inline
+                        x={resource.x}
+                        y={resource.y + 3}
+                        title={resource.Resource}
+                      />
+                    </g>
+                  );
+                })}
+              </g>
+
+              {/* Pinned label above the hovered building — anchored in map
+                  coordinates so it lines up with the tile even when the
+                  viewport is scrolled or the window has been dragged. */}
+              {hoveredResource && hoveredResource.x !== undefined && (() => {
+                const label = hoveredResource.Resource || "Resource";
+                const hoverRectWidth = Math.max(180, Math.round(label.length * 11 + 36));
+                const hoverRectHeight = 32;
+                return (
+                  <g
+                    transform={`translate(${hoveredResource.x}, ${hoveredResource.y - 38})`}
+                    style={{ pointerEvents: "none" }}
+                    className="resource-map-label"
+                  >
+                    <rect
+                      x={-hoverRectWidth / 2 + 3}
+                      y={-hoverRectHeight / 2 + 3}
+                      width={hoverRectWidth}
+                      height={hoverRectHeight}
+                      fill="#2d2d2d"
+                      opacity="0.25"
+                    />
+                    <rect
+                      x={-hoverRectWidth / 2}
+                      y={-hoverRectHeight / 2}
+                      width={hoverRectWidth}
+                      height={hoverRectHeight}
+                      fill="#fff8e6"
+                      stroke="#2d2d2d"
+                      strokeWidth="1.5"
+                    />
+                    <text
+                      x="0"
+                      y="5"
+                      textAnchor="middle"
+                      fontSize="17"
+                      fontWeight="bold"
+                      fill="#2d2d2d"
+                      style={{ fontFamily: "var(--font-content), 'Inter', sans-serif" }}
+                    >
+                      {label}
+                    </text>
+                  </g>
+                );
+              })()}
+
+              {/* Street Names — white type centered on the asphalt */}
               <g className="street-names">
                 {/* Horizontal street names */}
                 <g className="horizontal-street-names">
                   {horizontalStreets.map((street, index) => {
-                    const y = 160 + index * 180;
+                    const y = 150 + index * 180;
                     return (
-                      <text 
+                      <text
                         key={street}
-                        x="255" 
-                        y={y-10} 
-                        className="street-name" 
-                        style={{ fontSize: "22px", fill: "black", stroke: "white", strokeWidth: "0.8px", paintOrder: "stroke" }}
+                        x="60"
+                        y={y + 6}
+                        className="street-name"
+                        style={{
+                          fontSize: "18px",
+                          fill: "#ffffff",
+                          fontWeight: 800,
+                          letterSpacing: "0.06em",
+                          fontFamily: "var(--font-content), 'Inter', sans-serif",
+                          textTransform: "uppercase",
+                        }}
                       >
                         {street}
                       </text>
                     );
                   })}
                 </g>
-                
-                {/* Vertical street names */}
+
+                {/* Vertical street names — centered between the two middle
+                    horizontal streets so the rotated text sits in the gap. */}
                 <g className="vertical-street-names">
                   {verticalStreets.map((street, index) => {
                     const streetX = (1 + index) * (1600 / (verticalStreets.length + 1));
                     return (
-                      <text 
+                      <text
                         key={street}
-                        x={streetX-20} 
-                        y="470" 
-                        transform={`rotate(90, ${streetX-20}, 470)`}
+                        transform={`translate(${streetX + 5}, 600) rotate(-90)`}
+                        textAnchor="middle"
                         className="street-name"
-                        style={{ fontSize: "22px", fill: "black", stroke: "white", strokeWidth: "0.8px", paintOrder: "stroke" }}
+                        style={{
+                          fontSize: "16px",
+                          fill: "#ffffff",
+                          fontWeight: 800,
+                          letterSpacing: "0.05em",
+                          fontFamily: "var(--font-content), 'Inter', sans-serif",
+                          textTransform: "uppercase",
+                        }}
                       >
                         {street}
                       </text>
@@ -1579,31 +1592,60 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
                   })}
                 </g>
               </g>
-              
-              {/* Neighborhood labels - Now on top */}
+
+              {/* Neighborhood labels — white signage plates, placed between
+                  streets so they don't collide with roads. Width is sized
+                  per-label so long names don't overflow. */}
               <g className="neighborhood-labels">
-                <text x="800" y="1050" className="neighborhood-label" style={{ fontSize: "32px", fontWeight: "bold", fill: "#550000", stroke: "white", strokeWidth: "1px", paintOrder: "stroke" }}>Ideation Valley</text>
-                <text x="800" y="750" className="neighborhood-label" style={{ fontSize: "32px", fontWeight: "bold", fill: "#553300", stroke: "white", strokeWidth: "1px", paintOrder: "stroke" }}>Early Stage Neighborhood</text>
-                <text x="800" y="450" className="neighborhood-label" style={{ fontSize: "32px", fontWeight: "bold", fill: "#004400", stroke: "white", strokeWidth: "1px", paintOrder: "stroke" }}>Growth Park</text>
-                <text x="800" y="150" className="neighborhood-label" style={{ fontSize: "32px", fontWeight: "bold", fill: "#000055", stroke: "white", strokeWidth: "1px", paintOrder: "stroke" }}>Establishment Heights</text>
+                {[
+                  { text: "Establishment Heights",    y: 250, stage: "Established" },
+                  { text: "Growth Park",              y: 450, stage: "Growth" },
+                  { text: "Early Stage Neighborhood", y: 780, stage: "Early Stage" },
+                  { text: "Ideation Valley",          y: 960, stage: "Ideation" },
+                ].map(({ text, y, stage }) => {
+                  const upper = text.toUpperCase();
+                  const width = Math.max(160, Math.round(upper.length * 11 + 28));
+                  return (
+                    <g key={stage}>
+                      <rect x="30" y={y - 14} width={width} height={30} fill="#2d2d2d" opacity="0.22" />
+                      <rect x="26" y={y - 18} width={width} height={30} fill={neighborhoodColors[stage]} stroke="#2d2d2d" strokeWidth="1.5" />
+                      <text
+                        x={26 + width / 2}
+                        y={y + 2}
+                        textAnchor="middle"
+                        fontSize="16"
+                        fontWeight="bold"
+                        fill="#2d2d2d"
+                        style={{ fontFamily: "'Arial Black', Impact, sans-serif", letterSpacing: "0.5px" }}
+                      >
+                        {upper}
+                      </text>
+                    </g>
+                  );
+                })}
               </g>
-              
-              {/* District labels - Now on top */}
+
+              {/* District labels — beveled pill along the bottom edge */}
               <g className="district-labels">
                 {Object.keys(districts).map((district, index) => {
-                  const x = index * (1600 / Object.keys(districts).length);
                   const width = 1600 / Object.keys(districts).length;
-                  
+                  const x = index * width;
                   return (
-                    <text 
-                      key={district}
-                      x={x + width/2} 
-                      y="1180" 
-                      className="district-label"
-                      style={{ fontSize: "26px", fontWeight: "bold", fill: "#4a2770", stroke: "white", strokeWidth: "0.8px", paintOrder: "stroke" }}
-                    >
-                      {district}
-                    </text>
+                    <g key={district}>
+                      <rect x={x + 14} y={1144} width={width - 28} height={40} fill="#2d2d2d" opacity="0.22" />
+                      <rect x={x + 10} y={1140} width={width - 28} height={40} fill="#fff" stroke="#2d2d2d" strokeWidth="1.5" />
+                      <text
+                        x={x + width / 2 - 4}
+                        y={1164}
+                        textAnchor="middle"
+                        fontSize="18"
+                        fontWeight="bold"
+                        fill="#4a2770"
+                        style={{ fontFamily: "'Arial Black', Impact, sans-serif", letterSpacing: "0.5px" }}
+                      >
+                        {district.toUpperCase()}
+                      </text>
+                    </g>
                   );
                 })}
               </g>
@@ -1614,49 +1656,116 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
       
       {/* Resource Detail Modal */}
       {selectedResource && (
-        <div className="resource-modal" onClick={handleCloseModal}>
-          <div className="resource-modal-content" onClick={e => e.stopPropagation()}>
-            <h2>
-              <span className="resource-emoji">{selectedResource.emoji}</span> 
-              {selectedResource.Resource}
-            </h2>
-            
-            <div className="resource-details">
-              <p><strong>Type:</strong> {selectedResource.resourceType}</p>
-              <p><strong>Focus Area:</strong> {selectedResource["Focus Area"]}</p>
-              <p><strong>Business Stage:</strong> {selectedResource.businessStage}</p>
-              <p><strong>Counties Served:</strong> {selectedResource["Counties Served"]}</p>
-              
-              {selectedResource["Average Check Size"] && (
-                <p><strong>Average Check Size:</strong> {selectedResource["Average Check Size"]}</p>
-              )}
-              
-              {selectedResource["Relocation Required?"] && (
-                <p><strong>Relocation Required:</strong> {selectedResource["Relocation Required?"]}</p>
-              )}
-              
+        <div
+          className="resource-modal"
+          onClick={handleCloseModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="resource-modal-title"
+        >
+          <div className={`resource-modal-content win95-window resource-modal--${selectedResource.accent || "pink"}`} onClick={e => e.stopPropagation()}>
+            {/* Win95-style title bar */}
+            <div className="resource-modal-titlebar">
+              <div className="resource-modal-titlebar-title">
+                <span id="resource-modal-title">{selectedResource.Resource}</span>
+              </div>
+              <button
+                type="button"
+                className="resource-modal-titlebar-close"
+                onClick={handleCloseModal}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="resource-modal-body">
+              {/* Header summary */}
+              <div className="resource-modal-summary">
+                <div className="resource-modal-summary-icon" aria-hidden="true">
+                  <ResourceIcon type={selectedResource.resourceType} size={48} />
+                </div>
+                <div className="resource-modal-summary-text">
+                  <h2 className="resource-modal-name">{selectedResource.Resource}</h2>
+                  <div className="resource-modal-type">{selectedResource.resourceType}</div>
+                </div>
+              </div>
+
+              {/* Tag row */}
+              <div className="resource-modal-tags">
+                {selectedResource.chapter && (
+                  <span className="resource-tag tag-chapter">
+                    <span className="resource-tag-label">Chapter</span>
+                    {selectedResource.chapter}
+                  </span>
+                )}
+                {selectedResource.businessStage && (
+                  <span className={`resource-tag tag-stage tag-stage-${selectedResource.businessStage.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <span className="resource-tag-label">Stage</span>
+                    {selectedResource.businessStage}
+                  </span>
+                )}
+                {selectedResource["Focus Area"] && (
+                  <span className="resource-tag tag-focus">
+                    <span className="resource-tag-label">Focus</span>
+                    {selectedResource["Focus Area"]}
+                  </span>
+                )}
+              </div>
+
+              {/* Expanded details */}
               {selectedResource["Expanded Details"] && (
-                <div className="expanded-details">
-                  <h3>Details</h3>
-                  <p>{selectedResource["Expanded Details"]}</p>
+                <div className="resource-modal-section">
+                  <h3 className="resource-modal-section-title">About</h3>
+                  <p className="resource-modal-about">{selectedResource["Expanded Details"]}</p>
                 </div>
               )}
-              
-              {selectedResource.URL && (
-                <p>
-                  <a 
-                    href={selectedResource.URL} 
-                    target="_blank" 
+
+              {/* Stat grid */}
+              <div className="resource-modal-stats">
+                {selectedResource["Average Check Size"] && selectedResource["Average Check Size"] !== "NA" && (
+                  <div className="resource-stat">
+                    <div className="resource-stat-label">Avg. Check Size</div>
+                    <div className="resource-stat-value">{selectedResource["Average Check Size"]}</div>
+                  </div>
+                )}
+                {selectedResource["Relocation Required?"] && (
+                  <div className="resource-stat">
+                    <div className="resource-stat-label">Relocation Required</div>
+                    <div className="resource-stat-value">{selectedResource["Relocation Required?"]}</div>
+                  </div>
+                )}
+                {selectedResource["Counties Served"] && (
+                  <div className="resource-stat resource-stat-wide">
+                    <div className="resource-stat-label">Counties Served</div>
+                    <div className="resource-stat-value">{selectedResource["Counties Served"]}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="resource-modal-actions">
+                {selectedResource.URL && (
+                  <a
+                    href={selectedResource.URL.startsWith('http') ? selectedResource.URL : `http://${selectedResource.URL}`}
+                    target="_blank"
                     rel="noreferrer"
-                    className="resource-link"
+                    className="resource-visit-btn"
                   >
-                    Visit Website ↗
+                    Visit Website
+                    <span className="resource-visit-btn-arrow" aria-hidden="true">&rarr;</span>
                   </a>
-                </p>
-              )}
+                )}
+                <button
+                  type="button"
+                  className="resource-close-btn win95-btn"
+                  onClick={handleCloseModal}
+                  autoFocus
+                >
+                  Close
+                </button>
+              </div>
             </div>
-            
-            <button className="close-button" onClick={handleCloseModal}>Close</button>
           </div>
         </div>
       )}
@@ -1668,9 +1777,9 @@ export default function NeighborhoodResources({ onClose, windowId, zIndex, bring
   return isEmbedded ? (
     content
   ) : (
-    <WindowFrame 
-      title="📖 Neighborhood Resources - Western New York Edition" 
-      onClose={onClose} 
+    <WindowFrame
+      title="Neighborhood Navigator"
+      onClose={onClose}
       width={1000} 
       height={700}
       center={true}

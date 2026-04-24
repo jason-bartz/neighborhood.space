@@ -318,7 +318,7 @@ export default function BrowserWindow({ onClose, onPitchClick, onLpApplicationCl
 
 const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex }) => (
   <main className="mb-content">
-    <h1 style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", overflow: "hidden" }}>Good Neighbor Fund - $1,000 Micro-Grants for Bold Founders | Chapters in Western New York, Denver, Upstate NY, and the Capital Region</h1>
+    <h1 style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}>Good Neighbor Fund - $1,000 Micro-Grants for Bold Founders | Chapters in Western New York, Denver, Upstate NY, and the Capital Region</h1>
 
     {/* ===== ANNOUNCEMENT MARQUEE (ink bar) ===== */}
     <div style={{
@@ -404,8 +404,13 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
         {/* Right — photo */}
         <div style={{ position: "relative", overflow: "hidden", minHeight: "360px", borderLeft: "var(--border-chalk-2)" }}>
           <img
-            src="/assets/gnf-fat-daddys.webp"
-            alt="Fat Daddy's - Good Neighbor Fund $1,000 grant recipient in Buffalo, NY"
+            src="/assets/goodmoonbodywork.webp"
+            alt="Good Moon Bodywork founder receiving a $1,000 Good Neighbor Fund micro-grant check"
+            width="800"
+            height="600"
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
             style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
           />
           <div style={{
@@ -421,7 +426,7 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
             textTransform: "uppercase",
             border: "1px solid var(--mb-chalk)"
           }}>
-            Fat Daddy's · Grant Recipient
+            Good Moon Bodywork · Grant Recipient
           </div>
         </div>
       </div>
@@ -548,7 +553,7 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
             boxShadow: "var(--shadow-hard-sm)",
             background: "var(--mb-ink)"
           }}>
-            <img src={img.src} alt={img.alt} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+            <img src={img.src} alt={img.alt} width="600" height="400" loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
           </div>
         ))}
       </div>
@@ -592,7 +597,11 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
               <img
                 src={press.logo}
                 alt={`${press.title} logo - Good Neighbor Fund press coverage`}
-                style={{ height: "100%", maxWidth: "220px", objectFit: "contain" }}
+                width="220"
+                height="56"
+                loading="lazy"
+                decoding="async"
+                style={{ height: "100%", width: "auto", maxWidth: "220px", objectFit: "contain" }}
               />
             ) : (
               <span className="mb-numeral" style={{ fontSize: 14, color: "var(--mb-ink)" }}>{press.title}</span>
@@ -636,6 +645,11 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
               key={i}
               src={img.src}
               alt={img.alt}
+              width="220"
+              height="220"
+              loading="lazy"
+              decoding="async"
+              aria-hidden={i >= 5 ? "true" : undefined}
               style={{
                 height: 220,
                 width: "auto",
@@ -652,6 +666,9 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
           @keyframes mb-marquee {
             0% { transform: translate3d(0, 0, 0); }
             100% { transform: translate3d(-50%, 0, 0); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            [style*="mb-marquee"] { animation: none !important; }
           }
         `}</style>
       </div>
@@ -728,6 +745,45 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
     <footer className="mb-block mb-block-ink" style={{ paddingTop: 24, paddingBottom: 24, textAlign: "center", borderTop: "1px solid rgba(255,255,255,0.15)" }}>
       <HitCounter />
 
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 18, marginTop: 18 }}>
+        <a
+          href="https://www.linkedin.com/company/good-neighbor-fund"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="LinkedIn"
+          aria-label="LinkedIn"
+          style={{ display: "flex", alignItems: "center", color: "var(--mb-chalk)" }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+          </svg>
+        </a>
+        <a
+          href="https://www.instagram.com/goodneighborfund/"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Instagram"
+          aria-label="Instagram"
+          style={{ display: "flex", alignItems: "center", color: "var(--mb-chalk)" }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
+          </svg>
+        </a>
+        <a
+          href="https://goodneighbors.substack.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Newsletter"
+          aria-label="Newsletter"
+          style={{ display: "flex", alignItems: "center", color: "var(--mb-chalk)" }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+            <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+          </svg>
+        </a>
+      </div>
+
       <div className="mb-numeral" style={{ marginTop: 16, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
         &copy; {new Date().getFullYear()} GOOD NEIGHBOR FUND · ALL RIGHTS RESERVED ·{" "}
         <a href="/terms" target="_blank" rel="noopener noreferrer" className="mb-link-underline" style={{ color: "var(--mb-chalk)" }}>
@@ -777,8 +833,9 @@ const AwardeesPage = ({ awardees, loading, chapters, searchTerm, setSearchTerm, 
     <section className="mb-block mb-block-paper" style={{ paddingTop: 32, paddingBottom: 32 }}>
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)", gap: 12, alignItems: "stretch" }} className="mb-awardee-filters">
         <input
-          type="text"
+          type="search"
           placeholder="Search by founder or business name"
+          aria-label="Search by founder or business name"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           style={{
@@ -958,16 +1015,41 @@ const ChaptersPage = ({ setPage, onLpApplicationClick }) => {
   return (
   <main className="mb-content">
     {/* ===== HERO — Grape ===== */}
-    <section className="mb-block mb-block-grape">
-      <div className="mb-section-head" style={{ marginBottom: 16, maxWidth: "60ch" }}>
-        <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Network · Four Chapters Strong</span>
-        <h2 className="mb-h1" style={{ color: "var(--mb-chalk)" }}>
-          GNF <em style={{ fontStyle: "italic", color: "var(--mb-aqua)" }}>Chapters.</em>
-        </h2>
-        <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.9, marginTop: 8 }}>
-          We operate through local chapters &mdash; each with their own community of Limited Partners
-          who review applications and select quarterly awardees.
-        </p>
+    <section className="mb-block mb-block-grape" style={{ padding: 0 }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
+        alignItems: "stretch",
+        minHeight: "460px"
+      }}>
+        <div style={{
+          padding: "var(--s-block-pad-y) var(--s-block-pad-x)",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          gap: "var(--s-stack)"
+        }}>
+          <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Network · Four Chapters Strong</span>
+          <h2 className="mb-h1" style={{ color: "var(--mb-chalk)" }}>
+            GNF <em style={{ fontStyle: "italic", color: "var(--mb-aqua)" }}>Chapters.</em>
+          </h2>
+          <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.9, marginTop: 8, maxWidth: "48ch" }}>
+            We operate through local chapters &mdash; each with their own community of Limited Partners
+            who review applications and select quarterly awardees.
+          </p>
+        </div>
+        <div style={{ position: "relative", overflow: "hidden", minHeight: "360px", borderLeft: "var(--border-chalk-2)" }}>
+          <img
+            src="/assets/_DSC1129.webp"
+            alt="Good Neighbor Fund chapter community gathering"
+            width="800"
+            height="600"
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+            style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+          />
+        </div>
       </div>
     </section>
 
@@ -1093,128 +1175,281 @@ const ChaptersPage = ({ setPage, onLpApplicationClick }) => {
 // -- DonatePage --
 const DonatePage = () => (
   <main className="mb-content">
-    {/* ===== HERO — Magenta ===== */}
-    <section className="mb-block mb-block-magenta">
-      <div className="mb-section-head" style={{ marginBottom: 16, maxWidth: "64ch" }}>
-        <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Support the Fund</span>
-        <h2 className="mb-h1" style={{ color: "var(--mb-chalk)" }}>
-          Grow communities through <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>belief capital.</em>
-        </h2>
-        <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.92, marginTop: 8 }}>
-          We're a 100% volunteer-led organization. Your donation directly funds our micro-grant program &mdash;
-          every dollar empowers founders to turn ideas into reality.
-        </p>
+    {/* ===== HERO — Magenta with inline impact stats ===== */}
+    <section className="mb-block mb-block-magenta" style={{ padding: 0 }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
+        alignItems: "stretch",
+        minHeight: "520px"
+      }}>
+        <div style={{
+          padding: "var(--s-block-pad-y) var(--s-block-pad-x)",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          gap: "var(--s-stack)"
+        }}>
+          <div className="mb-section-head" style={{ margin: 0, maxWidth: "48ch" }}>
+            <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Support the Fund</span>
+            <h2 className="mb-h1" style={{ color: "var(--mb-chalk)" }}>
+              Fuel <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>belief capital</em> for bold neighborhood founders.
+            </h2>
+            <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.92, marginTop: 12 }}>
+              We're a 100% volunteer-led organization. Every dollar funds the next micro-grant &mdash; no
+              overhead, no middlemen.
+            </p>
+          </div>
+
+          <div style={{
+            background: "var(--mb-ink)",
+            border: "2px solid var(--mb-chalk)",
+            padding: "20px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+            alignSelf: "flex-start",
+            maxWidth: "320px",
+          }}>
+            <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>1 Grant</span>
+            <span className="mb-numeral" style={{ fontSize: 42, fontWeight: 700, color: "var(--mb-chalk)", letterSpacing: "-0.04em", lineHeight: 1 }}>
+              $1,000
+            </span>
+            <span className="mb-body" style={{ color: "var(--mb-chalk)", opacity: 0.85, marginTop: 8, fontSize: 14 }}>
+              Your dollars fund a founder, dollar for dollar.
+            </span>
+          </div>
+        </div>
+
+        <div style={{ position: "relative", overflow: "hidden", minHeight: "360px", borderLeft: "var(--border-chalk-2)" }}>
+          <img
+            src="/assets/IMG_0740.webp"
+            alt="Support Good Neighbor Fund — fueling belief capital for neighborhood founders"
+            width="800"
+            height="600"
+            loading="eager"
+            fetchPriority="high"
+            decoding="async"
+            style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+          />
+        </div>
       </div>
     </section>
 
-    {/* ===== DONATION OPTIONS — Paper ===== */}
+    {/* ===== TWO PATHS — Paper ===== */}
     <section className="mb-block mb-block-paper">
-      <div className="mb-grid mb-grid-2" style={{ gap: 28 }}>
-        {/* One-Time */}
-        <article className="mb-card" style={{ padding: 32, display: "flex", flexDirection: "column", gap: 18 }}>
-          <span className="mb-eyebrow" style={{ color: "var(--mb-aqua-deep)" }}>Option 01 · One Time</span>
-          <h3 className="mb-h3" style={{ margin: 0 }}>Make a one-time donation</h3>
-          <p className="mb-body" style={{ margin: 0 }}>
-            Your one-time contribution helps us award micro-grants to aspiring entrepreneurs. Every dollar
-            makes a difference.
-          </p>
-          <a
-            href="https://buy.stripe.com/8wMaEW0mqaYB1jOaEH"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mb-btn mb-btn-ink"
-            style={{ alignSelf: "flex-start" }}
-          >
-            Donate via Stripe
-            <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
-          </a>
-          <p className="mb-micro" style={{ marginTop: 8 }}>
-            All transactions processed through our fiscal sponsor, BootSector,
-            a registered 501(c)3 non-profit <span className="mb-numeral">(EIN 85-4082950)</span>.
-          </p>
+      <div className="mb-section-head" style={{ marginBottom: 32, maxWidth: "56ch" }}>
+        <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Two Ways to Give</span>
+        <h2 className="mb-h2">
+          Pick a rhythm that fits.
+        </h2>
+      </div>
+
+      <div className="mb-grid mb-grid-2" style={{ gap: 24, alignItems: "stretch" }}>
+        {/* ---- One-time ---- */}
+        <article className="mb-card" style={{ padding: 0, display: "flex", flexDirection: "column" }}>
+          <div style={{
+            background: "var(--mb-aqua-soft)",
+            borderBottom: "2px solid var(--mb-ink)",
+            padding: "16px 24px 14px",
+          }}>
+            <span className="mb-eyebrow" style={{ color: "var(--mb-aqua-deep)" }}>Option 01 · One-Time</span>
+            <h3 className="mb-h3" style={{ margin: "6px 0 0" }}>Give once, directly.</h3>
+          </div>
+
+          <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 18, flex: 1 }}>
+            <p className="mb-body" style={{ margin: 0 }}>
+              Your contribution goes straight into the micro-grant fund. Any amount helps &mdash;
+              $100 = 10% of a grant, $1,000 = a full grant to a founder.
+            </p>
+
+            <div style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              padding: "14px 16px",
+              background: "var(--mb-paper-deep)",
+              border: "1px solid var(--mb-ink)",
+            }}>
+              <span className="mb-eyebrow" style={{ color: "var(--mb-ink)", width: "100%", marginBottom: 4 }}>
+                Suggested Amounts
+              </span>
+              {["$25", "$100", "$250", "$1,000"].map((amt) => (
+                <span
+                  key={amt}
+                  className="mb-numeral"
+                  style={{
+                    padding: "4px 10px",
+                    background: "var(--mb-chalk)",
+                    border: "1px solid var(--mb-ink)",
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: "var(--mb-ink)",
+                  }}
+                >
+                  {amt}
+                </span>
+              ))}
+            </div>
+
+            <a
+              href="https://buy.stripe.com/8wMaEW0mqaYB1jOaEH"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-btn mb-btn-ink mb-btn-full"
+              style={{ marginTop: "auto" }}
+            >
+              Donate via Stripe
+              <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
+            </a>
+          </div>
         </article>
 
-        {/* Club Membership */}
-        <article className="mb-card" style={{ padding: 32, display: "flex", flexDirection: "column", gap: 18 }}>
-          <span className="mb-eyebrow" style={{ color: "var(--mb-grape-deep)" }}>Option 02 · Recurring</span>
-          <h3 className="mb-h3" style={{ margin: 0 }}>Become a GNF Club Member</h3>
-          <p className="mb-body" style={{ margin: 0 }}>
-            Join a community of neighbors passionate about entrepreneurship and giving back.
-            Recurring support fuels the next generation of founders.
-          </p>
+        {/* ---- Club Membership ---- */}
+        <article className="mb-card" style={{ padding: 0, display: "flex", flexDirection: "column", position: "relative" }}>
+          <div style={{
+            position: "absolute",
+            top: -10,
+            right: 16,
+            background: "var(--mb-magenta)",
+            color: "var(--mb-chalk)",
+            padding: "4px 10px",
+            fontFamily: "var(--font-pixel)",
+            fontSize: 10,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            border: "1px solid var(--mb-ink)",
+            zIndex: 1,
+          }}>
+            Most Impact
+          </div>
 
-          <div style={{ background: "var(--mb-grape-soft)", border: "var(--border-ink)", padding: 16, marginTop: 4 }}>
-            <span className="mb-eyebrow" style={{ color: "var(--mb-grape-deep)" }}>Membership Benefits</span>
-            <ul style={{ margin: "12px 0 0", paddingLeft: 20, listStyleType: "none" }}>
-              {["Free access to all GNF-hosted events",
+          <div style={{
+            background: "var(--mb-grape-soft)",
+            borderBottom: "2px solid var(--mb-ink)",
+            padding: "16px 24px 14px",
+          }}>
+            <span className="mb-eyebrow" style={{ color: "var(--mb-grape-deep)" }}>Option 02 · Recurring</span>
+            <h3 className="mb-h3" style={{ margin: "6px 0 0" }}>Become a GNF Club Member.</h3>
+          </div>
+
+          <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: 18, flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+              <span className="mb-numeral" style={{ fontSize: 40, fontWeight: 700, color: "var(--mb-grape-deep)", letterSpacing: "-0.04em", lineHeight: 1 }}>
+                $25
+              </span>
+              <span className="mb-numeral" style={{ fontSize: 13, color: "var(--mb-ink-60)" }}>
+                / month
+              </span>
+            </div>
+
+            <p className="mb-body" style={{ margin: 0 }}>
+              Join a community of neighbors who fund the next generation of founders &mdash; a steady
+              $25/month keeps grants flowing all year. 100% of dues go to your chapter's micro-grant program.
+            </p>
+
+            <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                "Free access to all GNF-hosted events",
                 "Private GNF Slack community",
                 "GNF Club stickers",
-                "Social media shoutout"].map(benefit => (
-                <li key={benefit} className="mb-body" style={{ position: "relative", paddingLeft: 20, marginBottom: 6 }}>
-                  <span className="mb-numeral" style={{ position: "absolute", left: 0, top: 0, fontSize: 13, color: "var(--mb-grape-deep)", fontWeight: 700 }}>&rarr;</span>
+                "Chapter social-media shoutout",
+              ].map(benefit => (
+                <li key={benefit} className="mb-body" style={{ position: "relative", paddingLeft: 22, fontSize: 14, lineHeight: 1.45 }}>
+                  <span style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 6,
+                    width: 10,
+                    height: 10,
+                    background: "var(--mb-grape)",
+                    border: "1px solid var(--mb-ink)",
+                  }} />
                   {benefit}
                 </li>
               ))}
             </ul>
-          </div>
 
-          <a
-            href="https://buy.stripe.com/dR68wO3yCgiVaUo6oq"
-            target="_blank"
-            rel="noreferrer"
-            className="mb-btn mb-btn-grape"
-            style={{ alignSelf: "flex-start" }}
-          >
-            Join the Club
-            <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
-          </a>
+            <a
+              href="https://buy.stripe.com/dR68wO3yCgiVaUo6oq"
+              target="_blank"
+              rel="noreferrer"
+              className="mb-btn mb-btn-grape mb-btn-full"
+              style={{ marginTop: "auto" }}
+            >
+              Join the Club
+              <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
+            </a>
+          </div>
         </article>
       </div>
-    </section>
 
-    {/* ===== TAX INFO — Paper (sunken card) ===== */}
-    <section className="mb-block mb-block-paper" style={{ paddingTop: 16, paddingBottom: 32 }}>
+      {/* Tax info — subtle footnote strip inside same paper block */}
       <div style={{
+        marginTop: 32,
+        padding: "16px 20px",
+        border: "1px solid var(--mb-ink)",
         background: "var(--mb-paper-deep)",
-        border: "var(--border-ink)",
-        padding: "20px 24px",
         display: "flex",
         alignItems: "center",
-        gap: 24,
-        flexWrap: "wrap"
+        gap: 18,
+        flexWrap: "wrap",
       }}>
-        <div style={{ flex: "0 0 auto" }}>
-          <span className="mb-badge">Tax-Deductible</span>
-        </div>
-        <p className="mb-body" style={{ margin: 0, flex: 1, minWidth: "280px", fontSize: 13 }}>
-          Donations are tax-deductible to the extent allowed by law. Good Neighbor Fund operates through
-          its fiscal sponsor, BootSector, a registered 501(c)3 non-profit
+        <span className="mb-badge">Tax-Deductible</span>
+        <p className="mb-body" style={{ margin: 0, flex: 1, minWidth: "280px", fontSize: 13, lineHeight: 1.5 }}>
+          Donations are tax-deductible to the extent allowed by law. All transactions processed through our
+          fiscal sponsor, <strong style={{ fontWeight: 700 }}>BootSector</strong>, a registered 501(c)3 non-profit
           <span className="mb-numeral"> (EIN 85-4082950)</span>. You'll receive a donation receipt where applicable.
         </p>
       </div>
     </section>
 
-    {/* ===== CORPORATE SPONSORSHIP — Aqua ===== */}
-    <section className="mb-block mb-block-aqua" style={{ textAlign: "center" }}>
-      <span className="mb-eyebrow" style={{ color: "var(--mb-ink)", display: "block", marginBottom: 16 }}>
-        Corporate Sponsorship
-      </span>
-      <h2 className="mb-h2" style={{ maxWidth: "22ch", margin: "0 auto 16px" }}>
-        Partner with us at the community level.
-      </h2>
-      <p className="mb-lede" style={{ maxWidth: "56ch", margin: "0 auto 28px" }}>
-        Looking to make a larger impact? Our corporate sponsorship program offers various levels
-        of involvement and recognition &mdash; support entrepreneurship while showcasing your
-        commitment to local economic development.
-      </p>
-      <button
-        type="button"
-        onClick={() => window.location.href = "mailto:jason@goodneighbor.fund?subject=Corporate%20Sponsorship%20Inquiry"}
-        className="mb-btn mb-btn-ink"
-      >
-        Contact Us About Sponsorship
-        <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
-      </button>
+    {/* ===== CORPORATE SPONSORSHIP — Aqua with tier cards ===== */}
+    <section className="mb-block mb-block-aqua">
+      <div className="mb-section-head" style={{ marginBottom: 32, maxWidth: "60ch" }}>
+        <span className="mb-eyebrow" style={{ color: "var(--mb-ink)" }}>Corporate Partnership</span>
+        <h2 className="mb-h2">
+          Sponsor a chapter.<br/>Back a neighborhood.
+        </h2>
+        <p className="mb-body" style={{ marginTop: 12, maxWidth: "56ch" }}>
+          Three tiers of support for businesses that want to plant flags alongside the founders
+          in their community. All sponsorships are tax-deductible through our fiscal sponsor.
+        </p>
+      </div>
+
+      <div className="mb-grid mb-grid-3" style={{ gap: 16, marginBottom: 32 }}>
+        {[
+          { tier: "Good Neighbor", amount: "$1,000", summary: "Funds one full micro-grant. Name & logo on the awardee's grant announcement." },
+          { tier: "Community Partner", amount: "$5,000", summary: "Funds a full chapter quarter. Event co-branding + logo on chapter page for the year." },
+          { tier: "Chapter Champion", amount: "$10,000+", summary: "Funds a full chapter year. Premier logo placement, named grant round, speaking slot at a chapter dinner." },
+        ].map((tier, i) => (
+          <article key={tier.tier} className="mb-card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
+            <span className="mb-numeral" style={{ fontSize: 11, color: "var(--mb-magenta)", fontWeight: 700, letterSpacing: "0.08em" }}>
+              TIER 0{i + 1}
+            </span>
+            <h3 className="mb-h4" style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 22, letterSpacing: "-0.01em" }}>
+              {tier.tier}
+            </h3>
+            <span className="mb-numeral" style={{ fontSize: 24, fontWeight: 700, color: "var(--mb-ink)", letterSpacing: "-0.03em" }}>
+              {tier.amount}
+            </span>
+            <p className="mb-body" style={{ margin: 0, fontSize: 13, lineHeight: 1.45 }}>
+              {tier.summary}
+            </p>
+          </article>
+        ))}
+      </div>
+
+      <div style={{ textAlign: "center" }}>
+        <button
+          type="button"
+          onClick={() => window.location.href = "mailto:jason@goodneighbor.fund?subject=Corporate%20Sponsorship%20Inquiry"}
+          className="mb-btn mb-btn-ink"
+        >
+          Inquire About Sponsorship
+          <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
+        </button>
+      </div>
     </section>
 
     {/* ===== CO-FOUNDER NOTE — Butter ===== */}
@@ -1230,7 +1465,7 @@ const DonatePage = () => (
             lineHeight: 1.35,
             margin: 0,
             borderLeft: "4px solid var(--mb-magenta)",
-            paddingLeft: 24
+            paddingLeft: 24,
           }}
         >
           Your support fuels $1,000 micro-grants that help early-stage founders launch their first product,
@@ -1244,7 +1479,7 @@ const DonatePage = () => (
               Jason Bartz
             </div>
             <div className="mb-numeral" style={{ fontSize: 11, color: "var(--mb-ink-60)" }}>
-              CO-FOUNDER · GOOD NEIGHBOR FUND
+              CO-FOUNDER &middot; GOOD NEIGHBOR FUND
             </div>
           </div>
         </div>

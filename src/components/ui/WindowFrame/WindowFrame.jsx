@@ -11,31 +11,54 @@ export default function WindowFrame({
   center = false,
   initialPosition,
   isLPPortal = false,
+  noPadding = false,
   windowId,
   zIndex = 1000,
-  bringToFront
+  bringToFront,
+  cascadeOffset = 0
 }) {
   const nodeRef = useRef(null);
-  const [initialPosState, setInitialPosState] = useState(undefined);
+  const [mountState, setMountState] = useState(undefined);
 
-  // Calculate position once on mount or when relevant props change
+  // Reserved chrome: top taskbar + bottom dock. Windows clamp to the space
+  // between these so they don't slide behind the dock on shorter viewports.
+  const TASKBAR_RESERVE = 36;
+  const DOCK_RESERVE = 96;
+  const SIDE_PAD = 16;
+
+  // Calculate size + position once on mount. cascadeOffset is intentionally
+  // read at mount-time only — the window shouldn't jump if the slot later changes.
   useEffect(() => {
+    const maxW = Math.max(320, window.innerWidth - SIDE_PAD * 2);
+    const maxH = Math.max(320, window.innerHeight - TASKBAR_RESERVE - DOCK_RESERVE);
+    const effW = Math.min(width, maxW);
+    const effH = Math.min(height, maxH);
+
+    const maxX = Math.max(0, window.innerWidth - effW - SIDE_PAD);
+    const maxY = Math.max(TASKBAR_RESERVE, window.innerHeight - effH - DOCK_RESERVE);
+
     let pos;
-    
     if (initialPosition) {
-      // Use provided position if available
-      pos = initialPosition;
+      pos = {
+        x: Math.min(maxX, Math.max(SIDE_PAD, initialPosition.x + cascadeOffset)),
+        y: Math.min(maxY, Math.max(TASKBAR_RESERVE, initialPosition.y + cascadeOffset))
+      };
     } else if (center) {
-      // Center the window in the viewport
-      const x = Math.max(0, Math.round((window.innerWidth - width) / 2));
-      const y = Math.max(40, Math.round((window.innerHeight - height) / 2));
-      pos = { x, y };
+      const availableH = window.innerHeight - TASKBAR_RESERVE - DOCK_RESERVE;
+      const baseX = Math.max(SIDE_PAD, Math.round((window.innerWidth - effW) / 2));
+      const baseY = TASKBAR_RESERVE + Math.max(0, Math.round((availableH - effH) / 2));
+      pos = {
+        x: Math.min(maxX, baseX + cascadeOffset),
+        y: Math.min(maxY, baseY + cascadeOffset)
+      };
     } else {
-      // Default position
-      pos = { x: 100, y: 100 };
+      pos = {
+        x: Math.min(maxX, 100 + cascadeOffset),
+        y: Math.min(maxY, Math.max(TASKBAR_RESERVE, 100 + cascadeOffset))
+      };
     }
-    
-    setInitialPosState(pos);
+
+    setMountState({ w: effW, h: effH, pos });
   }, [initialPosition, center, width, height]);
 
   // Handler for window click to bring it to front
@@ -45,43 +68,46 @@ export default function WindowFrame({
     }
   };
 
-  // Style Definitions
+  // Focus trap — cycles Tab / Shift+Tab within the window when focus is inside it.
+  // Multiple open windows each run their own trap; only the one containing
+  // the active element intercepts keystrokes, so windows don't fight each other.
+  const handleKeyDown = (e) => {
+    if (e.key !== "Tab") return;
+    const root = nodeRef.current;
+    if (!root || !root.contains(document.activeElement)) return;
+
+    const focusables = root.querySelectorAll(
+      'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusables.length === 0) return;
+
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+
+  // Position/layout-only styles; visual chrome lives in .win95-window / .win95-titlebar / .win95-close-btn
   const windowStyle = {
-    width,
-    height,
+    width: mountState ? mountState.w : width,
+    height: mountState ? mountState.h : height,
     position: "absolute",
-    top: 0, 
+    top: 0,
     left: 0,
-    backgroundColor: "#fff",
-    border: "2px solid #d48fc7",
-    borderRadius: "6px",
-    boxShadow: "4px 4px 0 #ffbde2",
-    display: "flex", 
+    display: "flex",
     flexDirection: "column",
-    zIndex: zIndex, // Use the provided zIndex
+    zIndex: zIndex,
     overflow: "hidden"
   };
 
   const titleBarStyle = {
-    background: "#ffeaf5",
-    padding: "6px 12px",
-    borderBottom: "1px solid #d48fc7",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    fontWeight: "bold",
-    fontSize: "14px",
-    cursor: "grab",
     flexShrink: 0
-  };
-
-  const closeButtonStyle = {
-    background: "#ffbde2",
-    border: "none",
-    cursor: "pointer",
-    fontWeight: "bold",
-    padding: "0 4px",
-    lineHeight: "1"
   };
 
   // Base body style for content area
@@ -104,16 +130,29 @@ export default function WindowFrame({
     flexBasis: "0%"
   };
 
+  // Flush-body override (e.g., browser window) — the child manages its own
+  // padding and scroll, so the body must be padding-free and flex to let
+  // the child's flex:1 fill the height.
+  const noPaddingBodyOverrides = {
+    padding: 0,
+    overflowY: "hidden",
+    display: "flex",
+    flexDirection: "column"
+  };
+
   // Determine which body style to use
-  const bodyStyle = isLPPortal
-    ? { ...baseBodyStyle, ...lpPortalBodyOverrides }
-    : baseBodyStyle;
+  let bodyStyle = baseBodyStyle;
+  if (isLPPortal) {
+    bodyStyle = { ...baseBodyStyle, ...lpPortalBodyOverrides };
+  } else if (noPadding) {
+    bodyStyle = { ...baseBodyStyle, ...noPaddingBodyOverrides };
+  }
 
   // Determine body class name
   const bodyClassName = `retro-window-body no-drag ${isLPPortal ? "lpportal-body-styling" : ""}`;
 
-  // Wait until position is calculated to avoid render jump
-  if (initialPosState === undefined) {
+  // Wait until size + position are calculated to avoid render jump
+  if (mountState === undefined) {
     return null;
   }
 
@@ -122,20 +161,21 @@ export default function WindowFrame({
       nodeRef={nodeRef}
       handle=".retro-title-bar"
       cancel=".no-drag, .leaflet-container"
-      defaultPosition={initialPosState}
+      defaultPosition={mountState.pos}
     >
-      <div 
-        ref={nodeRef} 
-        className="retro-window" 
+      <div
+        ref={nodeRef}
+        className="retro-window win95-window"
         style={windowStyle}
         onClick={handleWindowClick}
+        onKeyDown={handleKeyDown}
       >
-        <div className="retro-title-bar" style={titleBarStyle}>
+        <div className="retro-title-bar win95-titlebar" style={titleBarStyle}>
           <span>{title}</span>
-          <button 
-            className="no-drag" 
-            onClick={onClose} 
-            style={closeButtonStyle}
+          <button
+            className="no-drag win95-close-btn"
+            onClick={onClose}
+            aria-label="Close"
           >
             ✖
           </button>

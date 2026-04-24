@@ -4,11 +4,11 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DesktopEnvironment from "./pages/desktop/DesktopEnvironment/DesktopEnvironment";
 import StandalonePitchPage from "./StandalonePitchPage";
+import PitchDetailPage from "./PitchDetailPage";
 import StandaloneLPApplication from "./StandaloneLPApplication";
 import StandaloneTermsPage from "./StandaloneTermsPage";
 import StandalonePrivacyPage from "./StandalonePrivacyPage";
 import NotFoundPage from "./NotFoundPage";
-import MobileFieldGuide from "./MobileFieldGuide";
 import StandaloneLPPortal from "./StandaloneLPPortal";
 import ChapterPage from "./ChapterPage";
 import "./mock-fs"; // Import mock filesystem
@@ -23,10 +23,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <Routes>
         <Route path="/" element={<DesktopEnvironment />} />
         <Route path="/pitch" element={<StandalonePitchPage />} />
+        <Route path="/pitch/:pitchId" element={<PitchDetailPage />} />
         <Route path="/lp-application" element={<StandaloneLPApplication />} />
         <Route path="/terms" element={<StandaloneTermsPage />} />
         <Route path="/privacy" element={<StandalonePrivacyPage />} />
-        <Route path="/fieldguide" element={<MobileFieldGuide />} />
         <Route path="/portal" element={<StandaloneLPPortal />} />
         {/* Dynamic chapter page. For slugs matching a /chapters doc with no
             hand-built static HTML file at public/<slug>.html. The static file

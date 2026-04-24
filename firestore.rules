@@ -11,44 +11,115 @@ rules_version = '2';
       }
       function hasRole(roles) {
         let userData = requestUserData();
-        return userData != null && userData.role != null && 
-               (userData.role == 'lp' && 'lp' in roles) ||
-               (userData.role == 'admin' && 'admin' in roles) ||
-               (userData.role == 'superAdmin' && 'superAdmin' in roles);
+        return userData != null && userData.role != null && (
+          (userData.role == 'lp' && 'lp' in roles) ||
+          (userData.role == 'chapter_director' && 'chapter_director' in roles) ||
+          (userData.role == 'superAdmin' && 'superAdmin' in roles)
+        );
       }
+      // Any authenticated user with a portal role. Tier summary:
+      //   superAdmin       — global write access, only tier that can touch
+      //                      other superAdmin records or run migrations.
+      //   chapter_director — chapter-scoped management. Owns user/chapter
+      //                      writes for users in their chapter; scoping is
+      //                      enforced in /users update via chapterDirectorOwnsTarget()
+      //                      and in /chapters update via the name-match check.
+      //   lp               — standard reviewer tier. Read-mostly: can list/read
+      //                      users and chapters, can write reviews and bulletin
+      //                      messages, but cannot mutate other users' profiles.
+      function isValidUser() {
+        return hasRole(['lp', 'chapter_director', 'superAdmin']);
+      }
+      // Retained as an alias used throughout the rules. After the chapter-scope
+      // tightening on /users.update, this no longer implies "can update any user"
+      // — it just means "has elevated read/list access at this call site".
       function isAdminOrSuperAdmin() {
-        return hasRole(['admin', 'superAdmin']);
+        return hasRole(['lp', 'chapter_director', 'superAdmin']);
+      }
+      function isChapterDirector() {
+        return hasRole(['chapter_director']);
       }
       function isSuperAdmin() {
         return hasRole(['superAdmin']);
       }
-      function isValidUser() {
-        return hasRole(['lp', 'admin', 'superAdmin']);
+      // True when the caller is a chapter_director acting on a user that
+      // belongs to their chapter — either the target already lives in that
+      // chapter (read existing /users/{uid}.chapter from `resource.data`) or
+      // the write is moving them INTO that chapter (read the incoming value
+      // from `request.resource.data.chapter`). The OR-on-incoming preserves
+      // first-time chapter assignment when promoting a brand-new portal user.
+      function chapterDirectorOwnsTarget() {
+        let userData = requestUserData();
+        return userData != null
+               && userData.role == 'chapter_director'
+               && userData.chapter != null
+               && (resource.data.chapter == userData.chapter
+                   || request.resource.data.chapter == userData.chapter);
       }
 
       // --- USERS COLLECTION ---
       match /users/{userId} {
-        // Allow users to read their own data OR
-        // Allow valid users to read other users in the same chapter OR
-        // Allow admins to read any user
+        // Public get: any LP / chapter_director profile (for the public chapter
+        // landing pages). Name, role, bio, linkedinUrl, photoUrl are already
+        // designed to be shown publicly on the chapter page — no sensitive
+        // fields beyond standard contact info live on these docs. Client-side
+        // code filters out active:false profiles before rendering.
         allow get: if request.auth.uid == userId
                    || (isValidUser() && requestUserData().chapter == resource.data.chapter)
-                   || isAdminOrSuperAdmin();
+                   || isAdminOrSuperAdmin()
+                   || resource.data.role in ['lp', 'chapter_director']
+                   // SuperAdmins with a chapterRole set are publicly listed on
+                   // their chapter page in that role. The role field still drives
+                   // capability; chapterRole only drives presentation.
+                   || (resource.data.role == 'superAdmin'
+                       && resource.data.chapterRole in ['lp', 'chapter_director']);
 
-        // Allow valid users to list users in their chapter OR
-        // Allow admins to list all users
+        // List is document-scoped under Firestore v2: every doc the query
+        // returns must pass the rule. So if the client adds
+        //   .where('role', 'in', ['lp','chapter_director'])
+        // every returned doc's role will match the public read clause below
+        // and unauthenticated visitors get the chapter's LP directory.
         allow list: if (isValidUser() && request.auth != null)
-                    || isAdminOrSuperAdmin();
+                    || isAdminOrSuperAdmin()
+                    || resource.data.role in ['lp', 'chapter_director']
+                    || (resource.data.role == 'superAdmin'
+                        && resource.data.chapterRole in ['lp', 'chapter_director']);
 
         allow delete: if isAdminOrSuperAdmin() && request.auth.uid != userId;
-        allow create: if request.auth.uid == userId || isAdminOrSuperAdmin();
-        allow update: if
+
+        // chapterRole is a display-only field that pins a superAdmin to a
+        // chapter's public roster in a secondary role (lp / chapter_director).
+        // It is meaningless — and so forbidden — on any other role. This
+        // invariant is enforced on every create and update; the AND below
+        // means no permission branch can bypass it.
+        function chapterRoleInvariant() {
+          return !('chapterRole' in request.resource.data)
+                 || request.resource.data.chapterRole == null
+                 || (request.resource.data.role == 'superAdmin'
+                     && request.resource.data.chapterRole in ['lp', 'chapter_director']);
+        }
+
+        allow create: if (request.auth.uid == userId || isAdminOrSuperAdmin())
+                      && chapterRoleInvariant();
+        // Update tiers, in increasing privilege:
+        //   1. Self-edit: anyone can edit their own profile fields (name, bio,
+        //      links, photo). Role/chapter changes are blocked here.
+        //   2. LP: standard reviewer tier — read-mostly. Cannot mutate other
+        //      users' records (legacy global-update access removed; chapter
+        //      management is the chapter_director / superAdmin job).
+        //   3. Chapter director: full update on users in their own chapter
+        //      (or being promoted into it), provided neither the existing nor
+        //      the incoming role is superAdmin.
+        //   4. SuperAdmin: unrestricted.
+        allow update: if (
           (request.auth.uid == userId &&
-           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']))
-          || (hasRole(['admin']) &&
+           request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['name', 'linkedinUrl', 'professionalRole', 'bio', 'photoUrl']))
+          || (chapterDirectorOwnsTarget() &&
               resource.data.role != 'superAdmin' &&
               request.resource.data.role != 'superAdmin')
-          || isSuperAdmin();
+          || isSuperAdmin()
+        ) && chapterRoleInvariant();
       }
 
       // --- PITCHES COLLECTION ---
@@ -71,13 +142,28 @@ rules_version = '2';
         allow delete: if isAdminOrSuperAdmin();
       }
 
+      // --- LP APPLICATIONS COLLECTION ---
+      match /lpApplications/{lpId} {
+        // Anyone can submit an LP application (public form, no auth)
+        allow create: if true;
+
+        // Only admins can read, update, or delete LP applications
+        allow read: if isAdminOrSuperAdmin();
+        allow update: if isAdminOrSuperAdmin();
+        allow delete: if isAdminOrSuperAdmin();
+      }
+
       // --- REVIEWS COLLECTION ---
       match /reviews/{reviewId} {
         function isOwner() {
           return request.auth.uid != null
                  && request.auth.uid == reviewId.split('_')[0];
         }
-        allow read: if isOwner() || isAdminOrSuperAdmin();
+        // Owners can read their own review, admins can read any
+        allow get: if isOwner() || isAdminOrSuperAdmin();
+        // Admins can list all; LPs can list reviews in their chapter (for shared team notes)
+        allow list: if isAdminOrSuperAdmin()
+                    || (isValidUser() && resource.data.chapter == requestUserData().chapter);
         // Allow valid users (lp, admin, superAdmin) to write if reviewerId matches
         allow write: if isValidUser()
                      && request.auth.uid != null
@@ -150,6 +236,48 @@ rules_version = '2';
         // Only admins can read/write to limited partners collection
         allow read: if isAdminOrSuperAdmin();
         allow write: if isAdminOrSuperAdmin();
+      }
+
+      // --- CHAPTERS COLLECTION ---
+      // Chapter metadata + landing-page content (hero text, serving section,
+      // counties list, toggles for optional sections). Public read so the
+      // static /<slug>.html pages can hydrate live content and application
+      // forms can populate chapter dropdowns.
+      //
+      // Create/delete: superAdmin only.
+      // Update: superAdmin (any field) OR chapter_director (their own chapter,
+      //         restricted to the editable content fields below).
+      match /chapters/{chapterId} {
+        // Fields a chapter director is allowed to write through the portal
+        // form. Anything else (slug, pageSlug, emailAlias, Slack IDs, order,
+        // active, createdAt, createdBy, name) is locked down to superAdmin.
+        function directorEditableFields() {
+          return [
+            'heroTitle', 'heroTagline',
+            'servingTitle', 'servingText', 'counties',
+            'poweredByText',
+            'showLPs', 'showGallery',
+            // Hero image + caption shown in the chapter-page hero block.
+            // heroImageStoragePath lets the uploader delete the previous file
+            // when a new one is uploaded. Storage lives under chapter-photos/{slug}/.
+            'heroImage', 'heroImageCaption', 'heroImageStoragePath',
+            // Community gallery photos — array of { url, storagePath, caption? }.
+            'galleryPhotos',
+            // Map of {userId: {name, photoUrl}} mirrored from /users when a
+            // chapter director uploads a member photo. Public reads (the
+            // /chapters doc is world-readable) feed the static landing pages.
+            'lpPhotos',
+            'updatedAt'
+          ];
+        }
+
+        allow read: if true;
+        allow create, delete: if isSuperAdmin();
+        allow update: if isSuperAdmin()
+                      || (isChapterDirector()
+                          && resource.data.name == requestUserData().chapter
+                          && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(directorEditableFields()));
       }
 
       // --- RESOURCES COLLECTION ---

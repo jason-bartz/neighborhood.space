@@ -1,10 +1,14 @@
 // StandalonePitchPage.jsx
 import React, { useState, useEffect } from "react";
-import { collection, addDoc, Timestamp } from "firebase/firestore";
+import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore";
 import { db } from "./firebaseConfig";
 import VideoUploader from "./VideoUploader";
 import Confetti from "react-confetti";
 import { useNavigate, useLocation } from "react-router-dom";
+import PageTaskbar from "./components/ui/Taskbar/PageTaskbar";
+
+// Fallback chapter names used while /chapters is loading or if the fetch fails.
+const FALLBACK_PITCH_CHAPTERS = ["Western New York", "Denver", "Upstate New York", "Capital Region"];
 
 
 export default function StandalonePitchPage({ onClose }) {
@@ -12,6 +16,7 @@ export default function StandalonePitchPage({ onClose }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+  const [chapterOptions, setChapterOptions] = useState(FALLBACK_PITCH_CHAPTERS);
   const navigate = useNavigate();
   const location = useLocation();
   const isEmbedded = Boolean(onClose); // If onClose prop is provided, component is embedded
@@ -24,10 +29,35 @@ export default function StandalonePitchPage({ onClose }) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-  
+
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, []);
+
+  // Load active chapters from Firestore; fall back to hardcoded list if empty/failed.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, "chapters"));
+        const names = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(c => c.active !== false)
+          .sort((a, b) => {
+            const ao = typeof a.order === "number" ? a.order : 999;
+            const bo = typeof b.order === "number" ? b.order : 999;
+            if (ao !== bo) return ao - bo;
+            return (a.name || "").localeCompare(b.name || "");
+          })
+          .map(c => c.name)
+          .filter(Boolean);
+        if (!cancelled && names.length > 0) setChapterOptions(names);
+      } catch (e) {
+        console.error("Pitch form: failed to load /chapters, using fallback", e);
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
   
   // Handle close button click based on whether the component is embedded or standalone
@@ -37,6 +67,9 @@ export default function StandalonePitchPage({ onClose }) {
       onClose();
     } else {
       // If standalone, navigate to home
+      try {
+        sessionStorage.setItem("gnf-has-booted", "1");
+      } catch {}
       try {
         navigate("/");
       } catch (error) {
@@ -48,7 +81,7 @@ export default function StandalonePitchPage({ onClose }) {
 
   const handleChange = (e) => {
     const { name, value, type, options, checked } = e.target;
-    if (type === "checkbox" && name === "consent") {
+    if (type === "checkbox") {
       setForm((prev) => ({ ...prev, [name]: checked }));
     } else if (type === "select-multiple") {
       const selectedValues = Array.from(options).filter((o) => o.selected).map((o) => o.value);
@@ -65,9 +98,9 @@ export default function StandalonePitchPage({ onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const requiredFields = [
-      'founder', 'email', 'business', 'chapter', 'about',
+      'founder', 'email', 'business', 'zip', 'chapter', 'about',
       'valueProp', 'problem', 'solution', 'revenueModel',
-      'payingCustomers', 'fundUse', 'consent'
+      'payingCustomers', 'fundUse', 'consent', 'meetupConsent'
     ];
     const missingFields = requiredFields.filter(field => !form[field]);
     if (missingFields.length > 0) {
@@ -99,6 +132,7 @@ export default function StandalonePitchPage({ onClose }) {
         selfIdentification: form.selfId || [],
         heardAbout: form.referral || "",
         consentToShare: form.consent || false,
+        consentToMeetup: form.meetupConsent || false,
         createdAt: Timestamp.now(),
         isWinner: false
       };
@@ -119,7 +153,7 @@ export default function StandalonePitchPage({ onClose }) {
       const now = new Date();
       const dateStr = now.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
       const timeStr = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-      setCurrentTime(`${dateStr} ${timeStr} 2002`);
+      setCurrentTime(`${dateStr} ${timeStr} ${now.getFullYear()}`);
     };
 
     updateClock(); // Call once immediately
@@ -131,44 +165,48 @@ export default function StandalonePitchPage({ onClose }) {
     return (
       <div style={{
         minHeight: "100vh",
-        background: "url('/assets/gnf-wallpaper-blue.webp')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         flexDirection: "column",
-        fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
+        background: "var(--mb-paper)",
+        fontFamily: "var(--font-content)",
         textAlign: "center",
-        padding: "20px",
+        padding: isEmbedded ? "20px" : "60px 20px 20px",
         boxSizing: "border-box"
-      }}>        
-        <div style={{ 
-          background: "white",
-          padding: "30px",
-          borderRadius: "8px",
-          border: "2px solid #d48fc7",
-          boxShadow: "4px 4px 0 #ffbde2",
-          maxWidth: "600px" 
+      }}>
+        {!isEmbedded && <PageTaskbar />}
+        <div style={{
+          background: "var(--mb-chalk)",
+          padding: "48px 40px",
+          border: "2px solid var(--mb-ink)",
+          boxShadow: "var(--shadow-hard-lg)",
+          maxWidth: "560px"
         }}>
           <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={250} recycle={false} />
-          <h1 style={{ color: "#833f7b" }}>🎉 Thank you for submitting your pitch!</h1>
-          <p>Our GNF LPs review all submissions after each quarter. We'll be in touch soon!</p>
+          <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Pitch Received</span>
+          <h1 style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 400,
+            fontSize: 44,
+            letterSpacing: "-0.02em",
+            lineHeight: 1.05,
+            color: "var(--mb-ink)",
+            margin: "12px 0 16px"
+          }}>
+            Thank you for submitting your pitch.
+          </h1>
+          <p style={{ fontSize: 16, lineHeight: 1.5, color: "var(--mb-ink)" }}>
+            Our GNF LPs review all submissions after each quarter. We'll be in touch soon.
+          </p>
           <button
             onClick={handleClose}
-            style={{
-              marginTop: "20px",
-              padding: "12px 24px",
-              backgroundColor: "#ffd6ec",
-              border: "2px solid #d48fc7",
-              borderRadius: "8px",
-              color: "#333",
-              fontWeight: "bold",
-              fontSize: "16px",
-              cursor: "pointer"
-            }}
+            type="button"
+            className="mb-btn"
+            style={{ marginTop: 24 }}
           >
-            🏡 Return to Home
+            Return to Home
+            <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
           </button>
         </div>
 
@@ -177,55 +215,26 @@ export default function StandalonePitchPage({ onClose }) {
   }
 
   return (
-    <div style={{
+    <div className="mb-page" style={{
       minHeight: "100vh",
-      background: "url('/assets/gnf-wallpaper-blue.webp')",
-      backgroundSize: "cover",
-      backgroundPosition: "center",
-      fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
       overflowY: "auto",
       display: "flex",
       flexDirection: "column",
-      padding: "10px"
+      padding: "10px",
+      paddingTop: isEmbedded ? "10px" : "60px"
     }}>
+      {!isEmbedded && <PageTaskbar />}
       {/* Window Frame */}
-      <div style={{
-        background: "#fff",
-        border: "2px solid #d48fc7",
-        borderRadius: "8px",
-        width: "95%",
-        maxWidth: "680px",
-        boxShadow: "4px 4px 0 #ffbde2",
-        display: "flex",
-        flexDirection: "column",
-        margin: "0 auto"
-      }}>
+      <div className="mb-page-window mb-form-shell">
         {/* Window Title Bar */}
-        <div style={{
-          background: "#ffeaf5",
-          borderBottom: "1px solid #d48fc7",
-          padding: "6px 12px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          fontWeight: "bold",
-          fontSize: "16px"
-        }}>
-          <span>📝 Micro-Grant Pitch Application</span>
+        <div className="mb-page-titlebar">
+          <span>Micro-Grant Pitch Application</span>
           <button
             onClick={handleClose}
-            style={{
-              background: "#ffbde2",
-              border: "none",
-              fontWeight: "bold",
-              cursor: "pointer",
-              padding: "0 8px",
-              height: "24px",
-              lineHeight: "24px",
-              fontSize: "16px"
-            }}
+            aria-label="Close"
+            className="mb-page-close"
           >
-            ✖
+            ×
           </button>
         </div>
 
@@ -237,23 +246,26 @@ export default function StandalonePitchPage({ onClose }) {
         }}>
           {/* Intro Box */}
           <div style={{
-            background: "#fff4fa",
-            padding: "16px",
-            borderLeft: "4px solid #ec71b8",
+            padding: "18px 20px",
             fontSize: "14px",
             lineHeight: "1.5",
-            marginBottom: "10px"
+            marginBottom: "10px",
+            background: "var(--mb-paper)",
+            border: "2px solid var(--mb-ink)",
+            boxShadow: "var(--shadow-hard-sm)",
+            color: "var(--mb-ink)"
           }}>
-            <h3 style={{ marginTop: 0 }}>GNF Pitch Application 📝</h3>
-            👋 Please fill out this application to be considered for a Good Neighbor Fund $1,000 micro-grant.<br /><br />
-            ✅ <strong>What we look for:</strong>
+            <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Pitch Application</span>
+            <h3 style={{ marginTop: 8, fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 24, letterSpacing: "-0.01em" }}>Apply for a $1,000 micro-grant</h3>
+            Please fill out this application to be considered for a Good Neighbor Fund $1,000 micro-grant.<br /><br />
+            <strong>What we look for:</strong>
             <ul>
               <li>Business ideas at the ideation stage (early stage will be considered)</li>
               <li>Clear understanding of the problem you're solving</li>
               <li>Specific, high-impact plan for using the $1,000</li>
               <li>Passion in your pitch video</li>
             </ul>
-            ❌ <strong>What we typically avoid:</strong>
+            <strong>What we typically avoid:</strong>
             <ul>
               <li>Personal use or self-promotion</li>
               <li>Short-term projects or one-off events</li>
@@ -261,133 +273,118 @@ export default function StandalonePitchPage({ onClose }) {
               <li>Unclear use of funds</li>
               <li>Missing pitch video</li>
             </ul>
-            ℹ️ The above criteria is not all-inclusive and we encourage all to apply! Most chapters typically select new micro-grants each quarter.
+            <small>The above criteria is not all-inclusive and we encourage all to apply! Most chapters typically select new micro-grants each quarter.</small>
           </div>
 
           {/* Inputs */}
           {[
-            { label: "Founder Name *", name: "founder", type: "text" },
-            { label: "Email *", name: "email", type: "email" },
-            { label: "Business Name *", name: "business", type: "text" },
-            { label: "Zip Code *", name: "zip", type: "text" },
-            { label: "Website (optional)", name: "website", type: "text" }
+            { label: "Founder Name *", name: "founder", type: "text", placeholder: "e.g., Jane Smith" },
+            { label: "Email *", name: "email", type: "email", placeholder: "e.g., jane.smith@gmail.com" },
+            { label: "Business Name *", name: "business", type: "text", placeholder: "e.g., Jane's Flower Shop" },
+            { label: "Zip Code *", name: "zip", type: "text", placeholder: "e.g., 14213" },
+            { label: "Website (optional)", name: "website", type: "text", placeholder: "e.g., https://janesflowers.com" }
           ].map(field => (
             <div key={field.name} style={{ display: "flex", flexDirection: "column" }}>
-              <label style={{ fontWeight: "bold", marginBottom: "4px" }}>{field.label}</label>
+              <label>{field.label}</label>
               <input
                 type={field.type}
                 name={field.name}
                 value={form[field.name] || ""}
                 onChange={handleChange}
                 required={field.label.includes("*")}
-                style={{
-                  padding: "8px",
-                  fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                  fontSize: "14px",
-                  height: "20px"
-                }}
+                placeholder={field.placeholder}
               />
             </div>
           ))}
 
           {/* Chapter Select */}
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <label style={{ fontWeight: "bold", marginBottom: "4px" }}>Chapter Location *</label>
+            <label>Chapter Location *</label>
             <select
               name="chapter"
               value={form.chapter || ""}
               onChange={handleChange}
               required
-              style={{
-                padding: "8px",
-                fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                fontSize: "14px",
-                height: "40px"
-              }}
             >
               <option value="">Select Chapter *</option>
-              <option value="Western New York">Western New York</option>
-              <option value="Denver">Denver</option>
+              {chapterOptions.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
             </select>
+            <small>
+              Businesses must be headquartered or located within the selected chapter's region to be considered.
+            </small>
           </div>
 
           {/* Textareas */}
           {[
-            { label: "Tell us a little about yourself (2-3 sentences) *", name: "about" },
-            { label: "Describe your company's value proposition *", name: "valueProp" },
-            { label: "Describe the problem you're solving *", name: "problem" },
-            { label: "How does your business solve it? *", name: "solution" },
-            { label: "How will your business make money? *", name: "revenueModel" }
+            {
+              label: "Tell us a little about yourself (2-3 sentences) *",
+              name: "about",
+              placeholder: "e.g., I'm a Buffalo-based baker with 5 years of pastry experience, launching a small neighborhood bakery focused on locally-sourced ingredients."
+            },
+            {
+              label: "Describe your company's value proposition *",
+              name: "valueProp",
+              placeholder: "e.g., Fresh, locally-sourced baked goods delivered weekly to your door."
+            },
+            {
+              label: "Describe the problem you're solving *",
+              name: "problem",
+              placeholder: "e.g., Busy families in my neighborhood lack access to affordable, high-quality baked goods made with local ingredients."
+            },
+            {
+              label: "How does your business solve it? *",
+              name: "solution",
+              placeholder: "e.g., A weekly subscription box of fresh pastries and breads delivered every Saturday morning."
+            },
+            {
+              label: "How will your business make money? *",
+              name: "revenueModel",
+              placeholder: "e.g., Weekly subscription boxes starting at $25/month, plus one-off orders and pop-up events."
+            }
           ].map(field => (
             <div key={field.name} style={{ display: "flex", flexDirection: "column" }}>
-              <label style={{ fontWeight: "bold", marginBottom: "4px" }}>{field.label}</label>
+              <label>{field.label}</label>
               <textarea
                 name={field.name}
                 value={form[field.name] || ""}
                 onChange={handleChange}
                 rows={3}
                 required
-                style={{
-                  padding: "8px",
-                  fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                  fontSize: "14px"
-                }}
+                placeholder={field.placeholder}
               />
             </div>
           ))}
 
           {/* Paying Customers */}
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <label style={{ fontWeight: "bold", marginBottom: "4px" }}>Do you have paying customers? *</label>
+            <label>Do you have paying customers? *</label>
             <select
               name="payingCustomers"
               value={form.payingCustomers || ""}
               onChange={handleChange}
               required
-              style={{
-                padding: "8px",
-                fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                fontSize: "14px",
-                height: "40px"
-              }}
             >
               <option value="">Select an option *</option>
               <option value="Yes">Yes</option>
               <option value="No">No</option>
             </select>
-            <small style={{ color: "#666", marginTop: "4px" }}>
-              Answering 'No' does not disqualify you.
-            </small>
+            <small>Answering 'No' does not disqualify you.</small>
           </div>
 
           {/* Fund Use */}
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <label style={{ fontWeight: "bold", marginBottom: "4px" }}>How will you use the $1,000 if awarded? *</label>
+            <label>How will you use the $1,000 if awarded? *</label>
             <textarea
               name="fundUse"
               value={form.fundUse || ""}
               onChange={handleChange}
               rows={3}
               required
-              style={{
-                padding: "8px",
-                fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                fontSize: "14px"
-              }}
+              placeholder="e.g., $600 for a commercial-grade mixer, $300 for packaging supplies, $100 for launch marketing."
             />
-            <small style={{ color: "#666", marginTop: "4px" }}>
-              Please be specific. We expect funds to be used within 30 days of award.
-            </small>
+            <small>Please be specific. We expect funds to be used within 30 days of award.</small>
           </div>
 
           {/* VideoUploader */}
@@ -398,79 +395,58 @@ export default function StandalonePitchPage({ onClose }) {
 
           {/* Video URL Input */}
           <div style={{ display: "flex", flexDirection: "column", marginTop: "12px" }}>
-          <label style={{ fontWeight: "bold", marginBottom: "4px" }}>
-            Pitch Video URL (optional)
-          </label>
-          <input
-            type="text"
-            name="videoUrlInput"
-            value={form.videoUrlInput || ""}
-            onChange={handleChange}
-            placeholder="Paste hosted video URL here"
-            style={{
-              padding: "8px",
-              fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              fontSize: "14px",
-              height: "20px"
-            }}
-          />
-          <small style={{ color: "#666", marginTop: "4px" }}>
-            If you have a hosted pitch video to share (YouTube, Vimeo, Google Drive, Dropbox), paste the URL here. Ensure sharing permissions are enabled.
-          </small>
-        </div>
+            <label>Pitch Video URL (optional)</label>
+            <input
+              type="text"
+              name="videoUrlInput"
+              value={form.videoUrlInput || ""}
+              onChange={handleChange}
+              placeholder="Paste hosted video URL here"
+            />
+            <small>
+              If you have a hosted pitch video to share (YouTube, Vimeo, Google Drive, Dropbox), paste the URL here. Ensure sharing permissions are enabled.
+            </small>
+          </div>
 
 
           {/* Self Identification */}
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <label style={{ fontWeight: "bold", marginBottom: "4px" }}>Do any of the following apply to you? (optional)</label>
+            <label>Do any of the following apply to you? (optional)</label>
             <select
               name="selfId"
               multiple
               value={form.selfId || []}
               onChange={handleChange}
-              style={{
-                padding: "8px",
-                fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                fontSize: "14px",
-                height: "100px"
-              }}
+              style={{ height: "120px" }}
             >
-              {["Veteran Owned/Led", "Women Owned/Led", "BIPOC Owned/Led", "Disabled Owned/Led", "Student Owned/Led", "Minority Owned/Led"].map(opt => (
+              {["Veteran Owned/Led", "Women Owned/Led", "BIPOC Owned/Led", "LGBTQ+ Owned/Led", "Disabled Owned/Led", "Student Owned/Led", "Minority Owned/Led"].map(opt => (
                 <option key={opt} value={opt}>{opt}</option>
               ))}
             </select>
+            <small>
+              This self-identifying information is used only for GNF reporting purposes and is never shared publicly without your consent.
+            </small>
           </div>
 
           {/* Referral */}
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <label style={{ fontWeight: "bold", marginBottom: "4px" }}>How did you hear about us? (optional)</label>
+            <label>How did you hear about us? (optional)</label>
             <input
-                type="text"
-                name="referral"
-                value={form.referral || ""}
-                onChange={handleChange}
-                style={{
-                padding: "8px",
-                fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                fontSize: "14px",
-                height: "40px"
-                }}
+              type="text"
+              name="referral"
+              value={form.referral || ""}
+              onChange={handleChange}
+              placeholder="e.g., LinkedIn, Instagram, SBDC, LP Referral"
             />
-            <small style={{ color: "#666", marginTop: "4px" }}>
-                Example: LinkedIn, Instagram, Facebook, SBDC, LP Referral, Prior Grant Awardee, School, Etc.
+            <small>
+              Example: LinkedIn, Instagram, Facebook, SBDC, LP Referral, Prior Grant Awardee, School, Etc.
             </small>
-            </div>
+          </div>
 
 
           {/* Consent */}
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <label style={{ fontWeight: "bold" }}>
+            <label>
               <input
                 type="checkbox"
                 name="consent"
@@ -478,10 +454,34 @@ export default function StandalonePitchPage({ onClose }) {
                 onChange={handleChange}
                 required
               />{" "}
-              I consent to GNF's terms and data sharing
+              I agree to GNF's Terms of Use & Privacy Policy *
             </label>
-            <small style={{ color: "#666", marginTop: "4px" }}>
+            <small>
               Good Neighbor Fund (GNF) has my consent to share certain details of my application with partner organizations and/or the public through social media, the Good Neighbor Fund website, and other platforms. Shared info may include: Name, Business Name, Value Proposition, Problem, and Solution. Pitch videos and self-identification are never shared without consent.
+              By submitting this application, I agree to the{" "}
+              <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--mb-magenta)", fontWeight: "bold" }}>
+                Good Neighbor Fund Terms of Use & Privacy Policy
+              </a>
+              .
+            </small>
+          </div>
+
+          {/* In-Person Meetup Consent */}
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <label>
+              <input
+                type="checkbox"
+                name="meetupConsent"
+                checked={form.meetupConsent || false}
+                onChange={handleChange}
+                required
+              />{" "}
+              I agree to complete an in-person meetup if awarded *
+            </label>
+            <small>
+              All grant awardees are required to complete an in-person meetup with their chapter.
+              We use this time to learn about your business and business plan, and to take photos
+              that may be shared on social media and the Good Neighbor Fund website.
             </small>
           </div>
 
@@ -489,20 +489,11 @@ export default function StandalonePitchPage({ onClose }) {
           <button
             type="submit"
             disabled={isSubmitting}
-            style={{
-              background: "#ff69b4",
-              color: "#fff",
-              border: "none",
-              padding: "14px",
-              fontWeight: "bold",
-              borderRadius: "10px",
-              cursor: "pointer",
-              fontSize: "18px",
-              marginTop: "20px",
-              boxShadow: "0px 4px 6px rgba(0,0,0,0.2)"
-            }}
+            className="mb-btn"
+            style={{ marginTop: "20px", padding: "16px 24px", fontSize: 14 }}
           >
-            {isSubmitting ? "Submitting..." : "🦄 Submit Pitch"}
+            {isSubmitting ? "Submitting…" : "Submit Pitch"}
+            {!isSubmitting && <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>}
           </button>
 
         </form>

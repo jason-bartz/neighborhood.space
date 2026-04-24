@@ -36,6 +36,7 @@ const BuddyMessenger = ({ onClose, windowId, zIndex, bringToFront }) => {
   const [charCount, setCharCount] = useState(0);
   const [error, setError] = useState("");
   const messageEndRef = useRef(null);
+  const hasScrolledInitially = useRef(false);
 
   const CHARACTER_LIMIT = 140;
 
@@ -50,7 +51,10 @@ const BuddyMessenger = ({ onClose, windowId, zIndex, bringToFront }) => {
   }, []);
 
   useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length === 0) return;
+    const behavior = hasScrolledInitially.current ? "smooth" : "auto";
+    messageEndRef.current?.scrollIntoView({ behavior, block: "end" });
+    hasScrolledInitially.current = true;
   }, [messages]);
 
   const fetchMessages = async () => {
@@ -142,6 +146,7 @@ const BuddyMessenger = ({ onClose, windowId, zIndex, bringToFront }) => {
 
       const imSound = document.getElementById("im-sound");
       if (imSound) {
+        imSound.volume = 0.5;
         imSound.currentTime = 0;
         imSound.play().catch((e) => console.error("Error playing IM send sound:", e));
       }
@@ -168,11 +173,11 @@ const BuddyMessenger = ({ onClose, windowId, zIndex, bringToFront }) => {
       <div className="message-window">
         {messages.map((msg, index) => (
           <div key={index} className="message-item">
-            <span className="message-username" style={{ color: msg.color || "#000" }}>
+            <span className="message-username" style={{ color: msg.color || "var(--mb-ink)" }}>
               {msg.username}:
             </span>
             <span className="message-text">{" " + msg.text}</span>
-            <span className="message-timestamp" style={{ marginLeft: "8px", color: "#999", fontSize: "10px" }}>
+            <span className="message-timestamp">
               [{formatTimestamp(msg.timestamp)}]
             </span>
           </div>
@@ -187,18 +192,33 @@ const BuddyMessenger = ({ onClose, windowId, zIndex, bringToFront }) => {
         <textarea
           value={message}
           onChange={handleMessageChange}
-          placeholder="Leave a message, a tool rec, or your best idea! (These messages are public 😉)"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSubmit(e);
+            }
+          }}
+          placeholder="Leave us a message, (PS These are public.)"
           maxLength={CHARACTER_LIMIT}
-          className="message-textarea"
+          aria-label="Chat message"
+          className={`message-textarea ${charCount >= CHARACTER_LIMIT ? "char-limit" : charCount >= CHARACTER_LIMIT - 20 ? "char-warn" : ""}`}
         />
       </div>
 
       <div className="message-footer">
-        <div className="char-counter">
+        <div
+          className={`char-counter ${charCount >= CHARACTER_LIMIT ? "char-limit" : charCount >= CHARACTER_LIMIT - 20 ? "char-warn" : ""}`}
+          aria-live="polite"
+        >
           {CHARACTER_LIMIT - charCount} characters left
         </div>
-        {error && <div className="error-message">{error}</div>}
-        <button type="button" onClick={handleSubmit} className="send-button">
+        {error && <div className="error-message" role="alert">{error}</div>}
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className="send-button win95-btn win95-btn-primary"
+          disabled={!message.trim() || charCount > CHARACTER_LIMIT}
+        >
           Send
         </button>
       </div>

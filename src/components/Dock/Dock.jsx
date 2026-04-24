@@ -1,27 +1,28 @@
 import React, { useState } from 'react';
+import DockIcon from '../icons/DockIcon';
 import './Dock.css';
 
-const DockItem = ({ icon, label, onClick, isOpen, appId }) => {
+const DockItem = ({ iconType, label, onClick, isOpen }) => {
   const [showTooltip, setShowTooltip] = useState(false);
-
-  const handleClick = () => {
-    onClick();
-  };
 
   return (
     <div className="dock-item">
-      <div 
+      <div
         className="dock-icon-wrapper"
-        onClick={handleClick}
+        onClick={onClick}
         onMouseEnter={() => setShowTooltip(true)}
         onMouseLeave={() => setShowTooltip(false)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClick();
+          }
+        }}
+        aria-label={label}
       >
-        <img 
-          src={icon} 
-          alt={label} 
-          className="dock-icon"
-          draggable={false}
-        />
+        <DockIcon type={iconType} size={30} />
         {showTooltip && (
           <div className="dock-tooltip">
             {label}
@@ -33,45 +34,44 @@ const DockItem = ({ icon, label, onClick, isOpen, appId }) => {
   );
 };
 
-export default function Dock({ 
-  openApps, 
+export default function Dock({
+  openApps,
   onAppClick,
   showMessenger,
-  showFounderMap,
-  showMusic 
+  showFounderMap
 }) {
   const dockApps = [
     {
       id: 'website',
-      icon: '/assets/icon-browser.webp',
+      iconType: 'website',
       label: 'Neighborhood Navigator',
       isOpen: openApps.includes('website'),
       onClick: () => onAppClick('website')
     },
     {
-      id: 'musicPlayer',
-      icon: '/assets/radio.png',
-      label: 'GNF Mixtape',
-      isOpen: showMusic,
-      onClick: () => onAppClick('musicPlayer')
+      id: 'submit',
+      iconType: 'submit',
+      label: 'Submit Pitch',
+      isOpen: openApps.includes('submit'),
+      onClick: () => onAppClick('submit')
     },
     {
       id: 'buddyMessenger',
-      icon: '/assets/BuddyMessenger-icon.webp',
+      iconType: 'buddyMessenger',
       label: 'Buddy Messenger',
       isOpen: showMessenger,
       onClick: () => onAppClick('buddyMessenger')
     },
     {
       id: 'founderMap',
-      icon: '/assets/FounderMap-icon.webp',
+      iconType: 'founderMap',
       label: 'Awardee Map',
       isOpen: showFounderMap,
       onClick: () => onAppClick('founderMap')
     },
     {
       id: 'lpPortal',
-      icon: '/assets/icon-review.webp',
+      iconType: 'lpPortal',
       label: 'LP Portal',
       isOpen: openApps.includes('lpPortal'),
       onClick: () => onAppClick('lpPortal')
@@ -84,11 +84,10 @@ export default function Dock({
         {dockApps.map(app => (
           <DockItem
             key={app.id}
-            icon={app.icon}
+            iconType={app.iconType}
             label={app.label}
             onClick={app.onClick}
             isOpen={app.isOpen}
-            appId={app.id}
           />
         ))}
       </div>

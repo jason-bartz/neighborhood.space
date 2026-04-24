@@ -1,64 +1,77 @@
-# CLAUDE.md
+# CLAUDE.md — Cloud Functions
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance specific to the Firebase Cloud Functions in this directory. For repo-wide guidance see [../CLAUDE.md](../CLAUDE.md). For deployment setup see [SETUP_GUIDE.md](SETUP_GUIDE.md).
+
+## Runtime
+
+- **Node 20** (declared in [package.json](package.json) `engines`). Don't rely on APIs newer than that.
+- **CommonJS** — `require` / `module.exports`. No `import` syntax, no ESM.
+- **Indentation:** 2 spaces. **Naming:** camelCase.
 
 ## Commands
-- Build: `npm run build` (no build needed for Firebase functions)
-- Start Emulator: `npm run start-emulator`
-- Shell: `npm run shell`
-- Test Webhooks: `node test-webhook.js`
-- Deploy Functions: `npm run deploy`
 
-## Code Guidelines
-- Module System: CommonJS (require/exports)
-- Node Version: Node 22 (functions are deployed with Node 18)
-- Error Handling: Use try/catch with error logging via console.error
-- Async Pattern: Use async/await for asynchronous code
-- Logging: Use console.log for information, console.error for errors
-- Firebase: Follow Firebase Functions patterns with exports
-- Webhooks: Secure webhook URLs - consider using environment variables
-- Formatting: 2-space indentation
-- Naming: camelCase for variables and functions
-- Error Messages: Descriptive messages with contextual information
+```bash
+npm run start-emulator    # Functions + Firestore emulator (uses ../emulator-data)
+npm run shell             # Interactive functions shell
+npm run serve             # Emulator, functions only
+npm run deploy            # Deploy all functions
+npm run logs              # Tail production logs
+```
 
-## Troubleshooting
-- Slack webhooks should be working and correctly formatted
-- Slack notifications for new pitch submissions use the Firebase Cloud Function `sendPitchToSlack`
-- The function triggers on creation of new documents in the 'pitches' collection
-- Both form components (StandalonePitchForm.jsx and StandalonePitchPage.jsx) correctly set the chapter field
-- If notifications don't appear in the intended channel:
-  1. Check the Firebase Functions logs for errors
-  2. Verify the webhook URLs with `node test-webhook.js`
-  3. Check if the Firestore collection is being written to correctly
-  4. Ensure that the pitch documents have the correct 'chapter' field ('Western New York' or 'Denver')
-  5. Check Slack integration settings for the channels
+Running the emulator imports `../emulator-data` on start and exports on exit — local Firestore state persists between runs.
 
-## Known Issues
-- There are deployment permission issues with Cloud Functions
-- Function deployment requires Storage Object Viewer permission to be granted to the compute service account
-- Enhanced logging and diagnostic code are added but need successful deployment
+## What's in here
 
-## Testing
-Run Firebase functions locally with the emulator using `npm run start-emulator`
+| File | Purpose |
+|---|---|
+| [index.js](index.js) | All function exports (Slack, Stripe, invites, AI, backfill) |
+| [aiSummary.js](aiSummary.js) | Anthropic client + `generateFounderAbout()` helper |
+| [google-sheets-export.js](google-sheets-export.js) | Google Sheets API writer for the pitch archive |
+| [setup-firebase-config.sh](setup-firebase-config.sh) | Scripted `firebase functions:config:set` calls |
 
-## Rules
-- After making changes, ALWAYS make sure to start up a new server so I can test it.
-- Always look for existing code to iterate on instead of creating new code.
-- Do not drastically change the patterns before trying to iterate on existing patterns.
-- Always kill all existing related servers that may have been created in previous testing before trying to start a new server.
-- Always prefer simple solutions
-- Avoid duplication of code whenever possible, which means checking for other areas of the codebase that might already have similar code and functionality
-- Write code that takes into account the different environments: dev, test, and prod
-- You are careful to only make changes that are requested or you are confident are well understood and related to the change being requested
-- When fixing an issue or bug, do not introduce a new pattern or technology without first exhausting all options for the existing implementation. And if you finally do this, make sure to remove the old implementation afterwards so we don't have duplicate logic.
-- Keep the codebase very clean and organized
-- Avoid writing scripts in files if possible, especially if the script is likely only to be run once
-- Avoid having files over 400-500 lines of code. Refactor at that point.
-- Never add stubbing or fake data patterns to code that affects the dev or prod environments
-- Never overwrite my .env file without first asking and confirming
-- Focus on the areas of code relevant to the task
-- Do not touch code that is unrelated to the task
-- Write thorough tests for all major functionality
-- Avoid making major changes to the patterns and architecture of how a feature works, after it has shown to work well, unless explicitly instructed
-- Always think about what other methods and areas of code might be affected by code changes
-- When creating a commit, do not add "🤖 Generated with [Claude Code](https://claude.ai/code)" or mention Claude
+Exports (see [index.js](index.js)):
+
+- `sendPitchToSlack` — Firestore `onCreate(pitches/{id})` → Slack webhook (channel picked by `chapter` field)
+- `sendLPApplicationToSlack` — Firestore `onCreate(lpApplications/{id})` → Slack
+- `generateAboutFromApplication` — `onCall` Anthropic summary for an LP application
+- `backfillPitchSummaries` — `onCall` admin batch job
+- `inviteUser` — `onCall` invite-link generator
+- `sendSignInLink` — `onCall` magic-link auth email via Resend
+- `stripeLPWebhook` — HTTPS webhook for Stripe events
+- `helloWorld` — HTTPS health check
+
+## Secrets / config
+
+Functions read runtime config from `functions.config()` (the classic API). Do **not** read `process.env` for secrets — keep the source of truth in Firebase config. The namespaces in use:
+
+| Key | Used by |
+|---|---|
+| `slack.bot_token`, `slack.wny_webhook`, `slack.denver_webhook` | `sendPitchToSlack`, `sendLPApplicationToSlack` |
+| `resend.api_key` | `sendSignInLink` |
+| `stripe.*` | `stripeLPWebhook` |
+| `googlesheets.spreadsheet_id`, `googlesheets.sheet_name`, `googlesheets.allowed_columns` | Sheets export |
+| Anthropic API key | `aiSummary.js` — see [SETUP_GUIDE.md](SETUP_GUIDE.md) |
+
+Set with `firebase functions:config:set namespace.key="value"`. Verify with `firebase functions:config:get`.
+
+## Conventions
+
+- **Error handling:** `try / catch` at the function boundary; log with `console.error` and include the doc ID / request context. Re-throw for `onCall` so the client sees a `functions/*` error code.
+- **Async:** `async` / `await`. Don't mix in raw `.then()` chains.
+- **Validation:** validate inputs at the top of every `onCall`; reject with `HttpsError('invalid-argument', ...)` rather than generic throws.
+- **Side effects ordering:** for Firestore triggers that fan out to multiple services (Slack + Sheets), isolate each call in its own `try / catch` so one failure doesn't swallow the rest.
+- **File length:** split when approaching ~400 lines. `index.js` is already the natural split point — put substantive logic in a sibling module (`aiSummary.js`, `google-sheets-export.js`) and re-export.
+
+## Adding a new function
+
+1. Write the handler in [index.js](index.js), or a sibling module if it's substantial.
+2. Export it from [index.js](index.js) with `exports.<name> = ...`.
+3. If it reads secrets, add the namespace to [SETUP_GUIDE.md](SETUP_GUIDE.md) and [setup-firebase-config.sh](setup-firebase-config.sh).
+4. If it writes to a new collection, add the Firestore rule in [../firestore.rules](../firestore.rules) in the same commit.
+5. Run the emulator to smoke test before deploy.
+
+## Deployment gotchas
+
+- Deploy requires **Storage Object Viewer** on the compute service account. If deploys fail with permission errors, check IAM in the Google Cloud console — not the Firebase console.
+- `firebase deploy --only functions` redeploys everything in the codebase. To redeploy one: `firebase deploy --only functions:sendPitchToSlack`.
+- After changing `functions.config()`, you must redeploy for new values to take effect.

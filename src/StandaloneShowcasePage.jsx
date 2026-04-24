@@ -29,12 +29,12 @@ const StandaloneShowcasePage = () => {
   }, []);
 
   return (
-    <div style={{ 
+    <div style={{
       minHeight: '100vh',
       width: '100%',
       margin: 0,
       padding: 0,
-      fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif'
+      fontFamily: 'var(--font-content)'
     }}>
       {/* Taskbar */}
       <div className="taskbar">
@@ -43,7 +43,7 @@ const StandaloneShowcasePage = () => {
           <span>NeighborhoodOS</span>
         </div>
         <div className="taskbar-right">
-          <span className="retro-clock">{currentTime} {currentDate} 2002</span>
+          <span className="retro-clock">{currentTime} · {currentDate} {new Date().getFullYear()}</span>
         </div>
       </div>
       

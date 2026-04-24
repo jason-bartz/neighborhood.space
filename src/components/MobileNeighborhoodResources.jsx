@@ -4,32 +4,25 @@ import Papa from "papaparse";
 import "../mock-fs.js"; // Import mock filesystem
 import { db } from '../firebaseConfig';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import ResourceIcon from "./icons/ResourceIcon";
+import { Tree, Vehicle } from "./icons/MapDecorations";
 
-// Resource emoji mapping
-const resourceEmojis = {
-  "Funding": "🏦", 
-  "Incubator/Accelerator": "🏭",
-  "Mentorship": "🧑‍🏫",
-  "Legal": "⚖️",
-  "Education": "🏫",
-  "Community": "🏘️",
-  "Government": "🏛️",
-  "Venture Capital": "💰",
-  "Angel Group": "👼",
-  "Coworking": "🏢",
-  "Nonprofit": "🏥",
-  "Corporate Venture": "🏙️",
-  "Private Equity": "💵",
-  "Investment Platform": "💼",
-  "Venture Studio": "🏗️"
+// Stage -> Win95 palette accent (keyed color by business stage)
+const STAGE_ACCENT = {
+  "Ideation": "pink",
+  "Early Stage": "yellow",
+  "Early": "yellow",
+  "Growth": "green",
+  "Established": "blue",
+  "All": "purple",
 };
 
-// Neighborhood colors
+// Neighborhood colors — Millennium Bug soft palette, matches desktop map
 const neighborhoodColors = {
-  "Ideation": "#FFD6EC", // Pastel pink
-  "Early Stage": "#FFE6B3", // Pastel yellow
-  "Growth": "#B3E6CC", // Pastel green
-  "Established": "#B3D9FF" // Pastel blue
+  "Ideation":    "#fde0ec", // magenta-soft
+  "Early Stage": "#fde7d0", // tangerine-soft
+  "Growth":      "#d5f1f4", // aqua-soft
+  "Established": "#e7dffa", // grape-soft
 };
 
 // District definitions
@@ -131,7 +124,7 @@ export default function MobileNeighborhoodResources({ onClose }) {
         hour: "2-digit",
         minute: "2-digit",
       });
-      setCurrentTime(`${dateStr} ${timeStr} 2002`);
+      setCurrentTime(`${dateStr} ${timeStr} ${now.getFullYear()}`);
     };
     
     updateClock(); // Call once immediately
@@ -382,7 +375,7 @@ export default function MobileNeighborhoodResources({ onClose }) {
           "Focus Area": "Micro-grants for under-resourced founders",
           "Relocation Required?": "No",
           "Counties Served": "All 8 counties",
-          URL: "https://www.neighborhoods.space/",
+          URL: "https://www.goodneighbor.fund/",
           "Expanded Details": "Nonprofit micro-grant fund awarding $1,000 grants to founders from underrepresented backgrounds, emphasizing community-driven entrepreneurship. No equity taken.",
           "Average Check Size": "NA",
           "Business Stage": "Ideation"
@@ -773,37 +766,37 @@ export default function MobileNeighborhoodResources({ onClose }) {
   }, []);
 
   const FIXED_TREES = [
-    { key: "tree-1", x: 250, y: 120, type: "🌲" },
-    { key: "tree-2", x: 450, y: 220, type: "🌳" },
-    { key: "tree-3", x: 650, y: 80, type: "🌲" },
-    { key: "tree-4", x: 850, y: 180, type: "🌳" },
-    { key: "tree-5", x: 1050, y: 120, type: "🌲" },
-    { key: "tree-6", x: 1250, y: 220, type: "🌳" },
-    { key: "tree-7", x: 1450, y: 180, type: "🌲" },
-    
-    { key: "tree-8", x: 200, y: 380, type: "🌳" },
-    { key: "tree-9", x: 400, y: 420, type: "🌲" },
-    { key: "tree-10", x: 600, y: 350, type: "🌳" },
-    { key: "tree-11", x: 800, y: 420, type: "🌲" },
-    { key: "tree-12", x: 1000, y: 350, type: "🌳" },
-    { key: "tree-13", x: 1200, y: 420, type: "🌲" },
-    { key: "tree-14", x: 1400, y: 380, type: "🌳" },
-    
-    { key: "tree-15", x: 150, y: 650, type: "🌲" },
-    { key: "tree-16", x: 350, y: 580, type: "🌳" },
-    { key: "tree-17", x: 550, y: 650, type: "🌲" },
-    { key: "tree-18", x: 750, y: 580, type: "🌳" },
-    { key: "tree-19", x: 950, y: 650, type: "🌲" },
-    { key: "tree-20", x: 1150, y: 580, type: "🌳" },
-    { key: "tree-21", x: 1350, y: 650, type: "🌲" },
-    
-    { key: "tree-22", x: 300, y: 980, type: "🌳" },
-    { key: "tree-23", x: 500, y: 880, type: "🌲" },
-    { key: "tree-24", x: 700, y: 980, type: "🌳" },
-    { key: "tree-25", x: 900, y: 880, type: "🌲" },
-    { key: "tree-26", x: 1100, y: 980, type: "🌳" },
-    { key: "tree-27", x: 1300, y: 880, type: "🌲" },
-    { key: "tree-28", x: 1500, y: 980, type: "🌳" },
+    { key: "tree-1", x: 250, y: 120, variant: "pine" },
+    { key: "tree-2", x: 450, y: 220, variant: "round" },
+    { key: "tree-3", x: 650, y: 80, variant: "pine" },
+    { key: "tree-4", x: 850, y: 180, variant: "round" },
+    { key: "tree-5", x: 1050, y: 120, variant: "pine" },
+    { key: "tree-6", x: 1250, y: 220, variant: "round" },
+    { key: "tree-7", x: 1450, y: 180, variant: "pine" },
+
+    { key: "tree-8", x: 200, y: 380, variant: "round" },
+    { key: "tree-9", x: 400, y: 420, variant: "pine" },
+    { key: "tree-10", x: 600, y: 350, variant: "round" },
+    { key: "tree-11", x: 800, y: 420, variant: "pine" },
+    { key: "tree-12", x: 1000, y: 350, variant: "round" },
+    { key: "tree-13", x: 1200, y: 420, variant: "pine" },
+    { key: "tree-14", x: 1400, y: 380, variant: "round" },
+
+    { key: "tree-15", x: 150, y: 650, variant: "pine" },
+    { key: "tree-16", x: 350, y: 580, variant: "round" },
+    { key: "tree-17", x: 550, y: 650, variant: "pine" },
+    { key: "tree-18", x: 750, y: 580, variant: "round" },
+    { key: "tree-19", x: 950, y: 650, variant: "pine" },
+    { key: "tree-20", x: 1150, y: 580, variant: "round" },
+    { key: "tree-21", x: 1350, y: 650, variant: "pine" },
+
+    { key: "tree-22", x: 300, y: 980, variant: "round" },
+    { key: "tree-23", x: 500, y: 880, variant: "pine" },
+    { key: "tree-24", x: 700, y: 980, variant: "round" },
+    { key: "tree-25", x: 900, y: 880, variant: "pine" },
+    { key: "tree-26", x: 1100, y: 980, variant: "round" },
+    { key: "tree-27", x: 1300, y: 880, variant: "pine" },
+    { key: "tree-28", x: 1500, y: 980, variant: "round" },
   ];
 
   // Process the resources and position them on the map
@@ -850,7 +843,7 @@ export default function MobileNeighborhoodResources({ onClose }) {
           businessStage,
           resourceType,
           district,
-          emoji: resourceEmojis[resourceType] || "🏢"
+          accent: STAGE_ACCENT[businessStage] || "pink"
         });
         return; // Skip the normal district assignment
       }
@@ -878,7 +871,7 @@ export default function MobileNeighborhoodResources({ onClose }) {
         businessStage,
         resourceType,
         district,
-        emoji: resourceEmojis[resourceType] || "🏢"
+        accent: STAGE_ACCENT[businessStage] || "pink"
       });
     });
     
@@ -1026,49 +1019,36 @@ export default function MobileNeighborhoodResources({ onClose }) {
     // Create car animations only once
     const initCars = () => {
       const cars = [];
-      // Add more car types
-      const carEmojis = {
-        car: ["🚗", "🚙", "🚕"],
-        special: ["🚓", "🚌"] // Police car and bus
+      const vehicleTypes = {
+        car: ["car", "coupe", "taxi"],
+        special: ["police", "bus"]
       };
-      
-      // Create 7 cars instead of 5 (adding 2 more)
+
       for (let i = 0; i < 7; i++) {
-        // Randomly choose horizontal or vertical street
         const isHorizontal = Math.random() > 0.5;
-        
-        // Determine car type - make sure police car and bus appear at least once
-        let carType;
-        if (i < 2) {
-          // First two cars are special vehicles (police, bus)
-          carType = carEmojis.special[i % carEmojis.special.length];
-        } else {
-          // Regular cars for the rest
-          const randomIndex = Math.floor(Math.random() * carEmojis.car.length);
-          carType = carEmojis.car[randomIndex];
-        }
-        
+        const variant = i < 2
+          ? vehicleTypes.special[i % vehicleTypes.special.length]
+          : vehicleTypes.car[Math.floor(Math.random() * vehicleTypes.car.length)];
+
         if (isHorizontal) {
-          // Pick a random horizontal street
           const streetIndex = Math.floor(Math.random() * horizontalStreets.length);
-          const y = 1200 * (0.125 + streetIndex * 0.15); // Position along one of the horizontal streets
-          
+          const y = 1200 * (0.125 + streetIndex * 0.15);
+
           cars.push({
             id: `car-h-${i}`,
-            emoji: carType,
-            x: 1600, // Start from right side
+            variant,
+            x: 1600,
             y,
             direction: "left",
             speed: 1 + Math.random() * 2
           });
         } else {
-          // Pick a random vertical street
           const streetIndex = Math.floor(Math.random() * verticalStreets.length);
           const x = 1600 * ((1 + streetIndex) / (verticalStreets.length + 1));
-          
+
           cars.push({
             id: `car-v-${i}`,
-            emoji: carType,
+            variant,
             x,
             y: 0,
             direction: "down",
@@ -1240,14 +1220,11 @@ export default function MobileNeighborhoodResources({ onClose }) {
   };
 
   return (
-    <div 
+    <div
       ref={containerRef}
       style={{
         minHeight: "100vh",
-        background: "url('/assets/gnf-wallpaper-blue.webp')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
+        fontFamily: "var(--font-content)",
         overflowY: "auto",
         display: "flex",
         flexDirection: "column",
@@ -1256,40 +1233,50 @@ export default function MobileNeighborhoodResources({ onClose }) {
     >
       {/* Main app container with integrated title bar */}
       <div style={{
-        background: "white",
-        border: "2px solid #d48fc7",
-        borderRadius: "8px",
+        background: "var(--mb-chalk)",
+        border: "2px solid var(--mb-ink)",
+        boxShadow: "var(--shadow-hard-lg)",
         flex: "1",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden"
       }}>
-        {/* Window Title Bar */}
+        {/* Window Title Bar — ink + pixel font to match Navigator theme */}
         <div style={{
-          background: "#ffeaf5",
-          borderBottom: "1px solid #d48fc7",
-          padding: "6px 12px",
+          background: "var(--mb-ink)",
+          color: "var(--mb-chalk)",
+          padding: "6px 10px",
+          minHeight: "28px",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          fontWeight: "bold",
-          fontSize: "16px"
+          fontFamily: "var(--font-pixel)",
+          fontSize: "11px",
+          letterSpacing: "0.04em",
+          userSelect: "none",
+          borderBottom: "1px solid rgba(255,255,255,0.1)"
         }}>
-          <span>📝 Neighborhood Resources Map</span>
+          <span>Neighborhood Navigator</span>
           <button
             onClick={onClose}
+            aria-label="Close window"
             style={{
-              background: "#ffbde2",
-              border: "none",
-              fontWeight: "bold",
+              background: "var(--mb-magenta)",
+              border: "1px solid var(--mb-chalk)",
+              color: "var(--mb-chalk)",
               cursor: "pointer",
-              padding: "0 8px",
-              height: "24px",
-              lineHeight: "24px",
-              fontSize: "16px"
+              padding: "0",
+              fontSize: "12px",
+              width: "20px",
+              height: "20px",
+              lineHeight: "1",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "var(--font-content)"
             }}
           >
-            ✖
+            ✕
           </button>
         </div>
         
@@ -1299,12 +1286,12 @@ export default function MobileNeighborhoodResources({ onClose }) {
           flexDirection: "column",
           gap: "10px",
           padding: "10px",
-          background: "#f5f5f5",
-          borderBottom: "1px solid #ddd"
+          background: "var(--mb-paper)",
+          borderBottom: "2px solid var(--mb-ink)"
         }}>
           {/* Resource dropdown */}
           <div style={{ width: "100%" }}>
-            <select 
+            <select
               onChange={(e) => {
                 if (e.target.value) {
                   const resource = filteredResources.find(r => r.id === parseInt(e.target.value));
@@ -1315,8 +1302,9 @@ export default function MobileNeighborhoodResources({ onClose }) {
               }}
               style={{
                 padding: "8px",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
+                border: "2px solid var(--mb-ink)",
+                background: "var(--mb-chalk)",
+                color: "var(--mb-ink)",
                 fontFamily: "inherit",
                 fontSize: "14px",
                 width: "100%"
@@ -1328,21 +1316,22 @@ export default function MobileNeighborhoodResources({ onClose }) {
                 .sort((a, b) => a.Resource?.localeCompare(b.Resource || ""))
                 .map(resource => (
                   <option key={resource.id} value={resource.id}>
-                    {resource.emoji} {resource.Resource}
+                    {resource.Resource}
                   </option>
                 ))}
             </select>
           </div>
-          
+
           {/* Filters */}
           <div style={{ display: "flex", gap: "5px" }}>
-            <select 
+            <select
               value={filter.stage}
               onChange={(e) => handleFilterChange("stage", e.target.value)}
               style={{
                 padding: "8px",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
+                border: "2px solid var(--mb-ink)",
+                background: "var(--mb-chalk)",
+                color: "var(--mb-ink)",
                 fontFamily: "inherit",
                 fontSize: "14px",
                 flex: 1
@@ -1353,14 +1342,15 @@ export default function MobileNeighborhoodResources({ onClose }) {
                 <option key={stage} value={stage}>{stage}</option>
               ))}
             </select>
-            
-            <select 
+
+            <select
               value={filter.type}
               onChange={(e) => handleFilterChange("type", e.target.value)}
               style={{
                 padding: "8px",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
+                border: "2px solid var(--mb-ink)",
+                background: "var(--mb-chalk)",
+                color: "var(--mb-ink)",
                 fontFamily: "inherit",
                 fontSize: "14px",
                 flex: 1
@@ -1384,27 +1374,31 @@ export default function MobileNeighborhoodResources({ onClose }) {
           }}>
           {/* Map Instructions */}
           <div style={{ padding: "10px" }}>
-            <div style={{ 
-              margin: "0 0 10px 0", 
-              backgroundColor: "#ffeaf5",
-              borderRadius: "8px",
-              padding: "10px"
+            <div style={{
+              margin: "0 0 10px 0",
+              background: "var(--mb-butter-soft)",
+              border: "2px solid var(--mb-ink)",
+              boxShadow: "var(--shadow-hard-sm)",
+              padding: "10px",
+              color: "var(--mb-ink)"
             }}>
               <div style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
-                marginBottom: "10px"
+                marginBottom: "6px"
               }}>
-                <h3 style={{ 
-                  margin: 0, 
-                  fontSize: "16px",
+                <h3 style={{
+                  margin: 0,
+                  fontFamily: "var(--font-pixel)",
+                  fontSize: "14px",
+                  letterSpacing: "0.04em"
                 }}>
                   Resources ({filteredResources.length})
                 </h3>
               </div>
-              
-              <p style={{ fontSize: "13px", margin: 0 }}>
+
+              <p style={{ fontSize: "13px", margin: 0, color: "var(--mb-ink-60)" }}>
                 Browse resources on the map below or use the dropdown at the top to view details.
               </p>
             </div>
@@ -1419,10 +1413,13 @@ export default function MobileNeighborhoodResources({ onClose }) {
               position: "relative"
             }}
           >
-            <h3 style={{ 
-              margin: "0 0 10px 0", 
-              fontSize: "16px",
-              borderBottom: "1px solid #ddd",
+            <h3 style={{
+              margin: "0 0 10px 0",
+              fontFamily: "var(--font-pixel)",
+              fontSize: "14px",
+              letterSpacing: "0.04em",
+              color: "var(--mb-ink)",
+              borderBottom: "2px solid var(--mb-ink)",
               paddingBottom: "5px"
             }}>
               Resource Map
@@ -1435,7 +1432,6 @@ export default function MobileNeighborhoodResources({ onClose }) {
               maxHeight: "500px", /* Limit maximum height */
               overflow: "hidden", /* Changed from auto to hidden to handle our own scrolling */
               border: "1px solid #ddd",
-              borderRadius: "4px",
               touchAction: "none" /* Prevents browser handling of touch events */
             }}>
               {/* Zoom controls */}
@@ -1455,7 +1451,6 @@ export default function MobileNeighborhoodResources({ onClose }) {
                     height: "30px",
                     background: "white",
                     border: "1px solid #ccc",
-                    borderRadius: "4px",
                     fontSize: "16px",
                     fontWeight: "bold",
                     display: "flex",
@@ -1472,7 +1467,6 @@ export default function MobileNeighborhoodResources({ onClose }) {
                     height: "30px",
                     background: "white",
                     border: "1px solid #ccc",
-                    borderRadius: "4px",
                     fontSize: "16px",
                     fontWeight: "bold",
                     display: "flex",
@@ -1489,7 +1483,6 @@ export default function MobileNeighborhoodResources({ onClose }) {
                     height: "30px",
                     background: "white",
                     border: "1px solid #ccc",
-                    borderRadius: "4px",
                     fontSize: "16px",
                     display: "flex",
                     alignItems: "center",
@@ -1659,83 +1652,120 @@ export default function MobileNeighborhoodResources({ onClose }) {
                   {/* Trees */}
                   <g>
                     {FIXED_TREES.map(tree => (
-                      <text 
-                        key={tree.key} 
-                        x={tree.x} 
-                        y={tree.y} 
-                        fontSize="24"
-                        style={{ userSelect: "none", pointerEvents: "none" }}
-                      >
-                        {tree.type}
-                      </text>
+                      <Tree
+                        key={tree.key}
+                        x={tree.x}
+                        y={tree.y}
+                        variant={tree.variant}
+                      />
                     ))}
                   </g>
-                  
+
                   {/* Moving cars */}
                   <g>
                     {carPositions.map(car => (
-                      <text 
-                        key={car.id} 
-                        x={car.x} 
-                        y={car.y} 
-                        fontSize="20"
-                        style={{ userSelect: "none", pointerEvents: "none" }}
-                      >
-                        {car.emoji}
-                      </text>
+                      <Vehicle
+                        key={car.id}
+                        x={car.x}
+                        y={car.y}
+                        variant={car.variant}
+                        direction={car.direction}
+                      />
                     ))}
                   </g>
-                  
-                  {/* Resource buildings */}
+
+                  {/* Resource buildings — beveled tile + inline pictogram */}
                   <g>
-                    {filteredResources.map(resource => (
-                      <g 
-                        key={resource.id}
-                        onClick={(e) => handleResourceClick(resource, e)}
-                        onMouseEnter={(e) => {
-                          setHoveredResource(resource);
-                          setMousePosition({ x: e.clientX, y: e.clientY });
-                        }}
-                        onMouseMove={(e) => {
-                          setMousePosition({ x: e.clientX, y: e.clientY });
-                        }}
-                        onMouseLeave={() => {
-                          setHoveredResource(null);
-                        }}
-                        style={{ cursor: "pointer" }}
-                      >
-                        <rect 
-                          x={resource.x - 20} 
-                          y={resource.y - 20} 
-                          width="40" 
-                          height="40" 
-                          rx="5"
-                          fill={hoveredResource?.id === resource.id ? "#FFD6EC" : "#ffffff"}
-                          stroke={hoveredResource?.id === resource.id ? "#d48fc7" : "#ccc"}
-                          strokeWidth={hoveredResource?.id === resource.id ? 2 : 1}
+                    {filteredResources.map(resource => {
+                      const isHovered = hoveredResource?.id === resource.id;
+                      const stageFill = {
+                        pink: "#ffd6ec",
+                        yellow: "#ffe6b3",
+                        green: "#b3e6cc",
+                        blue: "#d0eaff",
+                        purple: "#e8c8ff",
+                      }[resource.accent || "pink"];
+                      return (
+                        <g
+                          key={resource.id}
+                          onClick={(e) => handleResourceClick(resource, e)}
+                          onMouseEnter={(e) => {
+                            setHoveredResource(resource);
+                            setMousePosition({ x: e.clientX, y: e.clientY });
+                          }}
+                          onMouseMove={(e) => {
+                            setMousePosition({ x: e.clientX, y: e.clientY });
+                          }}
+                          onMouseLeave={() => {
+                            setHoveredResource(null);
+                          }}
+                          style={{ cursor: "pointer" }}
                         >
-                          <title>{resource.Resource}</title>
-                        </rect>
-                        <text 
-                          x={resource.x} 
-                          y={resource.y} 
-                          fontSize="30"
+                          <rect
+                            x={resource.x - 22}
+                            y={resource.y - 18}
+                            width="44"
+                            height="44"
+                            fill="#2d2d2d"
+                            opacity="0.18"
+                          />
+                          <rect
+                            x={resource.x - 24}
+                            y={resource.y - 22}
+                            width="48"
+                            height="6"
+                            fill={stageFill}
+                            stroke="#2d2d2d"
+                            strokeWidth="1.25"
+                          />
+                          <rect
+                            x={resource.x - 24}
+                            y={resource.y - 16}
+                            width="48"
+                            height="38"
+                            fill={isHovered ? "#ffffff" : "#f7f7f7"}
+                            stroke="#2d2d2d"
+                            strokeWidth={isHovered ? 1.75 : 1.25}
+                          >
+                            <title>{resource.Resource}</title>
+                          </rect>
+                          <ResourceIcon
+                            type={resource.resourceType}
+                            size={34}
+                            inline
+                            x={resource.x}
+                            y={resource.y + 3}
+                            title={resource.Resource}
+                          />
+                        </g>
+                      );
+                    })}
+                  </g>
+
+                  {/* Neighborhood labels — matching desktop style */}
+                  <g>
+                    {[
+                      { text: "Establishment Heights", y: 150, fill: "#d0eaff" },
+                      { text: "Growth Park", y: 450, fill: "#b3e6cc" },
+                      { text: "Early Stage Neighborhood", y: 750, fill: "#ffe6b3" },
+                      { text: "Ideation Valley", y: 1050, fill: "#ffd6ec" },
+                    ].map(({ text, y, fill }) => (
+                      <g key={text}>
+                        <rect x="30" y={y - 24} width="320" height="36" fill="#2d2d2d" opacity="0.25" />
+                        <rect x="26" y={y - 28} width="320" height="36" fill={fill} stroke="#2d2d2d" strokeWidth="1.5" />
+                        <text
+                          x="186"
+                          y={y - 4}
                           textAnchor="middle"
-                          dominantBaseline="middle"
+                          fontSize="20"
+                          fontWeight="bold"
+                          fill="#2d2d2d"
+                          style={{ fontFamily: "'Arial Black', Impact, sans-serif", letterSpacing: "0.5px" }}
                         >
-                          {resource.emoji}
-                          <title>{resource.Resource}</title>
+                          {text.toUpperCase()}
                         </text>
                       </g>
                     ))}
-                  </g>
-                  
-                  {/* Neighborhood labels */}
-                  <g>
-                    <text x="800" y="1050" textAnchor="middle" style={{ fontSize: "32px", fontWeight: "bold", fill: "#550000", stroke: "white", strokeWidth: "1px", paintOrder: "stroke" }}>Ideation Valley</text>
-                    <text x="800" y="750" textAnchor="middle" style={{ fontSize: "32px", fontWeight: "bold", fill: "#553300", stroke: "white", strokeWidth: "1px", paintOrder: "stroke" }}>Early Stage Neighborhood</text>
-                    <text x="800" y="450" textAnchor="middle" style={{ fontSize: "32px", fontWeight: "bold", fill: "#004400", stroke: "white", strokeWidth: "1px", paintOrder: "stroke" }}>Growth Park</text>
-                    <text x="800" y="150" textAnchor="middle" style={{ fontSize: "32px", fontWeight: "bold", fill: "#000055", stroke: "white", strokeWidth: "1px", paintOrder: "stroke" }}>Establishment Heights</text>
                   </g>
                 </svg>
                 
@@ -1747,7 +1777,6 @@ export default function MobileNeighborhoodResources({ onClose }) {
                   alignItems: 'center',
                   background: 'rgba(255,255,255,0.9)',
                   border: '1px solid #ccc',
-                  borderRadius: '8px',
                   padding: '5px 10px',
                   zIndex: 100
                 }}>
@@ -1757,24 +1786,26 @@ export default function MobileNeighborhoodResources({ onClose }) {
                     style={{ width: '40px', height: '40px', marginRight: '8px' }} 
                   />
                   <span style={{ fontSize: '12px' }}>
-                    💬 "Missing a resource? <a 
+                    Missing a resource?{' '}
+                    <a
                       href="mailto:jason@goodneighbor.fund?subject=Neighborhood%20Resources%20Map%20Edit"
-                      style={{ color: '#7030a0', fontWeight: 'bold' }}
+                      style={{ color: 'var(--mb-magenta-deep)', fontWeight: 'bold' }}
                     >
-                      email us"
+                      Email us
                     </a>
                   </span>
                 </div>
               </div>
             </div>
-            
-            <div style={{ 
+
+            <div style={{
               marginTop: "10px",
               fontSize: "12px",
               textAlign: "center",
-              padding: "5px",
-              background: "#f5f5f5",
-              borderRadius: "4px"
+              padding: "8px",
+              background: "var(--mb-paper)",
+              border: "2px solid var(--mb-ink)",
+              color: "var(--mb-ink-60)"
             }}>
               <em>Tip: Pinch to zoom and drag to pan the map. Tap on resources to view details.</em>
             </div>
@@ -1799,70 +1830,87 @@ export default function MobileNeighborhoodResources({ onClose }) {
           }}
           onClick={handleCloseModal}
         >
-          <div 
+          <div
             style={{
-              background: "white",
+              background: "var(--mb-chalk)",
+              border: "2px solid var(--mb-ink)",
+              boxShadow: "var(--shadow-hard-lg)",
               width: "90%",
               maxWidth: "400px",
               maxHeight: "80vh",
-              borderRadius: "8px",
               padding: "20px",
-              overflow: "auto"
+              overflow: "auto",
+              color: "var(--mb-ink)"
             }}
             onClick={e => e.stopPropagation()}
           >
-            <h2 style={{ 
+            <h2 style={{
               display: "flex",
               alignItems: "center",
-              gap: "10px",
+              gap: "12px",
               margin: "0 0 15px 0",
-              borderBottom: "1px solid #ddd",
-              paddingBottom: "10px"
+              borderBottom: "2px solid var(--mb-ink)",
+              paddingBottom: "10px",
+              fontFamily: "var(--font-display)"
             }}>
-              <span style={{ fontSize: "28px" }}>{selectedResource.emoji}</span> 
-              {selectedResource.Resource}
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 44,
+                  height: 44,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  background: "var(--mb-magenta-soft)",
+                  border: "2px solid var(--mb-ink)",
+                  flexShrink: 0,
+                }}
+              >
+                <ResourceIcon type={selectedResource.resourceType} size={30} />
+              </span>
+              <span>{selectedResource.Resource}</span>
             </h2>
-            
+
             <div>
               <p><strong>Type:</strong> {selectedResource.resourceType}</p>
               <p><strong>Focus Area:</strong> {selectedResource["Focus Area"]}</p>
               <p><strong>Business Stage:</strong> {selectedResource.businessStage}</p>
               <p><strong>Counties Served:</strong> {selectedResource["Counties Served"]}</p>
-              
+
               {selectedResource["Average Check Size"] && selectedResource["Average Check Size"] !== "NA" && (
                 <p><strong>Average Check Size:</strong> {selectedResource["Average Check Size"]}</p>
               )}
-              
+
               {selectedResource["Relocation Required?"] && (
                 <p><strong>Relocation Required:</strong> {selectedResource["Relocation Required?"]}</p>
               )}
-              
+
               {selectedResource["Expanded Details"] && (
                 <div style={{
                   marginTop: "15px",
                   padding: "10px",
-                  background: "#f9f9f9",
-                  borderRadius: "4px",
-                  borderLeft: "3px solid #FFD6EC"
+                  background: "var(--mb-paper)",
+                  borderLeft: "3px solid var(--mb-magenta)"
                 }}>
-                  <h3 style={{ margin: "0 0 5px 0", fontSize: "16px" }}>Details</h3>
+                  <h3 style={{ margin: "0 0 5px 0", fontSize: "16px", fontFamily: "var(--font-pixel)", letterSpacing: "0.04em" }}>Details</h3>
                   <p style={{ margin: 0 }}>{selectedResource["Expanded Details"]}</p>
                 </div>
               )}
-              
+
               {selectedResource.URL && (
-                <a 
-                  href={selectedResource.URL} 
-                  target="_blank" 
+                <a
+                  href={selectedResource.URL}
+                  target="_blank"
                   rel="noreferrer"
                   style={{
                     display: "inline-block",
                     marginTop: "15px",
                     padding: "8px 16px",
-                    background: "#FFD6EC",
-                    color: "#333",
+                    background: "var(--mb-magenta)",
+                    color: "var(--mb-chalk)",
+                    border: "2px solid var(--mb-ink)",
+                    boxShadow: "var(--shadow-hard-sm)",
                     textDecoration: "none",
-                    borderRadius: "4px",
                     fontWeight: "bold"
                   }}
                 >
@@ -1871,16 +1919,17 @@ export default function MobileNeighborhoodResources({ onClose }) {
               )}
             </div>
             
-            <button 
+            <button
               onClick={handleCloseModal}
               style={{
                 display: "block",
                 width: "100%",
                 marginTop: "20px",
                 padding: "10px",
-                background: "#f0f0f0",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
+                background: "var(--mb-ink)",
+                color: "var(--mb-chalk)",
+                border: "2px solid var(--mb-ink)",
+                boxShadow: "var(--shadow-hard-sm)",
                 fontSize: "16px",
                 fontFamily: "inherit",
                 cursor: "pointer"

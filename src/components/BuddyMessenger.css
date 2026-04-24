@@ -1,66 +1,18 @@
-/* BuddyMessenger.css */
-.chat-window {
-  width: 360px;
-  background: #fefefe;
-  border: 2px solid #ddd;
-  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.2);
-  font-family: 'Verdana', sans-serif;
-  position: absolute;
-  top: 100px;
-  left: 100px;
-  z-index: 1000;
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.chat-title-bar {
-  background: linear-gradient(to right, #ffb6e1, #ff9bd6);
-  padding: 5px 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: white;
-  font-weight: bold;
-  font-size: 12px;
-  cursor: move;
-}
-
-.title-text {
-  flex-grow: 1;
-  text-align: center;
-}
-
-.window-controls {
-  display: flex;
-}
-
-.window-controls button {
-  background: #eeeeee;
-  border: 1px solid #aaaaaa;
-  width: 16px;
-  height: 16px;
-  margin-left: 4px;
-  font-size: 10px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.window-controls button:hover {
-  background: #ffffff;
-}
+/* BuddyMessenger.css — Win95 Pastel
+   Note: The window chrome (title bar, close button, outer frame) is provided
+   by WindowFrame. Styles here apply only to the interior chat UI. */
 
 .message-window {
-  background: white;
-  border: 1px solid #ddd;
-  height: 200px; 
+  background: var(--mb-paper);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  height: 200px;
   overflow-y: auto;
-  padding: 8px;
-  font-size: 12px;
-  margin: 5px;
-  border-radius: 3px;
+  padding: 10px;
+  font-size: 13px;
+  margin: 6px;
+  font-family: var(--font-content);
+  color: var(--mb-ink);
 }
 
 .message-item {
@@ -73,7 +25,8 @@
 }
 
 .message-username {
-  font-weight: bold;
+  font-weight: 700;
+  color: var(--mb-magenta);
 }
 
 .message-text {
@@ -84,43 +37,65 @@
 .message-timestamp {
   margin-left: 6px;
   font-size: 9px;
-  color: #d0cdcd;
+  color: var(--gnf-text-muted);
   font-style: italic;
 }
 
 .message-input-area {
   padding: 0 5px;
-  margin-bottom: 0; 
+  margin-bottom: 0;
 }
 
 .message-textarea {
   width: 100%;
-  height: 40px; 
-  border: 1px solid #ddd;
-  padding: 5px;
-  font-size: 12px;
-  font-family: 'Verdana', sans-serif;
+  height: 44px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: var(--font-content);
   resize: none;
-  background-color: white;
-  border-radius: 3px;
-  margin-bottom: 5px;
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  color: var(--mb-ink);
+  margin-bottom: 6px;
+  box-sizing: border-box;
+}
+
+.message-textarea.char-warn {
+  background-color: var(--warn-bg);
+}
+
+.message-textarea.char-limit {
+  background-color: var(--error-bg);
 }
 
 .message-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2px 5px; 
+  padding: 2px 5px;
   font-size: 11px;
   margin-bottom: 0;
+  gap: 8px;
 }
 
 .char-counter {
-  color: #777;
+  color: var(--gnf-text-secondary);
+  min-width: 110px;
+}
+
+.char-counter.char-warn {
+  color: var(--warn-text);
+  font-weight: bold;
+}
+
+.char-counter.char-limit {
+  color: var(--error-text);
+  font-weight: bold;
 }
 
 .error-message {
-  color: #e74c3c;
+  color: var(--error-text);
   flex-grow: 1;
   text-align: center;
   font-weight: bold;
@@ -128,31 +103,5 @@
 }
 
 .send-button {
-  background: linear-gradient(to bottom, #ffb6e1, #ff8fcb);
-  border: 1px solid #ff8fcb;
-  color: white;
-  padding: 6px 16px; 
-  font-size: 13px;
-  font-weight: bold;
-  cursor: pointer;
-  border-radius: 3px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-}
-
-.send-button:hover:not(:disabled) {
-  background: linear-gradient(to bottom, #ff9bd6, #ff69b4); 
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2); 
-}
-
-.send-button:active:not(:disabled) {
-  background: #ff69b4;
-  box-shadow: inset 0 1px 2px rgba(0,0,0,0.2); 
-}
-
-.send-button:disabled {
-  background: #f0f0f0;
-  border-color: #ddd;
-  color: #aaa;
-  cursor: not-allowed;
-  box-shadow: none;
+  /* Extends .win95-btn.win95-btn-primary via className */
 }

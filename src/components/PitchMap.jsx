@@ -204,15 +204,18 @@ export default function PitchMap({ pitches = [], currentUserChapter, onPitchClic
 
   return (
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Filters Bar */}
-      <div style={{ 
-        padding: '15px', 
-        background: 'white', 
-        borderBottom: '1px solid #e0e0e0',
+      {/* Filters Bar - Win95 styled */}
+      <div style={{
+        padding: '10px 12px',
+        background: 'var(--mb-paper-deep)',
+        border: '2px solid',
+        borderColor: 'var(--mb-ink)',
+        boxShadow: 'var(--shadow-hard-sm)',
         display: 'flex',
-        gap: '10px',
+        gap: '8px',
         alignItems: 'center',
-        flexWrap: 'wrap'
+        flexWrap: 'wrap',
+        fontFamily: 'var(--font-content)'
       }}>
         <input
           type="text"
@@ -220,23 +223,29 @@ export default function PitchMap({ pitches = [], currentUserChapter, onPitchClic
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           style={{
-            padding: '8px 12px',
-            border: '1px solid #e0e0e0',
-            borderRadius: '6px',
+            height: '30px',
+            boxSizing: 'border-box',
+            padding: '0 10px',
             flex: '1',
-            minWidth: '200px'
+            minWidth: '200px',
+            fontSize: '13px',
+            border: '2px solid var(--mb-ink)',
+            fontFamily: 'var(--font-content)'
           }}
         />
-        
+
         {/* Quarter Filter */}
         <select
           value={filterQuarter}
           onChange={(e) => setFilterQuarter(e.target.value)}
           style={{
-            padding: '8px 12px',
-            border: '1px solid #e0e0e0',
-            borderRadius: '6px',
-            background: 'white'
+            height: '30px',
+            boxSizing: 'border-box',
+            padding: '0 10px',
+            fontSize: '13px',
+            border: '2px solid var(--mb-ink)',
+            fontFamily: 'var(--font-content)',
+            background: 'var(--btn-bg)'
           }}
         >
           <option value="">All Quarters</option>
@@ -244,35 +253,58 @@ export default function PitchMap({ pitches = [], currentUserChapter, onPitchClic
             <option key={quarter} value={quarter}>{quarter}</option>
           ))}
         </select>
-        
+
         {/* Winners Only Toggle */}
         <button
           onClick={() => setShowWinnersOnly(!showWinnersOnly)}
           style={{
-            padding: '8px 16px',
-            border: `1px solid ${showWinnersOnly ? '#FFB6D9' : '#e0e0e0'}`,
-            borderRadius: '6px',
-            background: showWinnersOnly ? '#FFB6D9' : 'white',
-            color: showWinnersOnly ? 'white' : '#666',
+            height: '30px',
+            boxSizing: 'border-box',
+            padding: '0 14px',
+            border: '2px solid var(--mb-ink)',
+            boxShadow: showWinnersOnly ? '0 0 0 0 var(--mb-ink)' : 'var(--shadow-hard-sm)',
+            background: showWinnersOnly ? 'var(--gnf-pink-200)' : 'var(--btn-bg)',
+            color: 'var(--gnf-text)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
-            gap: '6px'
+            fontFamily: 'var(--font-content)',
+            fontWeight: 'bold',
+            fontSize: '12px'
           }}
         >
-          🏆 Winners Only
+          Winners Only
         </button>
-        
+
         {/* Stats */}
-        <div style={{ 
+        <div style={{
           marginLeft: 'auto',
           display: 'flex',
-          gap: '20px',
-          fontSize: '14px',
-          color: '#666'
+          gap: '12px',
+          fontSize: '12px',
+          color: 'var(--gnf-text-secondary)',
+          fontWeight: 'bold'
         }}>
-          <span>📍 {stats.visible} pitches</span>
-          <span>🏆 {stats.winners} winners</span>
+          <span style={{
+            height: '30px',
+            boxSizing: 'border-box',
+            padding: '0 10px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            border: '2px solid var(--mb-ink)',
+            boxShadow: '0 0 0 0 var(--mb-ink)',
+            background: 'var(--mb-chalk)'
+          }}>{stats.visible} pitches</span>
+          <span style={{
+            height: '30px',
+            boxSizing: 'border-box',
+            padding: '0 10px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            border: '2px solid var(--mb-ink)',
+            boxShadow: '0 0 0 0 var(--mb-ink)',
+            background: 'var(--mb-chalk)'
+          }}>{stats.winners} winners</span>
         </div>
       </div>
 
@@ -326,14 +358,17 @@ export default function PitchMap({ pitches = [], currentUserChapter, onPitchClic
             position: 'absolute',
             bottom: '20px',
             left: '20px',
-            background: 'rgba(255, 255, 255, 0.9)',
-            padding: '10px 15px',
-            borderRadius: '6px',
-            boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-            fontSize: '12px',
-            color: '#666'
+            background: 'var(--mb-paper-deep)',
+            padding: '6px 12px',
+            border: '2px solid',
+            borderColor: 'var(--mb-ink)',
+            boxShadow: 'var(--shadow-hard-sm)',
+            fontSize: '11px',
+            color: 'var(--gnf-text-secondary)',
+            fontFamily: 'var(--font-content)',
+            fontWeight: 'bold'
           }}>
-            🔄 Geocoding addresses...
+            Geocoding addresses...
           </div>
         )}
       </div>

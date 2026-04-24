@@ -6,6 +6,8 @@ import "./FounderMap.css";
 const chapterCenters = {
   "Western New York": { lat: 42.88, lng: -77.8, zoom: 8 }, // Zoomed out to show full WNY region
   Denver: { lat: 39.7392, lng: -104.9903, zoom: 10 },
+  "Upstate New York": { lat: 43.05, lng: -76.15, zoom: 8 }, // Centered on Syracuse
+  "Capital Region": { lat: 42.65, lng: -73.75, zoom: 9 }, // Centered on Albany
 };
 
 function getQuarterFromTimestamp(timestamp) {
@@ -326,13 +328,12 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
             <div style="font-size: 14px; max-width: 280px;">
               ${founder.photo ? `
                 <div style="text-align: center; margin-bottom: 8px;">
-                  <img src="${founder.photo}" style="width: 200px; height: 150px; object-fit: cover; border-radius: 4px;" />
+                  <img class="founder-popup-photo" src="${founder.photo}" style="width: 200px; height: 150px; object-fit: cover; border-radius: 4px; cursor: zoom-in;" title="Click to enlarge" />
                 </div>
               ` : ''}
-              <div style="font-weight: bold; margin-bottom: 6px; font-size: 16px;">🏆 ${founder.businessName || 'Business'}</div>
+              <div style="font-weight: bold; margin-bottom: 6px; font-size: 16px;">${founder.businessName || 'Business'}</div>
               <div style="margin-bottom: 4px;"><strong>Founder:</strong> ${founder.founderName || 'Unknown'}</div>
               <div style="margin-bottom: 4px;"><strong>Quarter:</strong> ${founder.quarter || 'N/A'}</div>
-              ${founder.zipCode ? `<div style="margin-bottom: 4px;"><strong>Location:</strong> ${founder.zipCode}</div>` : ''}
               ${founder.chapter ? `<div style="margin-bottom: 4px;"><strong>Chapter:</strong> ${founder.chapter}</div>` : ''}
               ${founder.about ? `
                 <div style="margin: 8px 0; padding: 8px; background-color: #f5f5f5; border-radius: 4px; font-size: 13px;">
@@ -350,10 +351,23 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
           `;
 
           marker.bindPopup(popupContent);
-          
+
           marker.on('click', () => {
             setSelectedFounder(founder);
           });
+
+          if (founder.photo) {
+            marker.on('popupopen', (e) => {
+              const img = e.popup.getElement()?.querySelector('.founder-popup-photo');
+              if (img && !img.dataset.enlargeBound) {
+                img.dataset.enlargeBound = 'true';
+                img.addEventListener('click', (ev) => {
+                  ev.stopPropagation();
+                  setExpandedImage(founder.photo);
+                });
+              }
+            });
+          }
 
           markersRef.current.push(marker);
           markerMapRef.current.set(founder.id, marker);
@@ -565,7 +579,6 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
                 padding: 8,
                 margin: "5px 0",
                 border: "1px solid #ddd",
-                borderRadius: 4,
                 cursor: "pointer",
                 backgroundColor: selectedFounder?.id === founder.id ? "#e3f2fd" : "#fff",
               }}
@@ -609,6 +622,8 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
             <option value="">All Chapters</option>
             <option value="Western New York">Western New York</option>
             <option value="Denver">Denver</option>
+            <option value="Upstate New York">Upstate New York</option>
+            <option value="Capital Region">Capital Region</option>
           </select>
         </div>
 
@@ -616,7 +631,6 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
           ref={mapRef}
           style={{
             flexGrow: 1,
-            borderRadius: 4,
             border: "2px solid #aaa",
             minHeight: "400px",
             backgroundColor: "#f0f0f0",
@@ -635,7 +649,6 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
               textAlign: "center",
               padding: "20px",
               backgroundColor: "rgba(255, 255, 255, 0.9)",
-              borderRadius: "8px",
               boxShadow: "0 2px 4px rgba(0,0,0,0.1)"
             }}>
               <div style={{ marginBottom: "10px" }}>🗺️</div>
@@ -652,7 +665,6 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
                   backgroundColor: "#007bff",
                   color: "white",
                   border: "none",
-                  borderRadius: "4px",
                   cursor: "pointer",
                   fontSize: "12px"
                 }}

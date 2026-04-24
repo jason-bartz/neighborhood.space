@@ -11,6 +11,10 @@ export const submitToGoogleSheets = async (pitchData) => {
   try {
     const timestamp = new Date().toLocaleString();
     
+    const selfIdentification = Array.isArray(pitchData.selfIdentification)
+      ? pitchData.selfIdentification.join(', ')
+      : (pitchData.selfIdentification || '');
+
     // Prepare the data
     const formData = {
       timestamp,
@@ -20,6 +24,7 @@ export const submitToGoogleSheets = async (pitchData) => {
       email: pitchData.email || '',
       phone: '', // Phone field not collected in form
       website: pitchData.website || '',
+      zipCode: pitchData.zipCode || '',
       bio: pitchData.bio || '',
       valueProp: pitchData.valueProp || '',
       problem: pitchData.problem || '',
@@ -27,8 +32,11 @@ export const submitToGoogleSheets = async (pitchData) => {
       businessModel: pitchData.businessModel || '',
       hasPayingCustomers: pitchData.hasPayingCustomers || '',
       grantUsePlan: pitchData.grantUsePlan || '',
+      selfIdentification,
       heardAbout: pitchData.heardAbout || '',
       videoUrl: pitchData.pitchVideoUrl || pitchData.pitchVideoFile || '',
+      consentToShare: pitchData.consentToShare ? 'Yes' : 'No',
+      consentToMeetup: pitchData.consentToMeetup ? 'Yes' : 'No',
       pitchId: pitchData.id || ''
     };
     

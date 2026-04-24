@@ -1,35 +1,65 @@
 // LimitedPartnerPortal.jsx
-import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"; 
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
   collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc,
-  orderBy, addDoc, getDoc, Timestamp, serverTimestamp
+  orderBy, addDoc, getDoc, Timestamp, serverTimestamp, deleteField
 } from "firebase/firestore";
 import {
-  onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, 
-  GoogleAuthProvider, signOut, sendPasswordResetEmail, updatePassword, fetchSignInMethodsForEmail
+  onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut,
+  isSignInWithEmailLink, signInWithEmailLink
 } from "firebase/auth";
-import { db, auth, storage } from "../../../firebaseConfig.js";  
+import { db, auth, storage, functions } from "../../../firebaseConfig.js";
+import { httpsCallable } from "firebase/functions";
 import Papa from "papaparse";
 import { saveAs } from "file-saver";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import Confetti from "react-confetti";
 import StatsBar from "../../StatsBar";
 import { BadgeNotification, TrophyCase } from "../../BadgeDisplay";
 import { BADGES } from "../../../data/badgeDefinitions";
+import { getChapterMembershipLinks } from "../../../data/chapterConfig";
+import BadgeIcon from "../../icons/BadgeIcon";
+import ReviewRatingIcon from "../../icons/ReviewRatingIcon";
 import PitchMap from "../../PitchMap";
-import { 
-  trackReviewSubmission, 
-  trackRatingChange, 
+import {
+  trackReviewSubmission,
   initializeUserStats,
   calculateRetroactiveStats,
-  updateWinnerPredictions
+  updateWinnerPredictions,
+  calculateChapterRankings,
+  getCurrentQuarter
 } from "../../../services/statsTracking";
+import {
+  RetroButton,
+  RetroPill,
+  EmptyState,
+  ConfirmDialog,
+  AdminTabStrip,
+  useConfirm,
+} from "../../ui/retro";
+import {
+  roleLabel,
+  roleTonePill,
+  ratingTonePill,
+  dashIfEmpty,
+} from "../../../helpers/labels";
+import ResourceLibrary from "./resources/ResourceLibrary";
 
 // --- Constants ---
 const provider = new GoogleAuthProvider();
 const ratingEmojis = { Favorite: "⭐", Consideration: "💡", Pass: "❌", Ineligible: "🚫" };
-const VALID_ROLES = ['lp', 'admin', 'superAdmin'];
-const APP_NAME = "Neighborhood OS"; 
+const VALID_ROLES = ['lp', 'chapter_director', 'superAdmin'];
+const APP_NAME = "Neighborhood OS";
+const CHAPTERS = ['Western New York', 'Upstate New York', 'Capital Region', 'Denver'];
+// Admin-only LP rating weights. Shown in the admin review summary so we can rank pitches,
+// deliberately NOT exposed on the public review page so reviewers aren't anchored by prior votes.
+const LP_RATING_WEIGHTS = { Favorite: 2, Consideration: 1, Pass: 0, Ineligible: -2 };
+
+const generateAboutCallable = httpsCallable(functions, "generateAboutFromApplication");
+const inviteUserCallable = httpsCallable(functions, "inviteUser");
+const sendSignInLinkCallable = httpsCallable(functions, "sendSignInLink");
+const EMAIL_FOR_SIGN_IN_KEY = "lpPortal:emailForSignIn";
 
 
 // --- Helper Functions for Alerts/Confirmations ---
@@ -43,47 +73,101 @@ const showAppConfirm = (message) => {
 
 
 // --- Helper Components ---
-function AuthInput({ type = "text", placeholder, value, onChange, required, minLength }) {
+function AuthInput({ type = "text", placeholder, value, onChange, required, minLength, ariaLabel }) {
   const autoCompleteType = type === 'email' ? 'email' : type === 'password' ? (placeholder.toLowerCase().includes('new') ? 'new-password' : 'current-password') : 'off';
+  const inputMode = type === 'email' ? 'email' : undefined;
   return (
-     <input type={type} placeholder={placeholder} value={value} onChange={onChange} required={required} minLength={minLength} style={{ display: 'block', width: 'calc(100% - 20px)', padding: '10px', margin: '10px auto', border: '1px solid #7d7d7d', borderRadius: '0', boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit', fontSize: '1em' }} autoComplete={autoCompleteType} />
+     <input
+       type={type}
+       placeholder={placeholder}
+       value={value}
+       onChange={onChange}
+       required={required}
+       minLength={minLength}
+       aria-label={ariaLabel || placeholder}
+       inputMode={inputMode}
+       className="auth-input"
+       style={{ display: 'block', width: 'calc(100% - 20px)', padding: '10px', margin: '10px auto', border: '2px solid', borderColor: '#d48fc7 #fff #fff #d48fc7', boxShadow: 'inset 1px 1px 0 rgba(180,100,160,0.3), inset -1px -1px 0 rgba(255,255,255,0.7)', boxSizing: 'border-box', background: '#fff', fontFamily: 'inherit', fontSize: '1em' }}
+       autoComplete={autoCompleteType}
+     />
   );
 }
 
-function RetroButton({ onClick, children, style = {}, primary = false, disabled = false, type = "button", title = "" }) { // Added title prop
-  const baseStyle = {
-    padding: primary ? "10px 25px" : "8px 15px",
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    background: primary ? "#FFD6EC" : "#E0E0E0",
-    color: disabled ? '#888' : "black",
-    border: disabled ? '2px inset #aaa' : '2px outset #aaa',
-    borderRadius: '0',
-    fontSize: '1em', 
-    fontWeight: 'bold',
-    fontFamily: 'inherit',
-    boxShadow: disabled ? 'none' : '1px 1px 1px #555',
-    opacity: disabled ? 0.6 : 1,
-    margin: '5px',
-    display: 'inline-flex', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    gap: '4px' 
-  };
-  
-  return <button type={type} onClick={onClick} style={{ ...baseStyle, ...style }} disabled={disabled} title={title}>{children}</button>; // Added title attribute
+// RetroButton previously defined inline here; moved to a shared primitive so
+// hover/active/focus states are consistent and a11y-friendly across the app.
+// See src/components/ui/retro/RetroButton.jsx — imported at the top of this file.
+
+/**
+ * Local helper for the Social Cards tab. Wraps the 1080×1080 preview canvas
+ * in a Millennium-Bug tile with eyebrow, title, and a ghost-style "Download"
+ * button. Clicking either the canvas preview or the button triggers the
+ * download callback passed in.
+ */
+function SocialCardTile({ canvasId, title, eyebrow, description, onDownload }) {
+  return (
+    <article className="social-card-tile">
+      <div className="social-card-tile__preview" onClick={onDownload}>
+        <canvas
+          id={canvasId}
+          width="1080"
+          height="1080"
+          style={{ display: 'block', width: '100%', height: 'auto', cursor: 'pointer' }}
+          aria-label={`${title} preview — click to download`}
+        />
+      </div>
+      <div className="social-card-tile__body">
+        <div className="social-card-tile__eyebrow">{eyebrow}</div>
+        <h3 className="social-card-tile__title">{title}</h3>
+        <p className="social-card-tile__description">{description}</p>
+        <button type="button" className="social-card-tile__download" onClick={onDownload}>
+          Download PNG
+          <span aria-hidden="true">↓</span>
+        </button>
+      </div>
+    </article>
+  );
+}
+
+/**
+ * Local helper used on the Super Admin Tools tab. Renders a Millennium-Bug
+ * styled "tool card" — eyebrow label, display-serif heading, body copy,
+ * optional footnote / warning, and a single call-to-action. Kept local
+ * because the shape is specific to the admin tool rail.
+ */
+function AdminToolCard({ eyebrow, title, body, footnote, warning, action }) {
+  return (
+    <section className="admin-tool-card">
+      {eyebrow && <div className="admin-tool-card__eyebrow">{eyebrow}</div>}
+      <h5 className="admin-tool-card__title">{title}</h5>
+      {body && <div className="admin-tool-card__body">{body}</div>}
+      {footnote && <div className="admin-tool-card__footnote">{footnote}</div>}
+      {warning && (
+        <div className="admin-tool-card__warning" role="note">
+          {warning}
+        </div>
+      )}
+      {action && <div className="admin-tool-card__action">{action}</div>}
+    </section>
+  );
 }
 
 
 // --- Main Component ---
 export default function LimitedPartnerPortal({ onOpenGNFWebsite, isStandalone = false }) {
 
+// Retro-styled confirm dialog (replaces window.confirm for the main destructive
+// admin actions — delete user, delete chapter, delete resource). Other call sites
+// can migrate over time using the same `requestConfirm` helper.
+const { requestConfirm, confirmDialog } = useConfirm();
+
 // --- State Variables ---
 const [user, setUser] = useState(null);
 const [isLoadingAuth, setIsLoadingAuth] = useState(true);
-const [authMode, setAuthMode] = useState("login"); // "login" or "signup"
 const [email, setEmail] = useState("");
-const [password, setPassword] = useState("");
 const [authError, setAuthError] = useState("");
+const [signInLinkSending, setSignInLinkSending] = useState(false);
+const [signInLinkSentTo, setSignInLinkSentTo] = useState("");
+const [completingSignIn, setCompletingSignIn] = useState(false);
 const [activeTab, setActiveTab] = useState("reviewPitches"); // Default tab
 const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); // Mobile menu state
 const [activeAdminTab, setActiveAdminTab] = useState("pitchesAndReviews");
@@ -93,6 +177,7 @@ const isMobile = () => window.innerWidth < 768;
 const [showConfetti, setShowConfetti] = useState(false);
 const [expandedPitchId, setExpandedPitchId] = useState(null);
 const [lpPitches, setLpPitches] = useState([]);
+const [lpPitchesLoaded, setLpPitchesLoaded] = useState(false);
 const [selectedPitch, setSelectedPitch] = useState(null);
 const [reviews, setReviews] = useState({}); // State for user's reviews { pitchId: reviewData }
 const [reviewFormData, setReviewFormData] = useState({});
@@ -105,17 +190,20 @@ const [adminPitches, setAdminPitches] = useState([]);
 const [users, setUsers] = useState([]);
 const [chapterMembers, setChapterMembers] = useState([]);
 const [allReviewsData, setAllReviewsData] = useState([]); // State for ALL reviews [{...reviewData}]
+const [pitchComments, setPitchComments] = useState({}); // { pitchId: [{ comment, reviewerName, reviewerId }] }
 const [adminChapterFilter, setAdminChapterFilter] = useState("");
 const [adminQuarterFilter, setAdminQuarterFilter] = useState([]);
 const [adminSearch, setAdminSearch] = useState("");
 const [adminHidePassed, setAdminHidePassed] = useState(false); // State for admin hide passed filter
 const [adminFavoriteFilterMode, setAdminFavoriteFilterMode] = useState("all");
+const [adminSortMode, setAdminSortMode] = useState("newest"); // newest | oldest | avgDesc | avgAsc | sumDesc | sumAsc | mostReviews
 const [aboutById, setAboutById] = useState({});
 const [websiteById, setWebsiteById] = useState({});
 const [winnerChapterFilter, setWinnerChapterFilter] = useState("");
 const [photosById, setPhotosById] = useState({});
 const [winnerSearchTerm, setWinnerSearchTerm] = useState("");
 const [pendingChanges, setPendingChanges] = useState({});
+const [generatingAboutId, setGeneratingAboutId] = useState(null);
 
 // Gamification state
 const [userStats, setUserStats] = useState(null);
@@ -125,16 +213,50 @@ const [statsInitialized, setStatsInitialized] = useState(false);
 
 // User creation state
 const [newUserData, setNewUserData] = useState({
-  uid: '',
   email: '',
   name: '',
   role: 'lp',
   chapter: '',
   anniversary: new Date().toISOString().split('T')[0]
 });
+const [isInviting, setIsInviting] = useState(false);
 
 // User editing state
 const [editingUsers, setEditingUsers] = useState({}); // { userId: { linkedinUrl: '', professionalRole: '', bio: '' } }
+// Per-user member-photo upload progress, keyed by uid → boolean.
+const [uploadingPhotoFor, setUploadingPhotoFor] = useState({});
+
+// Chapters collection state. Seeded from the hardcoded CHAPTERS constant until the
+// /chapters collection is populated. `chapters` holds raw docs; `chapterNames` is
+// what dropdowns render — always the source-of-truth list of display names.
+const [chapters, setChapters] = useState([]);
+const [chaptersLoaded, setChaptersLoaded] = useState(false);
+const [editingChapterId, setEditingChapterId] = useState(null);
+const [chapterFormData, setChapterFormData] = useState({
+  slug: '',
+  name: '',
+  pageSlug: '',
+  tagline: '',
+  foundedYear: '',
+  emailAlias: '',
+  slackChannel: '',
+  lpSlackChannel: '',
+  active: true,
+  order: 0,
+  // Landing page content (hydrated onto public/<slug>.html by chapter-hydration.js)
+  heroTitle: '',
+  heroTagline: '',
+  heroImage: '',
+  heroImageCaption: '',
+  servingTitle: '',
+  servingText: '',
+  counties: [],
+  poweredByText: '',
+  galleryPhotos: [],
+  showLPs: true,
+  showGallery: true
+});
+const [isAddingChapter, setIsAddingChapter] = useState(false);
 
 // Message board state
 const [bulletinMessages, setBulletinMessages] = useState([]);
@@ -149,6 +271,7 @@ const [managedResources, setManagedResources] = useState([]);
 const [editingResource, setEditingResource] = useState(null);
 const [resourceFormData, setResourceFormData] = useState({
   Resource: '',
+  Chapter: '',
   Type: '',
   'Focus Area': '',
   'Business Stage': 'Ideation',
@@ -162,6 +285,7 @@ const [isAddingResource, setIsAddingResource] = useState(false);
 const [resourceSearchTerm, setResourceSearchTerm] = useState('');
 const [resourceTypeFilter, setResourceTypeFilter] = useState('');
 const [resourceStageFilter, setResourceStageFilter] = useState('');
+const [resourceChapterFilter, setResourceChapterFilter] = useState('');
 
 // Calculate new message count
 const newMessageCount = useMemo(() => {
@@ -179,8 +303,32 @@ const [listScrollPosition, setListScrollPosition] = useState(0); // Store scroll
 
 // --- Derived State (Roles) ---
 const isSuperAdmin = user?.role === "superAdmin";
-const isAdmin = user?.role === "admin" || isSuperAdmin;
+const isChapterDirector = user?.role === "chapter_director";
+const isLP = user?.role === "lp";
+// isAdmin means "has elevated portal access" — any validated role. After the admin
+// role was collapsed into lp, every validated user reaches the admin panel; superAdmin
+// and chapter_director are further-scoped tiers within it.
+const isAdmin = isLP || isChapterDirector || isSuperAdmin;
 const userChapter = user?.chapter;
+
+// Chapter directors can only invite into their own chapter — keep it pinned
+// even if the field was blank on first mount.
+useEffect(() => {
+  if (isChapterDirector && userChapter && newUserData.chapter !== userChapter) {
+    setNewUserData((prev) => ({ ...prev, chapter: userChapter }));
+  }
+}, [isChapterDirector, userChapter, newUserData.chapter]);
+
+// Active chapter names, sourced dynamically from /chapters when populated. Falls
+// back to the hardcoded CHAPTERS constant while the collection is empty or still
+// loading so dropdowns never collapse to nothing.
+const activeChapterNames = useMemo(() => {
+  const fromCollection = chapters
+    .filter(c => c.active !== false)
+    .map(c => c.name)
+    .filter(Boolean);
+  return fromCollection.length > 0 ? fromCollection : CHAPTERS;
+}, [chapters]);
 
 // --- Helper Function: Calculate Quarter ---
 const getQuarterFromDate = (dateValue) => {
@@ -202,6 +350,55 @@ const getQuarterFromDate = (dateValue) => {
 
 
 // --- Effects ---
+
+// Effect 0: Magic-link return-trip handler. Runs once on mount BEFORE the
+// auth listener registers a user. If the current URL is a Firebase
+// email-link, complete the sign-in with the email we stashed in
+// localStorage when the user requested the link. We then strip the link
+// query params from the URL so a refresh doesn't try to re-consume the
+// (now-spent) oobCode.
+useEffect(() => {
+  if (typeof window === "undefined") return;
+  if (!isSignInWithEmailLink(auth, window.location.href)) return;
+
+  const completeFromLink = async () => {
+    setCompletingSignIn(true);
+    let storedEmail = window.localStorage.getItem(EMAIL_FOR_SIGN_IN_KEY) || "";
+    if (!storedEmail) {
+      // Cross-device case: link opened on a device that never requested it.
+      // Prompt for the original address so Firebase can verify the link.
+      storedEmail = window.prompt(
+        "To finish signing in, confirm the email address you requested the sign-in link with:"
+      ) || "";
+      storedEmail = storedEmail.trim().toLowerCase();
+    }
+    if (!storedEmail) {
+      setCompletingSignIn(false);
+      setAuthError("Sign-in cancelled — no email confirmed.");
+      return;
+    }
+    try {
+      await signInWithEmailLink(auth, storedEmail, window.location.href);
+      window.localStorage.removeItem(EMAIL_FOR_SIGN_IN_KEY);
+      // Clean the URL so a refresh doesn't try to re-consume the spent oobCode.
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } catch (err) {
+      console.error("LPPortal: signInWithEmailLink failed:", err);
+      const friendly =
+        err?.code === "auth/invalid-action-code"
+          ? "This sign-in link has already been used or expired. Request a new one below."
+          : err?.code === "auth/invalid-email"
+          ? "That email doesn't match the address the link was sent to."
+          : err?.message || "Sign-in failed.";
+      setAuthError(friendly);
+    } finally {
+      setCompletingSignIn(false);
+    }
+  };
+
+  completeFromLink();
+  // Intentionally no deps — this should run exactly once on mount.
+}, []);
 
 // Effect 1: Authentication Listener
 useEffect(() => {
@@ -242,6 +439,15 @@ useEffect(() => {
             console.log('LPPortal: Loading user badges:', userBadgesData);
             setUserBadges(userBadgesData);
             
+            // If the user arrived here from a gated /pitch/:id link, bounce
+            // them back there instead of the default portal landing.
+            const pendingPitchUrl = sessionStorage.getItem('pendingPitchUrl');
+            if (pendingPitchUrl) {
+              sessionStorage.removeItem('pendingPitchUrl');
+              window.location.href = pendingPitchUrl;
+              return;
+            }
+
             // If not in standalone mode and user just logged in, redirect to portal
             if (!isStandalone && !sessionStorage.getItem('lpPortalRedirected')) {
               sessionStorage.setItem('lpPortalRedirected', 'true');
@@ -308,6 +514,7 @@ useEffect(() => {
       setUser(null);
       setAuthError("");
       setLpPitches([]);
+      setLpPitchesLoaded(false);
       setAdminPitches([]);
       setReviews({}); // Clear reviews on logout
       setSelectedPitch(null);
@@ -364,6 +571,7 @@ const loadLPData = useCallback(async () => {
   if (!chapterToQuery && !isSuperAdmin) {
     console.warn(`LPPortal: Skipping LP data load: No chapter assigned for non-SuperAdmin user ${user.email}`);
     setLpPitches([]);
+    setLpPitchesLoaded(true);
     setReviews({});
     // Maybe show an error to the user here?
     // showAppAlert("Cannot load pitches: Your account needs a chapter assigned by an admin.");
@@ -396,10 +604,12 @@ const loadLPData = useCallback(async () => {
       };
     });
     setLpPitches(pitchDocs);
+    setLpPitchesLoaded(true);
     console.log(`LPPortal: Successfully fetched ${pitchDocs.length} pitches for LP view.`);
   } catch (error) {
     console.error(`LPPortal: Error loading LP pitches for ${user.email} / chapter ${chapterToQuery}:`, error.code, error.message);
     setLpPitches([]); // Clear pitches on error
+    setLpPitchesLoaded(true);
     setReviews({}); // Clear reviews too if pitches fail
     showAppAlert(`Error loading pitches: ${error.message}. Please check console for details. You may need to refresh or contact support if this persists.`);
     return; // Stop processing if pitches fail
@@ -472,6 +682,31 @@ const loadLPData = useCallback(async () => {
     setReviews({}); // Clear reviews on error, but don't clear pitches
     // Don't alert again, pitch error is more critical
   }
+
+  // Load all review comments for pitches in this chapter (for shared team notes)
+  try {
+    const chapterReviewsQuery = chapterToQuery
+      ? query(collection(db, "reviews"), where("chapter", "==", chapterToQuery))
+      : query(collection(db, "reviews")); // SuperAdmin gets all
+    const chapterReviewsSnap = await getDocs(chapterReviewsQuery);
+    const commentsMap = {};
+    chapterReviewsSnap.forEach(docSnap => {
+      const data = docSnap.data();
+      if (data.comments && data.comments.trim() !== "" && data.pitchId) {
+        if (!commentsMap[data.pitchId]) commentsMap[data.pitchId] = [];
+        commentsMap[data.pitchId].push({
+          comment: data.comments.trim(),
+          reviewerName: data.reviewerName || 'LP',
+          reviewerId: data.reviewerId
+        });
+      }
+    });
+    setPitchComments(commentsMap);
+    console.log(`LPPortal: Loaded team notes for ${Object.keys(commentsMap).length} pitches.`);
+  } catch (commentsError) {
+    console.warn("LPPortal: Could not load team notes:", commentsError.message);
+    setPitchComments({});
+  }
 }, [user, isSuperAdmin, userChapter]); // Dependencies for loadLPData
 
 const loadAdminData = useCallback(async () => {
@@ -532,9 +767,9 @@ const loadAdminData = useCallback(async () => {
     
     // Filter chapter members for the Chapter Members tab
     if (user?.chapter) {
-      const chapterMembersList = usersList.filter(u => 
-        u.chapter === user.chapter && 
-        ['lp', 'admin', 'superAdmin'].includes(u.role)
+      const chapterMembersList = usersList.filter(u =>
+        u.chapter === user.chapter &&
+        ['lp', 'chapter_director', 'superAdmin'].includes(u.role)
       );
       setChapterMembers(chapterMembersList);
       console.log(`LPPortal: Chapter members loaded (${chapterMembersList.length}).`);
@@ -591,7 +826,7 @@ const loadChapterMembers = useCallback(async () => {
         ...d.data(), 
         uid: d.id 
       }))
-      .filter(u => ["lp", "admin", "superAdmin"].includes(u.role))
+      .filter(u => ["lp", "chapter_director", "superAdmin"].includes(u.role))
       .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     
     setChapterMembers(chapterMembersList);
@@ -625,6 +860,29 @@ const loadChapterMembers = useCallback(async () => {
     }
   }
 }, [user]);
+
+// Loads the /chapters collection. Safe for any authenticated user (read rule is
+// public). Sorted by `order`, then `name`. Populates dropdowns across the portal.
+const loadChapters = useCallback(async () => {
+  try {
+    const chaptersSnap = await getDocs(collection(db, "chapters"));
+    const chaptersList = chaptersSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const ao = typeof a.order === 'number' ? a.order : 999;
+        const bo = typeof b.order === 'number' ? b.order : 999;
+        if (ao !== bo) return ao - bo;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+    setChapters(chaptersList);
+    setChaptersLoaded(true);
+    console.log(`LPPortal: Loaded ${chaptersList.length} chapter(s).`);
+  } catch (error) {
+    console.error('LPPortal: Error loading chapters collection:', error);
+    setChapters([]);
+    setChaptersLoaded(true); // fall back to hardcoded CHAPTERS constant in UI
+  }
+}, []);
 
 const loadBulletinMessages = useCallback(async () => {
   if (!user || !user.chapter) {
@@ -671,6 +929,7 @@ useEffect(() => {
     loadLPData(); // Load data relevant to LPs (pitches for their chapter, their reviews)
     loadChapterMembers(); // Load chapter members for all authenticated users
     loadBulletinMessages(); // Load bulletin messages for all authenticated users
+    loadChapters(); // Load chapters collection for dropdowns + management UI
     if (isAdmin) {
       loadAdminData(); // Load additional data if user is admin/superAdmin
     }
@@ -678,6 +937,7 @@ useEffect(() => {
     // If auth check is done but we DON'T have a user, ensure data is cleared
     console.log("LPPortal: Auth check complete, but no user. Clearing data state.");
     setLpPitches([]);
+    setLpPitchesLoaded(false);
     setAdminPitches([]);
     setReviews({});
     setSelectedPitch(null);
@@ -689,7 +949,7 @@ useEffect(() => {
   }
 
   // This effect runs when user or isLoadingAuth changes.
-}, [user, isLoadingAuth, isAdmin, loadLPData, loadAdminData, loadChapterMembers, loadBulletinMessages]);
+}, [user, isLoadingAuth, isAdmin, loadLPData, loadAdminData, loadChapterMembers, loadBulletinMessages, loadChapters]);
 
 // Update last viewed timestamp when viewing Message Board
 useEffect(() => {
@@ -803,15 +1063,14 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
       <button
         onClick={() => setIsOpen(!isOpen)}
         style={{
-          padding: '8px 12px',
-          height: '36px',
-          border: '1px solid #e0e0e0',
-          borderRadius: '6px',
-          fontFamily: 'inherit',
-          background: 'white',
+          padding: '8px 10px',
+          minHeight: '34px',
+          border: '2px solid var(--mb-ink)',
+          boxShadow: 'none',
+          fontFamily: 'var(--font-content)',
+          background: 'var(--mb-chalk)',
+          color: 'var(--mb-ink)',
           fontSize: '14px',
-          outline: 'none',
-          transition: 'border-color 0.2s ease',
           cursor: 'pointer',
           minWidth: '150px',
           textAlign: 'left',
@@ -819,11 +1078,11 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
           justifyContent: 'space-between',
           alignItems: 'center'
         }}
-        onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
-        onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
       >
         <span>{getDisplayText()}</span>
-        <span style={{ marginLeft: '8px' }}>▼</span>
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" style={{ marginLeft: '8px', flexShrink: 0 }}>
+          <path d="M2 4 L6 8 L10 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" />
+        </svg>
       </button>
 
       {isOpen && (
@@ -831,37 +1090,35 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
           position: 'absolute',
           top: '100%',
           left: 0,
-          marginTop: '4px',
-          background: 'white',
-          border: '1px solid #e0e0e0',
-          borderRadius: '6px',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+          marginTop: '2px',
           minWidth: '200px',
           maxHeight: '300px',
           overflowY: 'auto',
-          zIndex: 1000
+          zIndex: 1000,
+          background: 'var(--mb-chalk)',
+          border: '2px solid var(--mb-ink)',
+          boxShadow: 'var(--shadow-hard-sm)',
+          fontFamily: 'var(--font-content)'
         }}>
           <div style={{
-            padding: '8px',
-            borderBottom: '1px solid #e0e0e0',
+            padding: '6px 8px',
+            borderBottom: '1px solid var(--mb-ink-15)',
             display: 'flex',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            background: 'var(--mb-paper)'
           }}>
             <button
               onClick={selectAll}
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#FF69B4',
+                color: 'var(--mb-magenta)',
                 cursor: 'pointer',
-                fontSize: '12px',
-                fontFamily: 'inherit',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                transition: 'background 0.2s'
+                fontSize: '11px',
+                fontFamily: 'var(--font-content)',
+                fontWeight: 'bold',
+                padding: '2px 6px'
               }}
-              onMouseEnter={(e) => e.target.style.background = '#FFE4F0'}
-              onMouseLeave={(e) => e.target.style.background = 'none'}
             >
               Select All
             </button>
@@ -870,16 +1127,13 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
               style={{
                 background: 'none',
                 border: 'none',
-                color: '#666',
+                color: 'var(--mb-ink-60)',
                 cursor: 'pointer',
-                fontSize: '12px',
-                fontFamily: 'inherit',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                transition: 'background 0.2s'
+                fontSize: '11px',
+                fontFamily: 'var(--font-content)',
+                fontWeight: 'bold',
+                padding: '2px 6px'
               }}
-              onMouseEnter={(e) => e.target.style.background = '#f5f5f5'}
-              onMouseLeave={(e) => e.target.style.background = 'none'}
             >
               Clear All
             </button>
@@ -891,11 +1145,12 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
                 display: 'block',
                 padding: '8px 12px',
                 cursor: 'pointer',
-                transition: 'background 0.2s',
-                fontSize: '14px'
+                transition: 'none',
+                fontSize: '14px',
+                color: 'var(--mb-ink)'
               }}
-              onMouseEnter={(e) => e.target.style.background = '#f5f5f5'}
-              onMouseLeave={(e) => e.target.style.background = 'none'}
+              onMouseEnter={(e) => e.currentTarget.style.background = 'var(--mb-butter)'}
+              onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
             >
               <input
                 type="checkbox"
@@ -913,635 +1168,523 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
 };
 
 // --- Social Card Functions ---
+//
+// All four cards are 1080×1080 PNGs rendered to a hidden <canvas> and
+// downloaded via canvas.toBlob. They share a Millennium Bug aesthetic:
+// flat MB-palette blocks (no gradients), 3px ink borders with hard-offset
+// shadows, Instrument Serif display, Inter body, Pixelify Sans eyebrows,
+// JetBrains Mono numerals. The colorful gnf logo and emoji accents are
+// the only image-based content; everything else is typographic.
 
-const drawWelcomeCard = async (canvas) => {
-  const ctx = canvas.getContext('2d');
-  
-  // Vibrant gradient background
-  const gradient = ctx.createRadialGradient(540, 540, 0, 540, 540, 800);
-  gradient.addColorStop(0, '#FF69B4');
-  gradient.addColorStop(0.5, '#FFB6D9');
-  gradient.addColorStop(1, '#8A2BE2');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 1080, 1080);
-  
-  // No bokeh effect - keep it clean
-  ctx.globalAlpha = 1;
-  
-  // Large emoji at top
-  ctx.font = '120px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('🎉', 540, 150);
-  
-  // User photo with fun border
-  const photoSize = 180;
-  const photoX = 540;
-  const photoY = 280;
-  
-  // Photo border gradient
-  ctx.save();
-  const borderGrad = ctx.createLinearGradient(photoX - photoSize/2, photoY - photoSize/2, photoX + photoSize/2, photoY + photoSize/2);
-  borderGrad.addColorStop(0, '#FFD700');
-  borderGrad.addColorStop(1, '#FF69B4');
-  ctx.strokeStyle = borderGrad;
-  ctx.lineWidth = 8;
-  ctx.beginPath();
-  ctx.arc(photoX, photoY, photoSize/2 + 4, 0, Math.PI * 2);
-  ctx.stroke();
-  
-  // Photo circle
-  ctx.beginPath();
-  ctx.arc(photoX, photoY, photoSize/2, 0, Math.PI * 2);
-  ctx.clip();
-  
-  // Try to load user photo
-  const photoUrl = user.name 
-    ? `/assets/lps/${user.name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}.png`
-    : null;
-    
-  let photoLoaded = false;
-  if (photoUrl) {
-    try {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = photoUrl;
-      });
-      ctx.drawImage(img, photoX - photoSize/2, photoY - photoSize/2, photoSize, photoSize);
-      photoLoaded = true;
-    } catch (error) {
-      console.log('Photo load error:', error);
-    }
-  }
-  
-  if (!photoLoaded) {
-    // Fun gradient placeholder
-    const placeholderGrad = ctx.createLinearGradient(photoX - photoSize/2, photoY - photoSize/2, photoX + photoSize/2, photoY + photoSize/2);
-    placeholderGrad.addColorStop(0, '#FF69B4');
-    placeholderGrad.addColorStop(1, '#FFD700');
-    ctx.fillStyle = placeholderGrad;
-    ctx.fillRect(photoX - photoSize/2, photoY - photoSize/2, photoSize, photoSize);
-    ctx.font = '80px Arial';
-    ctx.fillStyle = 'white';
-    ctx.textAlign = 'center';
-    ctx.fillText('✨', photoX, photoY + 25);
-  }
-  ctx.restore();
-  
-  // Name with shadow
-  ctx.shadowColor = 'rgba(0,0,0,0.3)';
-  ctx.shadowBlur = 10;
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 72px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(user.name || 'New LP', 540, 480);
-  ctx.shadowBlur = 0;
-  
-  // Good Neighbor Fund text
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.font = '36px Arial';
-  ctx.fillText('Good Neighbor Fund', 540, 530);
-  
-  // Fun badge-style label
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.fillRect(340, 560, 400, 60);
-  ctx.fillStyle = '#FF69B4';
-  ctx.font = 'bold 32px Arial';
-  ctx.fillText('✨ LIMITED PARTNER ✨', 540, 598);
-  
-  // Chapter
-  ctx.fillStyle = 'white';
-  ctx.font = '36px Arial';
-  ctx.fillText(user.chapter || 'Chapter', 540, 670);
-  
-  // Main message with emojis
-  ctx.font = 'bold 52px Arial';
-  ctx.fillText("I'm backing founders", 540, 770);
-  ctx.fillText("in my neighborhood! 🏘️", 540, 830);
-  
-  // Tagline
-  ctx.font = '32px Arial';
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.fillText("$1,000 grants • Powered by people, not institutions", 540, 900);
-  
-  // Website with emoji
-  ctx.font = 'bold 36px Arial';
-  ctx.fillStyle = 'white';
-  ctx.fillText('🌐 www.neighborhoods.space', 540, 950);
-  
-  // GNF Logo
+// ---------- Card palette (hex mirrors of the theme-tokens.css vars) ----------
+const MB_COLORS = {
+  ink:           '#141419',
+  ink60:         'rgba(20, 20, 25, 0.6)',
+  chalk:         '#ffffff',
+  paper:         '#faf4e3',
+  paperDeep:     '#ede0bd',
+  magenta:       '#e93a7d',
+  magentaDeep:   '#c21d61',
+  magentaSoft:   '#fde0ec',
+  grape:         '#6b4fbb',
+  grapeDeep:     '#4a2f95',
+  aqua:          '#2bb3c4',
+  aquaDeep:      '#157b8a',
+  aquaSoft:      '#d5f1f4',
+  butter:        '#f0c94b',
+  butterDeep:    '#c89918',
+  butterSoft:    '#fbf1cc',
+  tangerine:     '#f28c3b',
+  tangerineDeep: '#c66915',
+};
+
+const CARD_FONTS = {
+  display:  '"Instrument Serif", "Times New Roman", Georgia, serif',
+  content:  '"Inter", "Helvetica Neue", Arial, sans-serif',
+  pixel:    '"Pixelify Sans", "Courier New", monospace',
+  numeral:  '"JetBrains Mono", "Menlo", "Courier New", monospace',
+};
+
+// Load an image + resolve to the HTMLImageElement, or null on failure.
+const loadImage = (src) => new Promise((resolve) => {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.onload = () => resolve(img);
+  img.onerror = () => resolve(null);
+  img.src = src;
+});
+
+// Serialize a <BadgeIcon> React element to an HTMLImageElement so the canvas
+// can draw the SVG glyph directly — replacing the emoji fallback used on the
+// badge social card.
+const loadBadgeIconImage = (badgeId, size = 96) => new Promise((resolve) => {
   try {
-    const logoImg = new Image();
-    logoImg.crossOrigin = 'anonymous';
-    await new Promise((resolve, reject) => {
-      logoImg.onload = resolve;
-      logoImg.onerror = reject;
-      logoImg.src = '/assets/gnf-logo.webp';
-    });
-    const logoSize = 80;
-    ctx.drawImage(logoImg, 540 - logoSize/2, 980, logoSize, logoSize);
-  } catch (error) {
-    console.log('Logo load error:', error);
+    const markup = renderToStaticMarkup(<BadgeIcon id={badgeId} size={size} />);
+    const ns = markup.includes('xmlns="http://www.w3.org/2000/svg"')
+      ? markup
+      : markup.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ');
+    const blob = new Blob([ns], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+    img.src = url;
+  } catch {
+    resolve(null);
+  }
+});
+
+// Await web-font readiness so Instrument Serif / Pixelify Sans actually
+// render on the canvas instead of silently falling back to serif/Courier.
+const waitForCardFonts = async () => {
+  if (typeof document === 'undefined' || !document.fonts) return;
+  try {
+    // Preload specific size/weight combos the cards need.
+    await Promise.all([
+      document.fonts.load('italic 72px "Instrument Serif"'),
+      document.fonts.load('400 48px "Instrument Serif"'),
+      document.fonts.load('700 32px "Inter"'),
+      document.fonts.load('400 24px "Inter"'),
+      document.fonts.load('700 18px "Pixelify Sans"'),
+      document.fonts.load('700 120px "JetBrains Mono"'),
+    ]);
+    await document.fonts.ready;
+  } catch {
+    /* font preload failed — fall back to system fonts silently */
   }
 };
 
-const drawBadgeCard = async (canvas) => {
-  const ctx = canvas.getContext('2d');
-  
-  // Cool gradient background
-  const gradient = ctx.createLinearGradient(0, 0, 1080, 1080);
-  gradient.addColorStop(0, '#667eea');
-  gradient.addColorStop(0.5, '#764ba2');
-  gradient.addColorStop(1, '#f093fb');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 1080, 1080);
-  
-  // Fun patterns
-  ctx.globalAlpha = 0.1;
-  ctx.strokeStyle = 'white';
+// Slugify a name to find a matching /assets/lps/<slug>.png portrait.
+const lpSlug = (name) =>
+  name ? name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '') : null;
+
+// Draw the ink top band shared across all four cards: black bar with the
+// brand wordmark + tagline in pixel font, centered.
+const drawMasthead = (ctx, subtitle) => {
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.fillRect(0, 0, 1080, 120);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.font = `700 22px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '4px';
+  ctx.fillText('GOOD NEIGHBOR FUND', 540, 50);
+
+  ctx.fillStyle = MB_COLORS.butter;
+  ctx.font = `700 14px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '3px';
+  ctx.fillText(subtitle.toUpperCase(), 540, 82);
+
+  ctx.letterSpacing = '0px';
+  ctx.textBaseline = 'alphabetic';
+};
+
+// Draw the ink bottom band (footer): website URL left-aligned, colorful
+// logo floats on the right. Accepts the pre-loaded logo image.
+const drawFooter = (ctx, logoImg) => {
+  const footerY = 960;
+  const footerH = 120;
+
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.fillRect(0, footerY, 1080, footerH);
+
+  // Magenta top stripe
+  ctx.fillStyle = MB_COLORS.magenta;
+  ctx.fillRect(0, footerY, 1080, 4);
+
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.font = `700 22px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '3px';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('WWW.GOODNEIGHBOR.FUND', 60, footerY + 62);
+
+  ctx.letterSpacing = '0px';
+  ctx.textBaseline = 'alphabetic';
+
+  if (logoImg) {
+    const size = 88;
+    ctx.drawImage(logoImg, 1080 - size - 40, footerY + (footerH - size) / 2, size, size);
+  }
+};
+
+// Draw an ink-bordered rectangle with an offset hard-shadow behind it.
+// Mimics the `box-shadow: 3px 3px 0 var(--mb-ink)` pattern.
+const drawShadowRect = (ctx, x, y, w, h, fill, shadowOffset = 6, border = MB_COLORS.ink) => {
+  ctx.fillStyle = border;
+  ctx.fillRect(x + shadowOffset, y + shadowOffset, w, h);
+  ctx.fillStyle = fill;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = border;
   ctx.lineWidth = 3;
-  for (let i = 0; i < 20; i++) {
-    ctx.beginPath();
-    ctx.moveTo(0, i * 60);
-    ctx.lineTo(1080, i * 60 + 200);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-  
-  // User photo with fun border
-  const photoSize = 100;
-  const photoX = 540;
-  const photoY = 100;
-  
-  // Photo border gradient
+  ctx.strokeRect(x, y, w, h);
+};
+
+// Draw a circular portrait at (cx, cy) with radius r and a 4px ink ring.
+// Falls back to a solid magenta square with initials if no photo loads.
+const drawPortrait = (ctx, cx, cy, r, photoImg, name) => {
+  // Ink ring
   ctx.save();
-  const borderGrad = ctx.createLinearGradient(photoX - photoSize/2, photoY - photoSize/2, photoX + photoSize/2, photoY + photoSize/2);
-  borderGrad.addColorStop(0, '#FFD700');
-  borderGrad.addColorStop(1, '#FF69B4');
-  ctx.strokeStyle = borderGrad;
-  ctx.lineWidth = 6;
+  ctx.strokeStyle = MB_COLORS.ink;
+  ctx.lineWidth = 4;
   ctx.beginPath();
-  ctx.arc(photoX, photoY, photoSize/2 + 3, 0, Math.PI * 2);
+  ctx.arc(cx, cy, r + 3, 0, Math.PI * 2);
   ctx.stroke();
-  
-  // Photo circle
+  ctx.restore();
+
+  ctx.save();
   ctx.beginPath();
-  ctx.arc(photoX, photoY, photoSize/2, 0, Math.PI * 2);
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.clip();
-  
-  // Try to load user photo
-  const photoUrl = user.name 
-    ? `/assets/lps/${user.name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}.png`
-    : null;
-    
-  let photoLoaded = false;
-  if (photoUrl) {
-    try {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = photoUrl;
-      });
-      ctx.drawImage(img, photoX - photoSize/2, photoY - photoSize/2, photoSize, photoSize);
-      photoLoaded = true;
-    } catch (error) {
-      console.log('Photo load error:', error);
-    }
-  }
-  
-  if (!photoLoaded) {
-    // Fun gradient placeholder
-    const placeholderGrad = ctx.createLinearGradient(photoX - photoSize/2, photoY - photoSize/2, photoX + photoSize/2, photoY + photoSize/2);
-    placeholderGrad.addColorStop(0, '#FF69B4');
-    placeholderGrad.addColorStop(1, '#FFD700');
-    ctx.fillStyle = placeholderGrad;
-    ctx.fillRect(photoX - photoSize/2, photoY - photoSize/2, photoSize, photoSize);
-    ctx.font = '60px Arial';
-    ctx.fillStyle = 'white';
+
+  if (photoImg) {
+    ctx.drawImage(photoImg, cx - r, cy - r, r * 2, r * 2);
+  } else {
+    // Initial-based fallback on paper background
+    ctx.fillStyle = MB_COLORS.paper;
+    ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
+    const initials = (name || 'LP')
+      .split(' ')
+      .map((w) => w[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'LP';
+    ctx.fillStyle = MB_COLORS.magenta;
     ctx.textAlign = 'center';
-    ctx.fillText('✨', photoX, photoY + 20);
+    ctx.textBaseline = 'middle';
+    ctx.font = `400 ${Math.round(r * 0.9)}px ${CARD_FONTS.display}`;
+    ctx.fillText(initials, cx, cy + 2);
+    ctx.textBaseline = 'alphabetic';
   }
   ctx.restore();
-  
-  // User name with glow
-  ctx.shadowColor = 'rgba(255,255,255,0.5)';
-  ctx.shadowBlur = 20;
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 48px Arial';
+};
+
+// ---------- 1. Welcome Card — new LP introduces themselves ----------
+const drawWelcomeCard = async (canvas) => {
+  await waitForCardFonts();
+  const ctx = canvas.getContext('2d');
+
+  // Paper base fill for full 1080×1080
+  ctx.fillStyle = MB_COLORS.paper;
+  ctx.fillRect(0, 0, 1080, 1080);
+
+  drawMasthead(ctx, 'Welcome to the chapter');
+
+  // Pre-load photo + logo in parallel so drawing is deterministic.
+  const [photoImg, logoImg] = await Promise.all([
+    lpSlug(user?.name) ? loadImage(`/assets/lps/${lpSlug(user.name)}.png`) : Promise.resolve(null),
+    loadImage('/assets/gnf-logo.png'),
+  ]);
+
+  // Portrait at center
+  drawPortrait(ctx, 540, 300, 120, photoImg, user?.name);
+
+  // Eyebrow + name
   ctx.textAlign = 'center';
-  ctx.fillText(user.name || 'Achievement Hunter', 540, 220);
-  ctx.shadowBlur = 0;
-  
-  // Good Neighbor Fund
-  ctx.font = '28px Arial';
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.fillText('Good Neighbor Fund', 540, 255);
-  
-  // Limited Partner & Chapter
-  ctx.font = '24px Arial';
-  ctx.fillText(`Limited Partner • ${user.chapter || 'Chapter'}`, 540, 285);
-  
-  // Badge count without background
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 42px Arial';
-  ctx.fillText(`${userBadges.length} Badges Unlocked!`, 540, 340);
-  
-  // Recent badges with better layout
+  ctx.fillStyle = MB_COLORS.magenta;
+  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '3px';
+  ctx.fillText(`LIMITED PARTNER · ${(user?.chapter || 'CHAPTER').toUpperCase()}`, 540, 470);
+  ctx.letterSpacing = '0px';
+
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 64px ${CARD_FONTS.display}`;
+  ctx.fillText(user?.name || 'New Neighbor', 540, 540);
+
+  // Editorial headline
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 56px ${CARD_FONTS.display}`;
+  ctx.fillText("I'm backing founders", 540, 660);
+  ctx.font = `italic 400 56px ${CARD_FONTS.display}`;
+  ctx.fillStyle = MB_COLORS.magenta;
+  ctx.fillText('in my neighborhood.', 540, 730);
+
+  // Supporting body
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 22px ${CARD_FONTS.content}`;
+  ctx.fillText('$1,000 micro-grants · No pitch deck · No equity · Just belief', 540, 790);
+
+  // Tag row
+  const tags = ['Belief Capital', 'Since 2023', 'Volunteer-Led'];
+  let tagX = 540 - ((tags.length * 160 + (tags.length - 1) * 14) / 2);
+  tags.forEach((t) => {
+    const w = 160;
+    drawShadowRect(ctx, tagX, 830, w, 44, MB_COLORS.chalk, 4);
+    ctx.fillStyle = MB_COLORS.ink;
+    ctx.font = `700 12px ${CARD_FONTS.pixel}`;
+    ctx.letterSpacing = '2px';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t.toUpperCase(), tagX + w / 2, 852);
+    ctx.textBaseline = 'alphabetic';
+    ctx.letterSpacing = '0px';
+    tagX += w + 14;
+  });
+
+  drawFooter(ctx, logoImg);
+};
+
+// ---------- 2. Badge Card — achievement showcase ----------
+const drawBadgeCard = async (canvas) => {
+  await waitForCardFonts();
+  const ctx = canvas.getContext('2d');
+
+  // Grape field
+  ctx.fillStyle = MB_COLORS.grape;
+  ctx.fillRect(0, 0, 1080, 1080);
+
+  drawMasthead(ctx, `${(user?.chapter || 'Chapter')} · Badges`);
+
+  const [photoImg, logoImg] = await Promise.all([
+    lpSlug(user?.name) ? loadImage(`/assets/lps/${lpSlug(user.name)}.png`) : Promise.resolve(null),
+    loadImage('/assets/gnf-logo.png'),
+  ]);
+
+  // Small portrait + name in a row
+  drawPortrait(ctx, 180, 220, 70, photoImg, user?.name);
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MB_COLORS.butter;
+  ctx.font = `700 14px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '3px';
+  ctx.fillText('LIMITED PARTNER', 280, 195);
+  ctx.letterSpacing = '0px';
+
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.font = `400 52px ${CARD_FONTS.display}`;
+  ctx.fillText(user?.name || 'Achievement Hunter', 280, 250);
+
+  // Big numeral: badge count
+  ctx.textAlign = 'center';
+  ctx.fillStyle = MB_COLORS.butter;
+  ctx.font = `700 180px ${CARD_FONTS.numeral}`;
+  ctx.fillText(String(userBadges.length), 540, 470);
+
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.font = `700 18px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '4px';
+  ctx.fillText('BADGES UNLOCKED', 540, 510);
+  ctx.letterSpacing = '0px';
+
+  // Recent-badges grid (up to 4 badges, 2×2, on a chalk card with ink shadow)
   const recentBadges = userBadges
-    .filter(badge => badge.earnedAt || badge.earnedDate)
+    .filter((b) => b.earnedAt || b.earnedDate)
     .sort((a, b) => {
-      const dateA = new Date(a.earnedAt || a.earnedDate || 0);
-      const dateB = new Date(b.earnedAt || b.earnedDate || 0);
-      return dateB - dateA;
+      const dA = new Date(a.earnedAt || a.earnedDate || 0).getTime();
+      const dB = new Date(b.earnedAt || b.earnedDate || 0).getTime();
+      return dB - dA;
     })
-    .slice(0, 5);
-  
+    .slice(0, 4);
+
   if (recentBadges.length > 0) {
-    // Badge showcase area with rounded corners
-    const showcaseX = 140;
-    const showcaseY = 380;
-    const showcaseWidth = 800;
-    const showcaseHeight = 480;
-    const showcaseRadius = 20;
-    
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    ctx.beginPath();
-    ctx.moveTo(showcaseX + showcaseRadius, showcaseY);
-    ctx.lineTo(showcaseX + showcaseWidth - showcaseRadius, showcaseY);
-    ctx.quadraticCurveTo(showcaseX + showcaseWidth, showcaseY, showcaseX + showcaseWidth, showcaseY + showcaseRadius);
-    ctx.lineTo(showcaseX + showcaseWidth, showcaseY + showcaseHeight - showcaseRadius);
-    ctx.quadraticCurveTo(showcaseX + showcaseWidth, showcaseY + showcaseHeight, showcaseX + showcaseWidth - showcaseRadius, showcaseY + showcaseHeight);
-    ctx.lineTo(showcaseX + showcaseRadius, showcaseY + showcaseHeight);
-    ctx.quadraticCurveTo(showcaseX, showcaseY + showcaseHeight, showcaseX, showcaseY + showcaseHeight - showcaseRadius);
-    ctx.lineTo(showcaseX, showcaseY + showcaseRadius);
-    ctx.quadraticCurveTo(showcaseX, showcaseY, showcaseX + showcaseRadius, showcaseY);
-    ctx.closePath();
-    ctx.fill();
-    
-    // Badge grid
-    const badgeSize = 200;
-    const badgeGap = 50;
-    const badgesPerRow = 3;
-    const totalRows = Math.ceil(recentBadges.length / badgesPerRow);
-    const startX = 540 - ((Math.min(recentBadges.length, badgesPerRow) * badgeSize + (Math.min(recentBadges.length, badgesPerRow) - 1) * badgeGap) / 2) + badgeSize / 2;
-    const startY = 500;
-    
-    recentBadges.forEach((badge, index) => {
-      const row = Math.floor(index / badgesPerRow);
-      const col = index % badgesPerRow;
-      const x = startX + col * (badgeSize + badgeGap);
-      const y = startY + row * (badgeSize + badgeGap);
-      
-      // Get badge data
+    const gridX = 120;
+    const gridY = 560;
+    const gridW = 840;
+    const gridH = 340;
+
+    // Card background
+    drawShadowRect(ctx, gridX, gridY, gridW, gridH, MB_COLORS.chalk, 8);
+
+    // Eyebrow on card
+    ctx.textAlign = 'left';
+    ctx.fillStyle = MB_COLORS.magenta;
+    ctx.font = `700 14px ${CARD_FONTS.pixel}`;
+    ctx.letterSpacing = '3px';
+    ctx.fillText('RECENTLY EARNED', gridX + 24, gridY + 36);
+    ctx.letterSpacing = '0px';
+
+    const cell = { w: 180, h: 130, gapX: 24, gapY: 18 };
+    const rowCount = Math.ceil(recentBadges.length / 4);
+    const cellsPerRow = Math.ceil(recentBadges.length / rowCount);
+    const startX = gridX + (gridW - (cellsPerRow * cell.w + (cellsPerRow - 1) * cell.gapX)) / 2;
+    const startY = gridY + 64;
+
+    const iconImgs = await Promise.all(
+      recentBadges.map((b) => loadBadgeIconImage(b.id || b.badgeId, 128))
+    );
+
+    recentBadges.forEach((badge, i) => {
+      const row = Math.floor(i / cellsPerRow);
+      const col = i % cellsPerRow;
+      const bx = startX + col * (cell.w + cell.gapX);
+      const by = startY + row * (cell.h + cell.gapY);
+
       const badgeData = BADGES[badge.id || badge.badgeId];
-      if (badgeData) {
-        // Badge emoji - no background circle
-        ctx.font = '90px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = 'white';
-        const emoji = badgeData.name.split(' ')[0];
-        ctx.fillText(emoji, x, y - 20);
-        
-        // Badge name moved up closer to emoji
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 22px Arial';
-        const badgeName = badgeData.name.split(' ').slice(1).join(' ');
-        
-        // Word wrap for long names
-        const words = badgeName.split(' ');
-        let line = '';
-        let lines = [];
-        
-        words.forEach(word => {
-          const testLine = line + word + ' ';
-          const metrics = ctx.measureText(testLine);
-          if (metrics.width > badgeSize - 20 && line !== '') {
-            lines.push(line.trim());
-            line = word + ' ';
-          } else {
-            line = testLine;
-          }
-        });
-        lines.push(line.trim());
-        
-        lines.forEach((textLine, i) => {
-          ctx.fillText(textLine, x, y + 40 + (i * 28));
-        });
+      if (!badgeData) return;
+
+      // Cell background (butter-soft)
+      ctx.fillStyle = MB_COLORS.butterSoft;
+      ctx.fillRect(bx, by, cell.w, cell.h);
+      ctx.strokeStyle = MB_COLORS.ink;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, by, cell.w, cell.h);
+
+      // BadgeIcon SVG pictogram
+      const iconSize = 64;
+      const iconImg = iconImgs[i];
+      if (iconImg) {
+        ctx.drawImage(iconImg, bx + (cell.w - iconSize) / 2, by + 14, iconSize, iconSize);
       }
-    });
-  }
-  
-  // Website at bottom
-  ctx.font = 'bold 36px Arial';
-  ctx.fillStyle = 'white';
-  ctx.fillText('🌐 www.neighborhoods.space', 540, 910);
-  
-  // GNF Logo
-  try {
-    const logoImg = new Image();
-    logoImg.crossOrigin = 'anonymous';
-    await new Promise((resolve, reject) => {
-      logoImg.onload = resolve;
-      logoImg.onerror = reject;
-      logoImg.src = '/assets/gnf-logo.webp';
-    });
-    const logoSize = 80;
-    ctx.drawImage(logoImg, 540 - logoSize/2, 950, logoSize, logoSize);
-  } catch (error) {
-    console.log('Logo load error:', error);
-  }
-};
 
-const drawChapterStatsCard = async (canvas) => {
-  const ctx = canvas.getContext('2d');
-  
-  // Similar gradient to welcome card but slightly different
-  const gradient = ctx.createRadialGradient(540, 540, 0, 540, 540, 800);
-  gradient.addColorStop(0, '#FFB6D9');
-  gradient.addColorStop(0.5, '#FF69B4');
-  gradient.addColorStop(1, '#9B59B6');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 1080, 1080);
-  
-  // No bokeh effect - keep it clean
-  ctx.globalAlpha = 1;
-  
-  // Good Neighbor Fund at top
-  ctx.shadowColor = 'rgba(0,0,0,0.3)';
-  ctx.shadowBlur = 15;
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 48px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('Good Neighbor Fund', 540, 90);
-  
-  // Chapter name
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 72px Arial';
-  ctx.fillText(user.chapter || 'Chapter', 540, 160);
-  ctx.shadowBlur = 0;
-  
-  // Impact text
-  ctx.font = '36px Arial';
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.fillText('Our Impact to Date', 540, 210);
-  
-  // Calculate all-time stats
-  // Use adminPitches for admin/superadmin, lpPitches for regular LPs
-  const pitchesToUse = isAdmin ? adminPitches : lpPitches;
-  const chapterPitches = pitchesToUse.filter(p => p.chapter === user.chapter);
-  const grantsAwarded = chapterPitches.filter(p => p.isWinner).length;
-  const dollarsAwarded = grantsAwarded * 1000;
-  
-  // Stats section with modern card design
-  const statsY = 300;
-  
-  // Grants card
-  ctx.fillStyle = 'rgba(255,255,255,0.1)';
-  const cardWidth = 400;
-  const cardHeight = 200;
-  const cardRadius = 20;
-  
-  // Left card
-  const leftCardX = 140;
-  ctx.beginPath();
-  ctx.moveTo(leftCardX + cardRadius, statsY);
-  ctx.lineTo(leftCardX + cardWidth - cardRadius, statsY);
-  ctx.quadraticCurveTo(leftCardX + cardWidth, statsY, leftCardX + cardWidth, statsY + cardRadius);
-  ctx.lineTo(leftCardX + cardWidth, statsY + cardHeight - cardRadius);
-  ctx.quadraticCurveTo(leftCardX + cardWidth, statsY + cardHeight, leftCardX + cardWidth - cardRadius, statsY + cardHeight);
-  ctx.lineTo(leftCardX + cardRadius, statsY + cardHeight);
-  ctx.quadraticCurveTo(leftCardX, statsY + cardHeight, leftCardX, statsY + cardHeight - cardRadius);
-  ctx.lineTo(leftCardX, statsY + cardRadius);
-  ctx.quadraticCurveTo(leftCardX, statsY, leftCardX + cardRadius, statsY);
-  ctx.closePath();
-  ctx.fill();
-  
-  // Grants number
-  ctx.fillStyle = '#FFD700';
-  ctx.font = 'bold 96px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(grantsAwarded.toString(), leftCardX + cardWidth/2, statsY + 100);
-  
-  ctx.fillStyle = 'white';
-  ctx.font = '32px Arial';
-  ctx.fillText('Businesses Funded', leftCardX + cardWidth/2, statsY + 150);
-  
-  // Right card
-  const rightCardX = 540;
-  ctx.fillStyle = 'rgba(255,255,255,0.1)';
-  ctx.beginPath();
-  ctx.moveTo(rightCardX + cardRadius, statsY);
-  ctx.lineTo(rightCardX + cardWidth - cardRadius, statsY);
-  ctx.quadraticCurveTo(rightCardX + cardWidth, statsY, rightCardX + cardWidth, statsY + cardRadius);
-  ctx.lineTo(rightCardX + cardWidth, statsY + cardHeight - cardRadius);
-  ctx.quadraticCurveTo(rightCardX + cardWidth, statsY + cardHeight, rightCardX + cardWidth - cardRadius, statsY + cardHeight);
-  ctx.lineTo(rightCardX + cardRadius, statsY + cardHeight);
-  ctx.quadraticCurveTo(rightCardX, statsY + cardHeight, rightCardX, statsY + cardHeight - cardRadius);
-  ctx.lineTo(rightCardX, statsY + cardRadius);
-  ctx.quadraticCurveTo(rightCardX, statsY, rightCardX + cardRadius, statsY);
-  ctx.closePath();
-  ctx.fill();
-  
-  // Dollars number
-  ctx.fillStyle = '#4CAF50';
-  ctx.font = 'bold 72px Arial';
-  ctx.fillText(`$${dollarsAwarded.toLocaleString()}`, rightCardX + cardWidth/2, statsY + 90);
-  
-  ctx.fillStyle = 'white';
-  ctx.font = '32px Arial';
-  ctx.fillText('Awarded in Micro-grants', rightCardX + cardWidth/2, statsY + 150);
-  
-  // Inspiring message with better line breaks
-  ctx.font = 'bold 40px Arial';
-  ctx.fillStyle = 'white';
-  ctx.textAlign = 'center';
-  ctx.fillText('We back brilliant ideas before they\'re "ready."', 540, 620);
-  ctx.font = '36px Arial';
-  ctx.fillText('No pitch deck required. No equity taken.', 540, 670);
-  ctx.fillText('Just belief in your vision and potential.', 540, 710);
-  
-  // Call to action with emoji
-  ctx.fillStyle = 'rgba(255,255,255,0.95)';
-  const ctaRadius = 15;
-  ctx.beginPath();
-  ctx.moveTo(140 + ctaRadius, 760);
-  ctx.lineTo(940 - ctaRadius, 760);
-  ctx.quadraticCurveTo(940, 760, 940, 760 + ctaRadius);
-  ctx.lineTo(940, 880 - ctaRadius);
-  ctx.quadraticCurveTo(940, 880, 940 - ctaRadius, 880);
-  ctx.lineTo(140 + ctaRadius, 880);
-  ctx.quadraticCurveTo(140, 880, 140, 880 - ctaRadius);
-  ctx.lineTo(140, 760 + ctaRadius);
-  ctx.quadraticCurveTo(140, 760, 140 + ctaRadius, 760);
-  ctx.closePath();
-  ctx.fill();
-  
-  ctx.fillStyle = '#8338EC';
-  ctx.font = 'bold 40px Arial';
-  ctx.fillText('🦄 Got a business idea?', 540, 810);
-  ctx.font = '32px Arial';
-  ctx.fillText('Submit your pitch for a $1,000 grant today!', 540, 855);
-  
-  // Website
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 36px Arial';
-  ctx.fillText('🌐 www.neighborhoods.space', 540, 940);
-  
-  // GNF Logo
-  try {
-    const logoImg = new Image();
-    logoImg.crossOrigin = 'anonymous';
-    await new Promise((resolve, reject) => {
-      logoImg.onload = resolve;
-      logoImg.onerror = reject;
-      logoImg.src = '/assets/gnf-logo.webp';
-    });
-    const logoSize = 80;
-    ctx.drawImage(logoImg, 540 - logoSize/2, 980, logoSize, logoSize);
-  } catch (error) {
-    console.log('Logo load error:', error);
-  }
-};
-
-const drawRecruitmentCard = async (canvas) => {
-  const ctx = canvas.getContext('2d');
-  
-  // Lighter gradient background
-  const gradient = ctx.createLinearGradient(0, 0, 1080, 1080);
-  gradient.addColorStop(0, '#9C27B0');
-  gradient.addColorStop(0.5, '#BA68C8');
-  gradient.addColorStop(1, '#E1BEE7');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 1080, 1080);
-  
-  // No bokeh effect - keep it clean
-  ctx.globalAlpha = 1;
-  
-  // User photo with border
-  const photoSize = 150;
-  const photoX = 540;
-  const photoY = 180;
-  
-  // Photo border
-  ctx.save();
-  ctx.strokeStyle = 'white';
-  ctx.lineWidth = 8;
-  ctx.beginPath();
-  ctx.arc(photoX, photoY, photoSize/2 + 4, 0, Math.PI * 2);
-  ctx.stroke();
-  
-  // Photo circle
-  ctx.beginPath();
-  ctx.arc(photoX, photoY, photoSize/2, 0, Math.PI * 2);
-  ctx.clip();
-  
-  // Try to load user photo
-  const photoUrl = user.name 
-    ? `/assets/lps/${user.name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}.png`
-    : null;
-    
-  let photoLoaded = false;
-  if (photoUrl) {
-    try {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      await new Promise((resolve, reject) => {
-        img.onload = resolve;
-        img.onerror = reject;
-        img.src = photoUrl;
+      // Name (wrap if long) — strip the leading emoji glyph from stored name.
+      ctx.textAlign = 'center';
+      ctx.fillStyle = MB_COLORS.ink;
+      ctx.font = `700 13px ${CARD_FONTS.content}`;
+      const words = badgeData.name.split(' ').slice(1).join(' ').split(' ');
+      let line = '';
+      const lines = [];
+      words.forEach((word) => {
+        const test = line + word + ' ';
+        if (ctx.measureText(test).width > cell.w - 16 && line !== '') {
+          lines.push(line.trim());
+          line = word + ' ';
+        } else {
+          line = test;
+        }
       });
-      ctx.drawImage(img, photoX - photoSize/2, photoY - photoSize/2, photoSize, photoSize);
-      photoLoaded = true;
-    } catch (error) {
-      console.log('Photo load error:', error);
-    }
-  }
-  
-  if (!photoLoaded) {
-    // Gradient placeholder
-    const placeholderGrad = ctx.createLinearGradient(photoX - photoSize/2, photoY - photoSize/2, photoX + photoSize/2, photoY + photoSize/2);
-    placeholderGrad.addColorStop(0, '#BA68C8');
-    placeholderGrad.addColorStop(1, '#7B1FA2');
-    ctx.fillStyle = placeholderGrad;
-    ctx.fillRect(photoX - photoSize/2, photoY - photoSize/2, photoSize, photoSize);
-    ctx.font = '60px Arial';
-    ctx.fillStyle = 'white';
-    ctx.textAlign = 'center';
-    ctx.fillText('💫', photoX, photoY + 20);
-  }
-  ctx.restore();
-  
-  // User name
-  ctx.shadowColor = 'rgba(0,0,0,0.3)';
-  ctx.shadowBlur = 10;
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 48px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText(user.name || 'LP Name', 540, 360);
-  
-  // Chapter
-  ctx.font = '32px Arial';
-  ctx.fillStyle = 'rgba(255,255,255,0.9)';
-  ctx.fillText(user.chapter || 'Chapter', 540, 400);
-  ctx.shadowBlur = 0;
-  
-  // Main message
-  ctx.font = 'bold 42px Arial';
-  ctx.fillStyle = 'white';
-  ctx.fillText("I'm an LP with Good Neighbor Fund 💫", 540, 480);
-  
-  ctx.font = '36px Arial';
-  ctx.fillText('Backing bold founders with $1,000 grants.', 540, 530);
-  
-  // Call to action box
-  ctx.fillStyle = 'rgba(255,255,255,0.15)';
-  const ctaRadius = 20;
-  ctx.beginPath();
-  ctx.moveTo(140 + ctaRadius, 600);
-  ctx.lineTo(940 - ctaRadius, 600);
-  ctx.quadraticCurveTo(940, 600, 940, 600 + ctaRadius);
-  ctx.lineTo(940, 780 - ctaRadius);
-  ctx.quadraticCurveTo(940, 780, 940 - ctaRadius, 780);
-  ctx.lineTo(140 + ctaRadius, 780);
-  ctx.quadraticCurveTo(140, 780, 140, 780 - ctaRadius);
-  ctx.lineTo(140, 600 + ctaRadius);
-  ctx.quadraticCurveTo(140, 600, 140 + ctaRadius, 600);
-  ctx.closePath();
-  ctx.fill();
-  
-  // CTA text
-  ctx.font = 'bold 40px Arial';
-  ctx.fillStyle = 'white';
-  ctx.fillText('Want to help power the next wave', 540, 660);
-  ctx.fillText('of entrepreneurs?', 540, 710);
-  
-  ctx.font = 'bold 36px Arial';
-  ctx.fillStyle = '#FFD700';
-  ctx.fillText('DM me to get involved.', 540, 760);
-  
-  // Website
-  ctx.fillStyle = 'white';
-  ctx.font = 'bold 36px Arial';
-  ctx.fillText('🌐 www.neighborhoods.space', 540, 880);
-  
-  // GNF Logo
-  try {
-    const logoImg = new Image();
-    logoImg.crossOrigin = 'anonymous';
-    await new Promise((resolve, reject) => {
-      logoImg.onload = resolve;
-      logoImg.onerror = reject;
-      logoImg.src = '/assets/gnf-logo.webp';
+      lines.push(line.trim());
+      lines.slice(0, 2).forEach((txt, idx) => {
+        ctx.fillText(txt, bx + cell.w / 2, by + 96 + idx * 18);
+      });
     });
-    const logoSize = 80;
-    ctx.drawImage(logoImg, 540 - logoSize/2, 920, logoSize, logoSize);
-  } catch (error) {
-    console.log('Logo load error:', error);
   }
+
+  drawFooter(ctx, logoImg);
+};
+
+// ---------- 3. Chapter Stats Card — impact numbers ----------
+const drawChapterStatsCard = async (canvas) => {
+  await waitForCardFonts();
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = MB_COLORS.paper;
+  ctx.fillRect(0, 0, 1080, 1080);
+
+  drawMasthead(ctx, `${user?.chapter || 'Chapter'} · Impact`);
+
+  const logoImg = await loadImage('/assets/gnf-logo.png');
+
+  // Calculate all-time stats — admin uses adminPitches, LP uses lpPitches
+  const pitchesToUse = isAdmin ? adminPitches : lpPitches;
+  const chapterPitches = (pitchesToUse || []).filter((p) => p.chapter === user?.chapter);
+  const grantsAwarded = chapterPitches.filter((p) => p.isWinner).length;
+  const dollarsAwarded = grantsAwarded * 1000;
+
+  // Eyebrow + chapter name
+  ctx.textAlign = 'center';
+  ctx.fillStyle = MB_COLORS.magenta;
+  ctx.font = `700 18px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '4px';
+  ctx.fillText('CHAPTER IMPACT · SINCE 2023', 540, 200);
+  ctx.letterSpacing = '0px';
+
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 72px ${CARD_FONTS.display}`;
+  ctx.fillText(user?.chapter || 'Chapter', 540, 280);
+
+  // Two stat cards side-by-side
+  const statsY = 340;
+  const cardW = 420;
+  const cardH = 220;
+  const leftX = 80;
+  const rightX = 580;
+
+  // Left: grants count (magenta)
+  drawShadowRect(ctx, leftX, statsY, cardW, cardH, MB_COLORS.magenta, 8);
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '3px';
+  ctx.textAlign = 'left';
+  ctx.fillText('BUSINESSES FUNDED', leftX + 24, statsY + 44);
+  ctx.letterSpacing = '0px';
+  ctx.fillStyle = MB_COLORS.butter;
+  ctx.font = `700 140px ${CARD_FONTS.numeral}`;
+  ctx.textAlign = 'right';
+  ctx.fillText(String(grantsAwarded), leftX + cardW - 24, statsY + 180);
+
+  // Right: dollars awarded (aqua)
+  drawShadowRect(ctx, rightX, statsY, cardW, cardH, MB_COLORS.aqua, 8);
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '3px';
+  ctx.textAlign = 'left';
+  ctx.fillText('AWARDED IN GRANTS', rightX + 24, statsY + 44);
+  ctx.letterSpacing = '0px';
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `700 120px ${CARD_FONTS.numeral}`;
+  ctx.textAlign = 'right';
+  ctx.fillText(`$${(dollarsAwarded / 1000).toFixed(dollarsAwarded % 1000 === 0 ? 0 : 1)}K`, rightX + cardW - 24, statsY + 180);
+
+  // Pull quote
+  ctx.textAlign = 'center';
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `italic 400 46px ${CARD_FONTS.display}`;
+  ctx.fillText('"Funded by belief.', 540, 670);
+  ctx.fillText('Fueled by neighbors."', 540, 720);
+
+  // CTA bar (magenta)
+  drawShadowRect(ctx, 80, 770, 920, 120, MB_COLORS.magenta, 8);
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '3px';
+  ctx.fillText('GOT AN IDEA?', 540, 810);
+  ctx.letterSpacing = '0px';
+  ctx.font = `700 36px ${CARD_FONTS.content}`;
+  ctx.fillText('Apply for a $1,000 micro-grant today.', 540, 860);
+
+  drawFooter(ctx, logoImg);
+};
+
+// ---------- 4. Recruitment Card — LP personal brand ----------
+const drawRecruitmentCard = async (canvas) => {
+  await waitForCardFonts();
+  const ctx = canvas.getContext('2d');
+
+  // Magenta field
+  ctx.fillStyle = MB_COLORS.magenta;
+  ctx.fillRect(0, 0, 1080, 1080);
+
+  drawMasthead(ctx, 'Join the LP Network');
+
+  const [photoImg, logoImg] = await Promise.all([
+    lpSlug(user?.name) ? loadImage(`/assets/lps/${lpSlug(user.name)}.png`) : Promise.resolve(null),
+    loadImage('/assets/gnf-logo.png'),
+  ]);
+
+  // Portrait, large
+  drawPortrait(ctx, 540, 310, 120, photoImg, user?.name);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = MB_COLORS.butter;
+  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '3px';
+  ctx.fillText(`LIMITED PARTNER · ${(user?.chapter || 'CHAPTER').toUpperCase()}`, 540, 475);
+  ctx.letterSpacing = '0px';
+
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.font = `400 60px ${CARD_FONTS.display}`;
+  ctx.fillText(user?.name || 'LP Name', 540, 545);
+
+  // Editorial headline
+  ctx.font = `400 52px ${CARD_FONTS.display}`;
+  ctx.fillText('I fund neighbors', 540, 640);
+  ctx.font = `italic 400 52px ${CARD_FONTS.display}`;
+  ctx.fillStyle = MB_COLORS.butter;
+  ctx.fillText('before the VCs do.', 540, 700);
+
+  // CTA — butter rect with ink text
+  drawShadowRect(ctx, 90, 770, 900, 140, MB_COLORS.butter, 8);
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '3px';
+  ctx.fillText('WANT IN?', 540, 810);
+  ctx.letterSpacing = '0px';
+  ctx.font = `700 34px ${CARD_FONTS.content}`;
+  ctx.fillText("DM me — we're looking for neighbors like you.", 540, 870);
+
+  drawFooter(ctx, logoImg);
 };
 
 const downloadCard = async (type) => {
@@ -1799,7 +1942,6 @@ const MessageReactions = ({ message, user, handleReactToMessage, chapterMembers 
             style={{
               background: hasReacted ? '#FFE4F1' : 'white',
               border: `1px solid ${hasReacted ? '#FFB6D9' : '#e0e0e0'}`,
-              borderRadius: '16px',
               padding: '4px 10px',
               fontSize: '14px',
               cursor: 'pointer',
@@ -1835,7 +1977,6 @@ const MessageReactions = ({ message, user, handleReactToMessage, chapterMembers 
                 background: 'rgba(0, 0, 0, 0.8)',
                 color: 'white',
                 padding: '6px 10px',
-                borderRadius: '4px',
                 fontSize: '12px',
                 whiteSpace: 'nowrap',
                 marginBottom: '4px',
@@ -1865,7 +2006,6 @@ const MessageReactions = ({ message, user, handleReactToMessage, chapterMembers 
           style={{
             background: 'transparent',
             border: '1px solid #e0e0e0',
-            borderRadius: '16px',
             padding: '4px 10px',
             fontSize: '14px',
             cursor: 'pointer',
@@ -1884,7 +2024,6 @@ const MessageReactions = ({ message, user, handleReactToMessage, chapterMembers 
           left: '0',
           background: 'white',
           border: '1px solid #e0e0e0',
-          borderRadius: '8px',
           padding: '8px',
           boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
           marginBottom: '4px',
@@ -1906,7 +2045,6 @@ const MessageReactions = ({ message, user, handleReactToMessage, chapterMembers 
                   fontSize: '20px',
                   cursor: 'pointer',
                   padding: '4px',
-                  borderRadius: '4px',
                   transition: 'background 0.2s ease'
                 }}
                 onMouseEnter={(e) => {
@@ -1952,14 +2090,15 @@ const loadManagedResources = async () => {
 const handleSaveResource = async () => {
   try {
     // Validate required fields
-    if (!resourceFormData.Resource || !resourceFormData.Type || !resourceFormData['Business Stage']) {
-      showAppAlert("Please fill in all required fields: Resource Name, Type, and Business Stage.");
+    if (!resourceFormData.Resource || !resourceFormData.Chapter || !resourceFormData.Type || !resourceFormData['Business Stage']) {
+      showAppAlert("Please fill in all required fields: Resource Name, Chapter, Type, and Business Stage.");
       return;
     }
-    
+
     // Map form data to Firestore field names
     const firestoreData = {
       Resource: resourceFormData.Resource,
+      Chapter: resourceFormData.Chapter,
       Type: resourceFormData.Type,
       Stage: resourceFormData['Business Stage'],
       FocusArea: resourceFormData['Focus Area'] || '',
@@ -1996,6 +2135,7 @@ const handleSaveResource = async () => {
     setIsAddingResource(false);
     setResourceFormData({
       Resource: '',
+      Chapter: '',
       Type: '',
       'Focus Area': '',
       'Business Stage': 'Ideation',
@@ -2013,16 +2153,21 @@ const handleSaveResource = async () => {
 };
 
 const handleDeleteResource = async (resourceId) => {
-  if (showAppConfirm("Are you sure you want to delete this resource? This action cannot be undone.")) {
-    try {
-      await deleteDoc(doc(db, "resources", resourceId));
-      console.log(`LPPortal: Resource ${resourceId} deleted`);
-      showAppAlert("Resource deleted successfully!");
-      loadManagedResources();
-    } catch (error) {
-      console.error("LPPortal: Error deleting resource:", error);
-      showAppAlert("Failed to delete resource.");
-    }
+  const ok = await requestConfirm({
+    title: 'Delete this resource?',
+    message: 'This cannot be undone. The resource will disappear from every chapter page immediately.',
+    confirmLabel: 'Delete',
+    variant: 'danger',
+  });
+  if (!ok) return;
+  try {
+    await deleteDoc(doc(db, "resources", resourceId));
+    console.log(`LPPortal: Resource ${resourceId} deleted`);
+    showAppAlert("Resource deleted successfully!");
+    loadManagedResources();
+  } catch (error) {
+    console.error("LPPortal: Error deleting resource:", error);
+    showAppAlert("Failed to delete resource.");
   }
 };
 
@@ -2030,6 +2175,7 @@ const handleEditResource = (resource) => {
   setEditingResource(resource);
   setResourceFormData({
     Resource: resource.Resource || resource.resource || '',
+    Chapter: resource.Chapter || resource.chapter || '',
     Type: resource.Type || resource.type || '',
     'Focus Area': resource.FocusArea || resource['Focus Area'] || resource.focusArea || '',
     'Business Stage': resource.Stage || resource['Business Stage'] || resource.businessStage || 'Ideation',
@@ -2043,14 +2189,36 @@ const handleEditResource = (resource) => {
 };
 
 // Navigation items component (shared between desktop and mobile)
+const navButtonStyle = (tabName) => {
+  const isActive = activeTab === tabName;
+  return {
+    padding: '8px 12px',
+    border: '2px solid',
+    borderColor: isActive ? 'var(--mb-ink)' : 'transparent',
+    background: isActive ? 'var(--mb-magenta)' : 'transparent',
+    boxShadow: 'none',
+    cursor: 'pointer',
+    fontFamily: 'var(--font-content)',
+    fontSize: '13px',
+    fontWeight: 'bold',
+    color: isActive ? 'var(--mb-chalk)' : 'var(--mb-ink)',
+    textAlign: 'left',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    transition: 'none',
+    width: '100%'
+  };
+};
+
 const NavigationItems = () => (
   <>
-    <div style={{ padding: '15px', borderBottom: '1px solid #e0e0e0' }}>
-      <div style={{ 
-        fontSize: '12px', 
-        fontWeight: 'bold', 
-        color: '#666', 
-        textTransform: 'uppercase', 
+    <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--gnf-border-pink)', borderBottomStyle: 'solid' }}>
+      <div style={{
+        fontSize: '11px',
+        fontWeight: 'bold',
+        color: 'var(--mb-ink-60)',
+        textTransform: 'uppercase',
         letterSpacing: '0.5px',
         display: 'flex',
         justifyContent: 'space-between',
@@ -2062,43 +2230,29 @@ const NavigationItems = () => (
           onClick={() => setIsMobileMenuOpen(false)}
           style={{
             display: 'none',
-            background: 'none',
-            border: 'none',
-            fontSize: '24px',
+            background: 'var(--mb-paper-deep)',
+            border: '2px solid',
+            borderColor: '#fff #d48fc7 #d48fc7 #fff',
+            fontSize: '14px',
             cursor: 'pointer',
-            padding: '0',
-            color: '#666'
+            padding: '0 4px',
+            fontWeight: 'bold'
           }}
           className="mobile-close-btn"
         >
-          ×
+          ✖
         </button>
       </div>
     </div>
-    
+
+    <div style={{ padding: '4px' }}>
     {/* Review Pitches */}
     <button
       onClick={() => handleTabChange('reviewPitches')}
-      style={{
-        padding: '12px 20px',
-        border: 'none',
-        background: activeTab === 'reviewPitches' ? 'white' : 'transparent',
-        borderLeft: activeTab === 'reviewPitches' ? '3px solid #FFB6D9' : '3px solid transparent',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        fontSize: '14px',
-        fontWeight: activeTab === 'reviewPitches' ? '500' : 'normal',
-        color: activeTab === 'reviewPitches' ? '#333' : '#666',
-        textAlign: 'left',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        transition: 'all 0.2s ease',
-        width: '100%'
-      }}
+      style={navButtonStyle('reviewPitches')}
       onMouseEnter={(e) => {
         if (activeTab !== 'reviewPitches') {
-          e.currentTarget.style.background = '#f0f0f0';
+          e.currentTarget.style.background = 'var(--mb-paper-deep)';
         }
       }}
       onMouseLeave={(e) => {
@@ -2106,32 +2260,16 @@ const NavigationItems = () => (
           e.currentTarget.style.background = 'transparent';
         }
       }}>
-      📋 Review Pitches
+      Review Pitches
     </button>
-    
+
     {/* Pitch Map */}
     <button
       onClick={() => handleTabChange('pitchMap')}
-      style={{
-        padding: '12px 20px',
-        border: 'none',
-        background: activeTab === 'pitchMap' ? 'white' : 'transparent',
-        borderLeft: activeTab === 'pitchMap' ? '3px solid #FFB6D9' : '3px solid transparent',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        fontSize: '14px',
-        fontWeight: activeTab === 'pitchMap' ? '500' : 'normal',
-        color: activeTab === 'pitchMap' ? '#333' : '#666',
-        textAlign: 'left',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        transition: 'all 0.2s ease',
-        width: '100%'
-      }}
+      style={navButtonStyle('pitchMap')}
       onMouseEnter={(e) => {
         if (activeTab !== 'pitchMap') {
-          e.currentTarget.style.background = '#f0f0f0';
+          e.currentTarget.style.background = 'var(--mb-paper-deep)';
         }
       }}
       onMouseLeave={(e) => {
@@ -2139,79 +2277,16 @@ const NavigationItems = () => (
           e.currentTarget.style.background = 'transparent';
         }
       }}>
-      📍 Pitch Map
+      Pitch Map
     </button>
-    
-    {/* Message Board */}
-    <button
-      onClick={() => handleTabChange('bulletinBoard')}
-      style={{
-        padding: '12px 20px',
-        border: 'none',
-        background: activeTab === 'bulletinBoard' ? 'white' : 'transparent',
-        borderLeft: activeTab === 'bulletinBoard' ? '3px solid #FFB6D9' : '3px solid transparent',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        fontSize: '14px',
-        fontWeight: activeTab === 'bulletinBoard' ? '500' : 'normal',
-        color: activeTab === 'bulletinBoard' ? '#333' : '#666',
-        textAlign: 'left',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        transition: 'all 0.2s ease',
-        width: '100%'
-      }}
-      onMouseEnter={(e) => {
-        if (activeTab !== 'bulletinBoard') {
-          e.currentTarget.style.background = '#f0f0f0';
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (activeTab !== 'bulletinBoard') {
-          e.currentTarget.style.background = 'transparent';
-        }
-      }}>
-      <span style={{ position: 'relative' }}>
-        📬 Message Board
-        {newMessageCount > 0 && (
-          <span style={{
-            position: 'absolute',
-            top: '-4px',
-            right: '-4px',
-            width: '8px',
-            height: '8px',
-            backgroundColor: '#ff0000',
-            borderRadius: '50%',
-            display: 'inline-block'
-          }} />
-        )}
-      </span>
-    </button>
-    
+
     {/* Badges */}
     <button
       onClick={() => handleTabChange('badges')}
-      style={{
-        padding: '12px 20px',
-        border: 'none',
-        background: activeTab === 'badges' ? 'white' : 'transparent',
-        borderLeft: activeTab === 'badges' ? '3px solid #FFB6D9' : '3px solid transparent',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        fontSize: '14px',
-        fontWeight: activeTab === 'badges' ? '500' : 'normal',
-        color: activeTab === 'badges' ? '#333' : '#666',
-        textAlign: 'left',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        transition: 'all 0.2s ease',
-        width: '100%'
-      }}
+      style={navButtonStyle('badges')}
       onMouseEnter={(e) => {
         if (activeTab !== 'badges') {
-          e.currentTarget.style.background = '#f0f0f0';
+          e.currentTarget.style.background = 'var(--mb-paper-deep)';
         }
       }}
       onMouseLeave={(e) => {
@@ -2219,32 +2294,16 @@ const NavigationItems = () => (
           e.currentTarget.style.background = 'transparent';
         }
       }}>
-      🏆 Badges ({userBadges.length} Unlocked)
+      Trophy Case
     </button>
-    
+
     {/* Chapter Members */}
     <button
       onClick={() => handleTabChange('chapterMembers')}
-      style={{
-        padding: '12px 20px',
-        border: 'none',
-        background: activeTab === 'chapterMembers' ? 'white' : 'transparent',
-        borderLeft: activeTab === 'chapterMembers' ? '3px solid #FFB6D9' : '3px solid transparent',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        fontSize: '14px',
-        fontWeight: activeTab === 'chapterMembers' ? '500' : 'normal',
-        color: activeTab === 'chapterMembers' ? '#333' : '#666',
-        textAlign: 'left',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        transition: 'all 0.2s ease',
-        width: '100%'
-      }}
+      style={navButtonStyle('chapterMembers')}
       onMouseEnter={(e) => {
         if (activeTab !== 'chapterMembers') {
-          e.currentTarget.style.background = '#f0f0f0';
+          e.currentTarget.style.background = 'var(--mb-paper-deep)';
         }
       }}
       onMouseLeave={(e) => {
@@ -2252,32 +2311,16 @@ const NavigationItems = () => (
           e.currentTarget.style.background = 'transparent';
         }
       }}>
-      🏢 Chapter Members
+      Chapter Members
     </button>
-    
+
     {/* Social Cards */}
     <button
       onClick={() => handleTabChange('socialCards')}
-      style={{
-        padding: '12px 20px',
-        border: 'none',
-        background: activeTab === 'socialCards' ? 'white' : 'transparent',
-        borderLeft: activeTab === 'socialCards' ? '3px solid #FFB6D9' : '3px solid transparent',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        fontSize: '14px',
-        fontWeight: activeTab === 'socialCards' ? '500' : 'normal',
-        color: activeTab === 'socialCards' ? '#333' : '#666',
-        textAlign: 'left',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        transition: 'all 0.2s ease',
-        width: '100%'
-      }}
+      style={navButtonStyle('socialCards')}
       onMouseEnter={(e) => {
         if (activeTab !== 'socialCards') {
-          e.currentTarget.style.background = '#f0f0f0';
+          e.currentTarget.style.background = 'var(--mb-paper-deep)';
         }
       }}
       onMouseLeave={(e) => {
@@ -2285,33 +2328,34 @@ const NavigationItems = () => (
           e.currentTarget.style.background = 'transparent';
         }
       }}>
-      🎨 Social Cards
+      Social Cards
     </button>
-    
-    {/* Admin Panel - Only show if superAdmin */}
-    {isSuperAdmin && (
+
+    {/* Resources — LP-facing document library */}
+    <button
+      onClick={() => handleTabChange('resources')}
+      style={navButtonStyle('resources')}
+      onMouseEnter={(e) => {
+        if (activeTab !== 'resources') {
+          e.currentTarget.style.background = 'var(--mb-paper-deep)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (activeTab !== 'resources') {
+          e.currentTarget.style.background = 'transparent';
+        }
+      }}>
+      Resources
+    </button>
+
+    {/* Admin Panel - Visible to chapter directors and super admins */}
+    {isAdmin && (
       <button
         onClick={() => handleTabChange('adminPanel')}
-        style={{
-          padding: '12px 20px',
-          border: 'none',
-          background: activeTab === 'adminPanel' ? 'white' : 'transparent',
-          borderLeft: activeTab === 'adminPanel' ? '3px solid #FFB6D9' : '3px solid transparent',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          fontSize: '14px',
-          fontWeight: activeTab === 'adminPanel' ? '500' : 'normal',
-          color: activeTab === 'adminPanel' ? '#333' : '#666',
-          textAlign: 'left',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          transition: 'all 0.2s ease',
-          width: '100%'
-        }}
+        style={navButtonStyle('adminPanel')}
         onMouseEnter={(e) => {
           if (activeTab !== 'adminPanel') {
-            e.currentTarget.style.background = '#f0f0f0';
+            e.currentTarget.style.background = 'var(--mb-paper-deep)';
           }
         }}
         onMouseLeave={(e) => {
@@ -2319,16 +2363,122 @@ const NavigationItems = () => (
             e.currentTarget.style.background = 'transparent';
           }
         }}>
-        👤 Admin Panel
+        Admin Panel
       </button>
     )}
-    
-    {/* Chapter Info at bottom */}
-    <div style={{ marginTop: 'auto', padding: '20px', borderTop: '1px solid #e0e0e0', background: 'white', fontSize: '12px', color: '#666' }}>
-      <div style={{ fontWeight: 'bold', marginBottom: '5px' }}>Chapter</div>
-      <div>{user?.chapter || 'Not assigned'}</div>
-      <div style={{ fontWeight: 'bold', marginTop: '10px', marginBottom: '5px' }}>Member Since</div>
-      <div>{user?.anniversary ? new Date(user.anniversary.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'Unknown'}</div>
+    </div>
+
+    {/* Bottom-stuck footer: optional LP Membership payment links + Chapter Info card */}
+    <div style={{ marginTop: 'auto' }}>
+      {(() => {
+        const links = getChapterMembershipLinks(user?.chapter);
+        if (!links || (!links.annualUrl && !links.semiAnnualUrl)) return null;
+        const btnStyle = {
+          display: 'block',
+          width: '100%',
+          padding: '8px 10px',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          textAlign: 'center',
+          textDecoration: 'none',
+          color: 'var(--mb-ink)',
+          background: 'var(--mb-paper)',
+          border: '2px solid var(--mb-ink)',
+          boxShadow: 'var(--shadow-hard-sm)',
+          fontFamily: 'var(--font-content)',
+          cursor: 'pointer',
+          marginTop: '6px',
+          boxSizing: 'border-box',
+        };
+        return (
+          <div style={{ margin: '8px', marginBottom: 0 }}>
+            <div style={{
+              fontSize: '11px',
+              fontWeight: 'bold',
+              color: 'var(--mb-ink-60)',
+              marginBottom: '3px',
+              fontFamily: 'var(--font-content)'
+            }}>LP Membership</div>
+            {links.annualUrl && (
+              <a href={links.annualUrl} target="_blank" rel="noopener noreferrer" style={btnStyle}>
+                Renew Annual
+              </a>
+            )}
+            {links.semiAnnualUrl && (
+              <a href={links.semiAnnualUrl} target="_blank" rel="noopener noreferrer" style={btnStyle}>
+                Renew Semi-Annual
+              </a>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* Slack community invite */}
+      <div style={{ margin: '8px', marginBottom: 0 }}>
+        <div style={{
+          fontSize: '11px',
+          fontWeight: 'bold',
+          color: 'var(--mb-ink-60)',
+          marginBottom: '3px',
+          fontFamily: 'var(--font-content)'
+        }}>Community</div>
+        <a
+          href="https://join.slack.com/t/goodneighborfund/shared_invite/zt-3w6mgybja-8ASKwhvUyXsrFRlJ4uxdLQ"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'block',
+            width: '100%',
+            padding: '8px 10px',
+            fontSize: '12px',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            textDecoration: 'none',
+            color: 'var(--mb-ink)',
+            background: 'var(--mb-paper)',
+            border: '2px solid var(--mb-ink)',
+            boxShadow: 'var(--shadow-hard-sm)',
+            fontFamily: 'var(--font-content)',
+            cursor: 'pointer',
+            boxSizing: 'border-box',
+          }}
+        >
+          Join Slack
+        </a>
+      </div>
+
+      {/* Chapter Info — flat ink-bordered card */}
+      <div style={{
+        margin: '8px',
+        padding: '10px 12px',
+        fontSize: '11px',
+        color: 'var(--mb-ink)',
+        background: 'var(--mb-paper)',
+        border: '2px solid var(--mb-ink)',
+        boxShadow: 'var(--shadow-hard-sm)',
+        fontFamily: 'var(--font-content)'
+      }}>
+        <div style={{
+          fontSize: '10px',
+          fontWeight: 'bold',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          color: 'var(--mb-ink-60)',
+          marginBottom: '3px'
+        }}>Chapter</div>
+        <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>{user?.chapter || 'Not assigned'}</div>
+        <div style={{
+          fontSize: '10px',
+          fontWeight: 'bold',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          color: 'var(--mb-ink-60)',
+          marginBottom: '3px',
+          borderTop: '1px solid var(--gnf-border-pink)',
+          paddingTop: '8px'
+        }}>Member Since</div>
+        <div style={{ fontWeight: 'bold' }}>{user?.anniversary ? new Date(user.anniversary.seconds * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'Unknown'}</div>
+      </div>
     </div>
   </>
 );
@@ -2393,31 +2543,30 @@ const formatDate = (ts) => {
 // --- Handlers ---
 
 // Auth Handlers
-const handleEmailLogin = async () => {
+// Magic-link sign-in: user enters their email and we ask the cloud function
+// to mint + email a Firebase email-link. The link routes back to /portal,
+// where the useEffect below picks it up and calls signInWithEmailLink.
+const handleSendSignInLink = async () => {
   setAuthError("");
-  if (!email || !password) {
-    setAuthError("Email and password are required.");
+  const requestEmail = email.trim().toLowerCase();
+  if (!requestEmail || !requestEmail.includes("@")) {
+    setAuthError("Enter a valid email address.");
     return;
   }
-  const loginEmail = email.trim().toLowerCase();
+  setSignInLinkSending(true);
   try {
-    console.log("LPPortal: Attempting email login for:", loginEmail);
-    await signInWithEmailAndPassword(auth, loginEmail, password);
-    console.log("LPPortal: Email login successful.");
-    
-    setEmail(""); 
-    setPassword("");
+    await sendSignInLinkCallable({ email: requestEmail });
+    // Stash the email so the return-trip handler can complete sign-in even if
+    // the user opens the link on a device that doesn't have it cached yet.
+    window.localStorage.setItem(EMAIL_FOR_SIGN_IN_KEY, requestEmail);
+    setSignInLinkSentTo(requestEmail);
   } catch (err) {
-    console.error("LPPortal: Email Login Error:", err.code, err.message);
-    if (['auth/user-not-found', 'auth/wrong-password', 'auth/invalid-credential', 'auth/invalid-email'].includes(err.code)) {
-      setAuthError("Invalid email or password.");
-    } else {
-      setAuthError(`Login failed: ${err.message}`);
-    }
+    console.error("LPPortal: sendSignInLink error:", err);
+    setAuthError(err?.message || "Couldn't send sign-in link. Try again in a moment.");
+  } finally {
+    setSignInLinkSending(false);
   }
 };
-
-// Removed handleEmailSignUp - users can no longer self-register
 
 const handleGoogleLogin = async () => {
   try {
@@ -2431,7 +2580,7 @@ const handleGoogleLogin = async () => {
     if (err.code === 'auth/popup-closed-by-user') {
       
     } else if (err.code === 'auth/account-exists-with-different-credential') {
-      setAuthError("An account already exists with this email address using a different sign-in method (e.g., email/password). Try logging in that way.");
+      setAuthError("This email is already linked to a different sign-in method. Try the magic-link option instead.");
     } else {
       setAuthError(`Google login failed: ${err.message}`);
     }
@@ -2481,12 +2630,18 @@ const handleReviewSubmit = async (e) => {
   }
 
 
+  const previousReview = reviews[selectedPitch.id] || null;
+  const isEdit = !!previousReview;
+  const nextEditCount = (previousReview?.editCount || 0) + (isEdit ? 1 : 0);
+
   const newReview = {
     reviewerId: user.uid,
     reviewerName: user.name || user.email, // Store reviewer name/email for easier display later if needed
     pitchId: selectedPitch.id,
     pitchBusinessName: selectedPitch.businessName || "Unknown Business", // Store for context
     chapter: selectedPitch.chapter || user.chapter || "Unknown", // Get chapter from pitch if possible, else from user
+    quarter: selectedPitch.quarter || null, // Needed for quarter-scoped badge stats (Midas Touch, Completionist)
+    editCount: nextEditCount, // Persisted on review doc; used by trackReviewSubmission for maxReviewEdits
     ...reviewFormData, // Spread existing form data
     submittedAt: Timestamp.fromDate(new Date()), // Use Firestore Timestamp
     lastUpdatedAt: Timestamp.fromDate(new Date()) // Add last updated timestamp
@@ -2500,10 +2655,9 @@ const handleReviewSubmit = async (e) => {
 
     // --- Success ---
     console.log(`LPPortal: Review ${reviewId} submitted/updated successfully.`);
-    
+
     // Track stats and check for badges
-    const isEdit = reviews[selectedPitch.id] ? true : false;
-    const trackingResult = await trackReviewSubmission(user.uid, newReview, selectedPitch, isEdit);
+    const trackingResult = await trackReviewSubmission(user.uid, newReview, selectedPitch, isEdit, previousReview);
     
     if (trackingResult.newBadges && trackingResult.newBadges.length > 0) {
       // Show badge notification
@@ -2526,6 +2680,27 @@ const handleReviewSubmit = async (e) => {
         console.log("LPPortal: Local reviews state updated after submit:", updatedReviews);
         return updatedReviews;
     });
+
+    // Update pitchComments so team notes reflect immediately
+    if (newReview.comments && newReview.comments.trim() !== "") {
+      setPitchComments(prev => {
+        const existing = (prev[selectedPitch.id] || []).filter(c => c.reviewerId !== user.uid);
+        return {
+          ...prev,
+          [selectedPitch.id]: [...existing, {
+            comment: newReview.comments.trim(),
+            reviewerName: user.name || user.email,
+            reviewerId: user.uid
+          }]
+        };
+      });
+    } else {
+      // Remove user's comment if they cleared it
+      setPitchComments(prev => ({
+        ...prev,
+        [selectedPitch.id]: (prev[selectedPitch.id] || []).filter(c => c.reviewerId !== user.uid)
+      }));
+    }
 
 
     // Close the detail view and reset the form
@@ -2580,101 +2755,66 @@ const generateTempPassword = () => {
   return password;
 };
 
-// Removed handleSendWelcomeEmail - users must use Forgot Password flow
-
 const handleCreateUser = async (e) => {
   e.preventDefault();
-  
-  if (!isSuperAdmin) {
-    showAppAlert("Only Super Admins can create new users.");
+
+  if (!isAdmin) {
+    showAppAlert("You do not have permission to invite users.");
     return;
   }
-  
+  if (isChapterDirector && newUserData.chapter && newUserData.chapter !== userChapter) {
+    showAppAlert(`Chapter directors can only invite users to ${userChapter}.`);
+    return;
+  }
+  if (newUserData.role === 'superAdmin' && !isSuperAdmin) {
+    showAppAlert("Only Super Admins can create Super Admin accounts.");
+    return;
+  }
+  if (!newUserData.email || !newUserData.name || !newUserData.chapter) {
+    showAppAlert("Please fill in email, name, and chapter.");
+    return;
+  }
+
+  setIsInviting(true);
   try {
-    // Validate required fields
-    if (!newUserData.uid || !newUserData.email || !newUserData.name || !newUserData.chapter) {
-      showAppAlert("Please fill in all required fields including UID.");
-      return;
-    }
-    
-    // Validate UID format (should be alphanumeric, typically 28 characters)
-    if (newUserData.uid.length < 20 || newUserData.uid.length > 40) {
-      showAppAlert("UID seems invalid. Please check the Firebase Auth UID.");
-      return;
-    }
-    
-    const userEmail = newUserData.email.toLowerCase();
-    console.log('LPPortal: Creating Firestore document for user:', userEmail, 'with UID:', newUserData.uid);
-    
-    // Create Firestore user profile using the provided UID as document ID
-    const userDocRef = doc(db, "users", newUserData.uid);
-    
-    // Check if document already exists
-    const existingDoc = await getDoc(userDocRef);
-    if (existingDoc.exists()) {
-      showAppAlert("A user document with this UID already exists!");
-      return;
-    }
-    
-    await setDoc(userDocRef, {
-      uid: newUserData.uid,
-      reviewerId: newUserData.uid, // Same as UID for LP users
-      email: newUserData.email,
-      name: newUserData.name,
-      role: newUserData.role,
+    const result = await inviteUserCallable({
+      email: newUserData.email.toLowerCase().trim(),
+      name: newUserData.name.trim(),
+      role: newUserData.role || 'lp',
       chapter: newUserData.chapter,
-      anniversary: Timestamp.fromDate(new Date(newUserData.anniversary)),
-      createdAt: Timestamp.now(),
-      createdBy: user.uid,
-      hasCompletedSignup: true,
-      // Initialize stats for gamification
-      stats: {
-        totalReviews: 0,
-        quarterReviews: 0,
-        favoritesPicked: 0,
-        considerationsPicked: 0,
-        passedPicked: 0,
-        ineligiblePicked: 0,
-        reviewsByQuarter: {},
-        reviewsByHour: {},
-        longestStreak: 0,
-        currentStreak: 0,
-        lastReviewDate: null,
-        averageReviewLength: 0,
-        totalComments: 0,
-        winnersIdentified: 0,
-        accuracyRate: 0
-      },
-      badges: []
+      anniversary: newUserData.anniversary,
+      // Only meaningful for superAdmin invites — empty/undefined otherwise.
+      chapterRole: newUserData.role === 'superAdmin' ? (newUserData.chapterRole || '') : '',
     });
-    
-    console.log('LPPortal: User profile created in Firestore');
-    
-    // Show success message
-    showAppAlert(`User profile created successfully!\n\n` +
-      `UID: ${newUserData.uid}\n` +
-      `Email: ${userEmail}\n` +
-      `Name: ${newUserData.name}\n` +
-      `Role: ${newUserData.role}\n` +
-      `Chapter: ${newUserData.chapter}\n\n` +
-      `Next step: Use the "Reset Pwd" button in the users table to send them a password reset email.`);
-    
-    // Reset form
+
+    const data = result.data || {};
+    const lines = [`Invite sent to ${data.email}.`];
+    if (data.alreadyHadAuth) {
+      lines.push(`Note: this email already had a Firebase Auth account, so we reused it.`);
+    }
+    if (data.emailSent === false) {
+      lines.push(`⚠️ The profile was created but the sign-in link email failed to send: ${data.emailError || 'unknown error'}. Use "Send link" in the users table to retry.`);
+    } else {
+      lines.push(`They'll receive a magic-link email — one tap and they're signed in. No password setup needed.`);
+    }
+    showAppAlert(lines.join('\n\n'));
+
     setNewUserData({
-      uid: '',
       email: '',
       name: '',
       role: 'lp',
-      chapter: '',
-      anniversary: new Date().toISOString().split('T')[0]
+      chapter: isChapterDirector ? userChapter : '',
+      anniversary: new Date().toISOString().split('T')[0],
+      chapterRole: '',
     });
-    
-    // Reload admin data to show new user
+
     loadAdminData();
-    
   } catch (error) {
-    console.error('LPPortal: Error creating user:', error);
-    showAppAlert(`Failed to create user: ${error.message}`);
+    console.error('LPPortal: Error inviting user:', error);
+    const msg = error?.message || 'Unknown error.';
+    showAppAlert(`Failed to invite user: ${msg}`);
+  } finally {
+    setIsInviting(false);
   }
 };
 
@@ -2694,9 +2834,27 @@ const handleDeleteUser = async (userIdToDelete, userEmailToDelete) => {
     showAppAlert("Admins cannot delete SuperAdmin accounts.");
     return;
   }
+  if (isChapterDirector && userToDeleteData?.chapter && userToDeleteData.chapter !== userChapter) {
+    showAppAlert(`Chapter directors can only delete users in ${userChapter}.`);
+    return;
+  }
 
-  // Confirmation - Updated message to reflect only Firestore data deletion
-  if (showAppConfirm(`Are you sure you want to delete the user profile data for ${userEmailToDelete || userIdToDelete} from the LP Portal?\n\nTHIS ACTION ONLY DELETES THE FIRESTORE DATA (role, chapter, name, etc.).\nIT DOES NOT DELETE THE AUTHENTICATION ACCOUNT in Firebase Authentication.\n\nIf you also want to prevent the user from logging in, you must disable or delete their account in the Firebase Authentication console.\n\nProceed with deleting the Firestore profile data?`)) {
+  // Retro-styled confirm. Note: this only removes the Firestore profile doc —
+  // the Firebase Auth account stays intact until an admin clears it manually
+  // from the Firebase console. The dialog makes that distinction clear.
+  const ok = await requestConfirm({
+    title: `Delete profile for ${userEmailToDelete || 'this user'}?`,
+    confirmLabel: 'Delete profile',
+    cancelLabel: 'Keep',
+    variant: 'danger',
+    message: (
+      <>
+        <p>This removes their Firestore profile data (role, chapter, name, bio).</p>
+        <p><strong>It does NOT delete the Firebase Authentication account.</strong> To prevent sign-in, disable the account in the Firebase console.</p>
+      </>
+    ),
+  });
+  if (ok) {
     try {
       console.log(`LPPortal: Deleting user document /users/${userIdToDelete}...`);
       await deleteDoc(doc(db, "users", userIdToDelete));
@@ -2748,6 +2906,28 @@ const handleUpdateUser = async (userIdToUpdate, field, value) => {
       loadAdminData();
       return;
     }
+    // LPs are read-only on other users' records. They can edit their own
+    // profile (name/links/bio/photo via the self-edit rule branch) but not
+    // anyone else's. Mirrors the firestore /users update policy so the user
+    // gets a clear message instead of a generic permission-denied.
+    if (isLP && userIdToUpdate !== user.uid) {
+      showAppAlert("LPs can only edit their own profile. Ask a chapter director or SuperAdmin to update other members.");
+      loadAdminData();
+      return;
+    }
+    // Chapter directors are scoped to their own chapter.
+    if (isChapterDirector) {
+      if (targetUser.chapter && targetUser.chapter !== userChapter) {
+        showAppAlert(`Chapter directors can only modify users in ${userChapter}.`);
+        loadAdminData();
+        return;
+      }
+      if (field === 'chapter' && value && value !== userChapter) {
+        showAppAlert(`Chapter directors can only assign users to ${userChapter}.`);
+        loadAdminData();
+        return;
+      }
+    }
   }
 
   // Prevent assigning an invalid role
@@ -2757,11 +2937,43 @@ const handleUpdateUser = async (userIdToUpdate, field, value) => {
     return;
   }
 
+  // chapterRole is only meaningful on superAdmin users and must be one of
+  // the two presentation tiers (or empty to clear). Only superAdmins may
+  // write it. Mirrors the firestore.rules chapterRoleInvariant — caught
+  // client-side so the user gets a clear message.
+  if (field === 'chapterRole') {
+    if (!isSuperAdmin) {
+      showAppAlert("Only Super Admins can set a chapter listing role.");
+      loadAdminData();
+      return;
+    }
+    if (targetUser.role !== 'superAdmin') {
+      showAppAlert("Chapter listing role only applies to Super Admin accounts.");
+      loadAdminData();
+      return;
+    }
+    if (value && !['lp', 'chapter_director'].includes(value)) {
+      showAppAlert(`Invalid chapter listing role: ${value}`);
+      loadAdminData();
+      return;
+    }
+  }
+
   try {
     console.log(`LPPortal: Updating Firestore doc /users/${userIdToUpdate} with {${field}: ${value}}...`);
-    await updateDoc(doc(db, "users", userIdToUpdate), {
-      [field]: value
-    });
+    const updates = { [field]: value };
+    // When demoting a superAdmin, strip any stale chapterRole so the
+    // firestore chapterRoleInvariant doesn't reject the write. chapterRole
+    // is presentation-only and meaningless on non-superAdmin accounts.
+    if (field === 'role' && value !== 'superAdmin' && targetUser.chapterRole) {
+      updates.chapterRole = deleteField();
+    }
+    // Clearing chapterRole via the "— none —" option should remove the
+    // field entirely rather than leave a null behind.
+    if (field === 'chapterRole' && !value) {
+      updates.chapterRole = deleteField();
+    }
+    await updateDoc(doc(db, "users", userIdToUpdate), updates);
     console.log(`LPPortal: User update successful.`);
     showAppAlert(`User ${targetUser.email || userIdToUpdate} updated successfully.`);
     loadAdminData(); // Refresh list with updated data
@@ -2777,27 +2989,569 @@ const handleUpdateUser = async (userIdToUpdate, field, value) => {
   }
 };
 
-const handleAdminPasswordReset = async (emailToReset) => {
-  if (!emailToReset) {
-    showAppAlert("Cannot reset password: User email is missing.");
+// Upload a chapter member's profile photo to Firebase Storage and propagate
+// the URL to the two surfaces that render it:
+//   1. /users/{uid}.photoUrl            — drives the in-portal members directory
+//   2. /chapters/{slug}.lpPhotos[uid]   — drives the public static chapter pages
+//      (read by public/assets/js/chapter-hydration.js, which swaps the
+//      hardcoded /assets/lps/*.png src on matching <img> tags).
+// Storage path is namespaced by target uid so storage.rules can resolve the
+// owning chapter and enforce that only that chapter's director (or a
+// superAdmin) can write.
+const handleMemberPhotoUpload = async (targetUser, file) => {
+  if (!targetUser?.uid || !file) return;
+  // Mirrors storage.rules: superAdmin can upload for any member, chapter
+  // directors only for users in their chapter, LPs only for themselves.
+  if (!isSuperAdmin) {
+    if (isLP && targetUser.uid !== user.uid) {
+      showAppAlert("LPs can only upload their own profile photo.");
+      return;
+    }
+    if (isChapterDirector && targetUser.chapter && targetUser.chapter !== userChapter) {
+      showAppAlert(`Chapter directors can only upload photos for users in ${userChapter}.`);
+      return;
+    }
+    if (!isLP && !isChapterDirector) {
+      showAppAlert("You don't have permission to upload member photos.");
+      return;
+    }
+  }
+  if (!file.type.startsWith('image/')) {
+    showAppAlert("Please choose an image file (PNG, JPG, etc.).");
     return;
   }
-  if (emailToReset === user?.email) {
-    showAppAlert("You cannot reset your own password from this admin panel. Use the standard login/password reset flow if needed.");
+  if (file.size > 5 * 1024 * 1024) {
+    showAppAlert("Image must be smaller than 5 MB.");
     return;
   }
 
-  if (showAppConfirm(`Are you sure you want to send a password reset email to ${emailToReset} via Firebase Authentication?`)) { // Updated confirmation text
-    try {
-      console.log(`LPPortal: Admin ${user.email} triggering password reset for ${emailToReset}`);
-      await sendPasswordResetEmail(auth, emailToReset);
-      console.log(`LPPortal: Password reset email sent successfully.`);
-      showAppAlert(`Password reset email sent to ${emailToReset}.`);
-    } catch (error) {
-      console.error(`LPPortal: Error sending password reset email to ${emailToReset}:`, error);
-      showAppAlert(`Failed to send password reset email: ${error.message}`);
-      // Common errors: auth/user-not-found if email doesn't have an auth account
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `LP-photos/${targetUser.uid}/${Date.now()}.${ext}`;
+
+  setUploadingPhotoFor(prev => ({ ...prev, [targetUser.uid]: true }));
+  try {
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, file, { contentType: file.type });
+    const photoUrl = await getDownloadURL(storageRef);
+
+    await updateDoc(doc(db, "users", targetUser.uid), { photoUrl });
+
+    // Best-effort mirror onto the chapter doc. If it fails (e.g. chapter doc
+    // not yet seeded) the in-portal directory still works off the user doc.
+    const chapterDoc = chapters.find(c => c.name === targetUser.chapter);
+    if (chapterDoc?.id) {
+      try {
+        await updateDoc(doc(db, "chapters", chapterDoc.id), {
+          [`lpPhotos.${targetUser.uid}`]: {
+            name: targetUser.name || '',
+            photoUrl,
+          },
+          updatedAt: Timestamp.now(),
+        });
+      } catch (chapterErr) {
+        console.warn(`LPPortal: photo saved on user ${targetUser.uid} but chapter doc mirror failed:`, chapterErr);
+      }
     }
+
+    showAppAlert("Member photo uploaded.");
+    loadAdminData();
+    loadChapterMembers();
+  } catch (err) {
+    console.error("LPPortal: member photo upload failed:", err);
+    if (err.code === 'storage/unauthorized') {
+      showAppAlert("Upload failed: you don't have permission to upload this photo.");
+    } else {
+      showAppAlert(`Upload failed: ${err.message || err}`);
+    }
+  } finally {
+    setUploadingPhotoFor(prev => {
+      const next = { ...prev };
+      delete next[targetUser.uid];
+      return next;
+    });
+  }
+};
+
+// ───── Chapter hero + gallery photo uploads ─────
+// Path: chapter-photos/{chapterSlug}/{kind}-{ts}.{ext}
+// Writes to storage, then persists the URL back to the /chapters/{slug} doc
+// immediately so the form doesn't need a separate Save click to retain the
+// upload. Storage rules allow this for superAdmin or the chapter's director.
+const uploadChapterPhoto = async (chapterSlug, file, kind) => {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `chapter-photos/${chapterSlug}/${kind}-${Date.now()}.${ext}`;
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, file, { contentType: file.type });
+  const url = await getDownloadURL(storageRef);
+  return { url, storagePath: path };
+};
+
+const handleChapterHeroUpload = async (file) => {
+  if (!file || !editingChapterId) return;
+  if (!isSuperAdmin && !isChapterDirector) {
+    showAppAlert("Only chapter directors and super admins can upload chapter photos.");
+    return;
+  }
+  if (!file.type.startsWith('image/')) {
+    showAppAlert("Please choose an image file (PNG, JPG, etc.).");
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    showAppAlert("Image must be smaller than 5 MB.");
+    return;
+  }
+  setUploadingPhotoFor(prev => ({ ...prev, [`hero:${editingChapterId}`]: true }));
+  try {
+    const { url, storagePath } = await uploadChapterPhoto(editingChapterId, file, 'hero');
+    // If there was a previous hero image we uploaded, best-effort delete it to
+    // avoid stranding orphans in storage. We only try when the previous URL
+    // includes our own path prefix so we don't try to delete external URLs.
+    const prevPath = chapterFormData.heroImageStoragePath;
+    await updateDoc(doc(db, "chapters", editingChapterId), {
+      heroImage: url,
+      heroImageStoragePath: storagePath,
+      updatedAt: Timestamp.now(),
+    });
+    setChapterFormData(prev => ({ ...prev, heroImage: url, heroImageStoragePath: storagePath }));
+    if (prevPath && prevPath !== storagePath) {
+      try { await deleteObject(ref(storage, prevPath)); } catch (_) { /* best-effort */ }
+    }
+    loadChapters();
+  } catch (err) {
+    console.error("LPPortal: chapter hero upload failed:", err);
+    showAppAlert(err.code === 'storage/unauthorized'
+      ? "Upload failed: you don't have permission on this chapter."
+      : `Upload failed: ${err.message || err}`);
+  } finally {
+    setUploadingPhotoFor(prev => { const n = { ...prev }; delete n[`hero:${editingChapterId}`]; return n; });
+  }
+};
+
+const handleGalleryPhotoUpload = async (file) => {
+  if (!file || !editingChapterId) return;
+  if (!isSuperAdmin && !isChapterDirector) {
+    showAppAlert("Only chapter directors and super admins can upload chapter photos.");
+    return;
+  }
+  if (!file.type.startsWith('image/')) {
+    showAppAlert("Please choose an image file.");
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    showAppAlert("Image must be smaller than 5 MB.");
+    return;
+  }
+  setUploadingPhotoFor(prev => ({ ...prev, [`gallery:${editingChapterId}`]: true }));
+  try {
+    const { url, storagePath } = await uploadChapterPhoto(editingChapterId, file, 'gallery');
+    const current = Array.isArray(chapterFormData.galleryPhotos) ? chapterFormData.galleryPhotos : [];
+    const next = [...current, { url, storagePath }];
+    await updateDoc(doc(db, "chapters", editingChapterId), {
+      galleryPhotos: next,
+      updatedAt: Timestamp.now(),
+    });
+    setChapterFormData(prev => ({ ...prev, galleryPhotos: next }));
+    loadChapters();
+  } catch (err) {
+    console.error("LPPortal: chapter gallery upload failed:", err);
+    showAppAlert(err.code === 'storage/unauthorized'
+      ? "Upload failed: you don't have permission on this chapter."
+      : `Upload failed: ${err.message || err}`);
+  } finally {
+    setUploadingPhotoFor(prev => { const n = { ...prev }; delete n[`gallery:${editingChapterId}`]; return n; });
+  }
+};
+
+const handleGalleryPhotoDelete = async (index) => {
+  if (!editingChapterId) return;
+  if (!isSuperAdmin && !isChapterDirector) return;
+  const current = Array.isArray(chapterFormData.galleryPhotos) ? chapterFormData.galleryPhotos : [];
+  const target = current[index];
+  if (!target) return;
+  const ok = await requestConfirm({
+    title: 'Remove this photo from the gallery?',
+    confirmLabel: 'Remove',
+    variant: 'danger',
+    message: <p>The file will also be deleted from storage.</p>,
+  });
+  if (!ok) return;
+  const next = current.filter((_, i) => i !== index);
+  try {
+    await updateDoc(doc(db, "chapters", editingChapterId), {
+      galleryPhotos: next,
+      updatedAt: Timestamp.now(),
+    });
+    setChapterFormData(prev => ({ ...prev, galleryPhotos: next }));
+    if (target.storagePath) {
+      try { await deleteObject(ref(storage, target.storagePath)); } catch (_) { /* best-effort */ }
+    }
+    loadChapters();
+  } catch (err) {
+    console.error("LPPortal: chapter gallery delete failed:", err);
+    showAppAlert(`Delete failed: ${err.message || err}`);
+  }
+};
+
+// Admin "resend sign-in link" — replaces the legacy password-reset path now
+// that email-link is the only password-style sign-in method. Internally calls
+// the same callable the public login form uses, so behavior stays consistent.
+const handleAdminPasswordReset = async (emailToReset) => {
+  if (!emailToReset) {
+    showAppAlert("Cannot send sign-in link: user email is missing.");
+    return;
+  }
+  if (emailToReset === user?.email) {
+    showAppAlert("You can't send yourself a sign-in link from here. Sign out and use the regular sign-in form.");
+    return;
+  }
+
+  if (!showAppConfirm(`Send a magic sign-in link to ${emailToReset}?`)) return;
+
+  try {
+    console.log(`LPPortal: Admin ${user.email} sending sign-in link to ${emailToReset}`);
+    const result = await sendSignInLinkCallable({ email: emailToReset.toLowerCase().trim() });
+    if (result?.data?.sent === false) {
+      // Generic-success path: cloud function couldn't find a /users record.
+      showAppAlert(`No user record found for ${emailToReset}. Use Invite a new LP to add them first.`);
+    } else {
+      showAppAlert(`Sign-in link sent to ${emailToReset}.`);
+    }
+  } catch (error) {
+    console.error(`LPPortal: Error sending sign-in link to ${emailToReset}:`, error);
+    showAppAlert(`Failed to send sign-in link: ${error.message}`);
+  }
+};
+
+// One-shot backfill: write `quarter` onto every existing review doc based on its pitch's quarter.
+// Needed because quarter-scoped badges (Midas Touch, Completionist) can only see reviews where this field is set.
+const handleBackfillReviewQuarters = async () => {
+  if (!showAppConfirm('This will scan every review and write a `quarter` field (derived from the review\'s pitch). Safe to run multiple times. Continue?')) {
+    return;
+  }
+  try {
+    const reviewsSnapshot = await getDocs(collection(db, "reviews"));
+    const pitchesSnapshot = await getDocs(collection(db, "pitches"));
+    const pitchQuarterById = {};
+    pitchesSnapshot.forEach(p => { pitchQuarterById[p.id] = p.data().quarter || null; });
+
+    let written = 0;
+    let skipped = 0;
+    let missingPitch = 0;
+
+    for (const reviewDoc of reviewsSnapshot.docs) {
+      const review = reviewDoc.data();
+      if (review.quarter) { skipped++; continue; }
+      const q = pitchQuarterById[review.pitchId];
+      if (!q) { missingPitch++; continue; }
+      await updateDoc(doc(db, "reviews", reviewDoc.id), { quarter: q });
+      written++;
+    }
+
+    showAppAlert(`Review quarter backfill complete.\n\nWritten: ${written}\nAlready had quarter: ${skipped}\nPitch not found: ${missingPitch}`);
+  } catch (error) {
+    console.error('Backfill review quarters error:', error);
+    showAppAlert(`Backfill failed: ${error.message}`);
+  }
+};
+
+// Recalculate chapter rankings for the current quarter across every chapter — unlocks
+// Chapter MVP (isChapterLeaderThisQuarter) and Neighborhood Mayor (quarterlyTop3 >= 2).
+// Safe to run any time; the stat writes are idempotent for the MVP flag, but quarterlyTop3
+// increments every run — see note below in the UI.
+const handleRecalculateChapterRankings = async () => {
+  if (!showAppConfirm(`This will recalculate chapter-level leaderboards for ${getCurrentQuarter()} across every chapter.\n\nRun this ONCE near the end of each quarter. Running it multiple times will over-increment the "top-3 finishes" counter. Continue?`)) {
+    return;
+  }
+  try {
+    // Collect the distinct set of chapters from users currently loaded
+    const chapters = [...new Set(users.map(u => u.chapter).filter(Boolean))];
+    if (chapters.length === 0) {
+      showAppAlert('No chapters found in loaded user list. Load admin data first.');
+      return;
+    }
+    for (const chapter of chapters) {
+      await calculateChapterRankings(chapter);
+    }
+    showAppAlert(`Chapter rankings recalculated for ${chapters.length} chapter(s): ${chapters.join(', ')}`);
+    loadAdminData();
+  } catch (error) {
+    console.error('Chapter rankings recalc error:', error);
+    showAppAlert(`Recalculation failed: ${error.message}`);
+  }
+};
+
+// One-time migration: any user doc still carrying role:'admin' from the pre-rename
+// world is promoted to role:'lp' (post-rename lp == what admin used to mean). Safe
+// to re-run; does nothing if no admin docs remain.
+const handleMigrateAdminToLP = async () => {
+  if (!isSuperAdmin) {
+    showAppAlert("Only Super Admins can run this migration.");
+    return;
+  }
+  if (!showAppConfirm("This will update every user with role='admin' to role='lp'. Safe to re-run. Continue?")) {
+    return;
+  }
+  try {
+    const usersSnapshot = await getDocs(collection(db, "users"));
+    const toMigrate = usersSnapshot.docs.filter(d => d.data().role === 'admin');
+    if (toMigrate.length === 0) {
+      showAppAlert("No legacy 'admin' users found. Already migrated.");
+      return;
+    }
+    for (const d of toMigrate) {
+      await updateDoc(doc(db, "users", d.id), { role: 'lp' });
+    }
+    showAppAlert(`Migrated ${toMigrate.length} user(s) from 'admin' to 'lp':\n\n${toMigrate.map(d => d.data().email || d.id).join('\n')}`);
+    loadAdminData();
+  } catch (error) {
+    console.error('Admin->LP migration error:', error);
+    showAppAlert(`Migration failed: ${error.message}`);
+  }
+};
+
+// --- Chapters management handlers (superAdmin only) ---
+
+// Normalizes user input into a slug for use as the /chapters doc ID.
+const slugifyChapter = (value) => (value || '')
+  .toLowerCase()
+  .trim()
+  .replace(/[^a-z0-9\s-]/g, '')
+  .replace(/\s+/g, '-')
+  .replace(/-+/g, '-')
+  .replace(/^-+|-+$/g, '');
+
+// Blank form template, shared by reset paths.
+const emptyChapterForm = {
+  slug: '', name: '', pageSlug: '', tagline: '', foundedYear: '',
+  emailAlias: '', slackChannel: '', lpSlackChannel: '', active: true, order: 0,
+  heroTitle: '', heroTagline: '', heroImage: '', heroImageCaption: '',
+  servingTitle: '', servingText: '',
+  counties: [], poweredByText: '', galleryPhotos: [],
+  showLPs: true, showGallery: true
+};
+
+// Normalizes a counties value from the form (array OR newline/comma-separated
+// string from a textarea) into a clean array of trimmed, deduped strings.
+const normalizeCounties = (value) => {
+  const list = Array.isArray(value)
+    ? value
+    : String(value || '').split(/[\n,]/);
+  const cleaned = list.map(s => String(s).trim()).filter(Boolean);
+  return [...new Set(cleaned)];
+};
+
+const handleSaveChapter = async () => {
+  if (!isSuperAdmin && !isChapterDirector) {
+    showAppAlert("Only Super Admins and Chapter Directors can edit chapters.");
+    return;
+  }
+  const f = chapterFormData;
+  // On edit, the target doc ID must not change — use editingChapterId verbatim.
+  // On create, normalize the user's slug input (or derive from the name).
+  const slug = editingChapterId ? editingChapterId : slugifyChapter(f.slug || f.name);
+  if (!f.name || !slug) {
+    showAppAlert("Chapter name and slug are required.");
+    return;
+  }
+  // Chapter directors are scoped to their own chapter for edits, and cannot
+  // create new chapters at all. Enforced in firestore.rules too.
+  if (isChapterDirector && !isSuperAdmin) {
+    if (isAddingChapter) {
+      showAppAlert("Only Super Admins can create new chapters.");
+      return;
+    }
+    const target = chapters.find(c => c.id === editingChapterId);
+    if (!target || target.name !== userChapter) {
+      showAppAlert(`Chapter directors can only edit their own chapter (${userChapter}).`);
+      return;
+    }
+  }
+  // Uniqueness only matters on create.
+  if (isAddingChapter && chapters.some(c => c.id === slug)) {
+    showAppAlert(`A chapter with slug "${slug}" already exists.`);
+    return;
+  }
+  try {
+    const docRef = doc(db, "chapters", slug);
+    // Content fields any director is allowed to write (must match the
+    // directorEditableFields allowlist in firestore.rules).
+    const contentPayload = {
+      heroTitle: (f.heroTitle || '').trim(),
+      heroTagline: (f.heroTagline || '').trim(),
+      heroImageCaption: (f.heroImageCaption || '').trim(),
+      servingTitle: (f.servingTitle || '').trim(),
+      servingText: (f.servingText || '').trim(),
+      counties: normalizeCounties(f.counties),
+      poweredByText: (f.poweredByText || '').trim(),
+      showLPs: f.showLPs !== false,
+      showGallery: f.showGallery !== false,
+      updatedAt: Timestamp.now()
+    };
+    // heroImage and galleryPhotos are saved immediately by the upload handlers
+    // (handleChapterHeroUpload / handleGalleryPhotoUpload) so we do NOT include
+    // them in the Save payload — otherwise a stale form snapshot would clobber
+    // a photo that was uploaded seconds earlier.
+    let payload;
+    if (isSuperAdmin) {
+      // SuperAdmins write the full doc (metadata + content).
+      payload = {
+        name: f.name.trim(),
+        slug,
+        // pageSlug defaults to slug when blank.
+        pageSlug: ((f.pageSlug || '').trim() || slug),
+        tagline: (f.tagline || '').trim(),
+        foundedYear: f.foundedYear === '' || f.foundedYear == null
+          ? null
+          : (Number.isFinite(Number(f.foundedYear)) ? Number(f.foundedYear) : null),
+        emailAlias: (f.emailAlias || '').trim(),
+        slackChannel: (f.slackChannel || '').trim(),
+        lpSlackChannel: (f.lpSlackChannel || '').trim(),
+        active: f.active !== false,
+        order: Number.isFinite(Number(f.order)) ? Number(f.order) : 0,
+        ...contentPayload
+      };
+      if (isAddingChapter) {
+        payload.createdAt = Timestamp.now();
+        payload.createdBy = user.uid;
+      }
+    } else {
+      // Chapter directors can only touch the content allowlist. Firestore
+      // rules also enforce this — we just keep the client write minimal to
+      // avoid tripping the affectedKeys().hasOnly(...) check.
+      payload = contentPayload;
+    }
+    await setDoc(docRef, payload, { merge: true });
+    showAppAlert(`Chapter "${f.name.trim()}" saved.`);
+    setIsAddingChapter(false);
+    setEditingChapterId(null);
+    setChapterFormData({ ...emptyChapterForm });
+    loadChapters();
+  } catch (error) {
+    console.error('Save chapter error:', error);
+    showAppAlert(`Failed to save chapter: ${error.message}`);
+  }
+};
+
+const handleDeleteChapter = async (chapterId, chapterName) => {
+  if (!isSuperAdmin) return;
+  const ok = await requestConfirm({
+    title: `Delete chapter "${chapterName}"?`,
+    confirmLabel: 'Delete chapter',
+    variant: 'danger',
+    message: (
+      <>
+        <p>This removes the <code>/chapters/{chapterId}</code> document.</p>
+        <p>Existing user, pitch, and review docs that reference this chapter by name are left untouched — you&rsquo;ll need to reassign or archive them separately.</p>
+      </>
+    ),
+  });
+  if (!ok) return;
+  try {
+    await deleteDoc(doc(db, "chapters", chapterId));
+    showAppAlert(`Chapter "${chapterName}" deleted.`);
+    loadChapters();
+  } catch (error) {
+    console.error('Delete chapter error:', error);
+    showAppAlert(`Delete failed: ${error.message}`);
+  }
+};
+
+// Seeds /chapters with the four known chapters from the legacy hardcoded maps in
+// functions/index.js. Idempotent: skips any chapter whose slug already exists.
+const handleSeedLegacyChapters = async () => {
+  if (!isSuperAdmin) return;
+  if (!showAppConfirm("Seed /chapters with the 4 known chapters?\n\n• Creates any missing chapter.\n• For existing chapters, fills in only MISSING fields (tagline, foundedYear, pageSlug, etc.). Does NOT overwrite anything you've edited.\n\nSafe to re-run.")) {
+    return;
+  }
+  const legacyChapters = [
+    {
+      slug: 'wny', pageSlug: 'wny', name: 'Western New York',
+      tagline: 'Where it all started, serving Buffalo and the surrounding 8 counties.',
+      foundedYear: 2023,
+      emailAlias: 'wny@goodneighbor.fund', slackChannel: 'C04V14N4W83', lpSlackChannel: 'C04K9G2L29L', order: 1,
+      heroTitle: '$1,000 Micro-Grants for Buffalo Business Ideas',
+      heroTagline: 'No pitch deck required. No equity taken. Just belief in your vision and potential.',
+      servingTitle: 'Serving All of Western New York',
+      servingText: "Good Neighbor Fund WNY supports entrepreneurs across 8 counties in Western New York. Whether you're in the heart of Buffalo or rural Wyoming County, we believe in your potential.",
+      counties: ['Erie County', 'Niagara County', 'Cattaraugus', 'Chautauqua', 'Allegany County', 'Genesee County', 'Wyoming County', 'Orleans County'],
+      poweredByText: "Good Neighbor Fund is a collective giving organization. Our funding comes from Limited Partners (LPs) — local founders, operators, and community members who pool their own capital each quarter to fund the boldest new ideas in WNY. No overhead. No bureaucracy. Just neighbors investing in neighbors.",
+      showLPs: true, showGallery: true
+    },
+    {
+      slug: 'denver', pageSlug: 'denver', name: 'Denver',
+      tagline: 'Serving the greater Denver metropolitan area.',
+      foundedYear: 2023,
+      emailAlias: 'denver@goodneighbor.fund', slackChannel: 'C04ULN7FPB9', lpSlackChannel: 'C04K9G4PVML', order: 2,
+      heroTitle: '$1,000 Micro-Grants for Denver Business Ideas',
+      heroTagline: 'No pitch deck required. No equity taken. Just belief in your vision and potential.',
+      servingTitle: 'Serving the Mile High City',
+      servingText: 'Good Neighbor Fund Denver supports entrepreneurs across the Denver metro area. From downtown to the suburbs, we believe in your Mile High dreams.',
+      counties: ['Denver County', 'Jefferson County', 'Arapahoe County', 'Adams County', 'Douglas County', 'Boulder County'],
+      poweredByText: "Good Neighbor Fund is a collective giving organization. Our funding comes from Limited Partners (LPs) — local founders, operators, and community members who pool their own capital each quarter to fund the boldest new ideas in Denver. No overhead. No bureaucracy. Just neighbors investing in neighbors.",
+      showLPs: true, showGallery: true
+    },
+    {
+      slug: 'upstate', pageSlug: 'upstate', name: 'Upstate New York',
+      tagline: 'Bringing belief capital to founders across Central and Upstate New York — Syracuse, Ithaca, Binghamton, Utica and beyond.',
+      foundedYear: 2026,
+      emailAlias: 'upstateny@goodneighbor.fund', slackChannel: 'C0AUSSA9DGW', lpSlackChannel: 'C0AUUTAB2BC', order: 3,
+      heroTitle: '$1,000 Micro-Grants for Upstate NY Business Ideas',
+      heroTagline: 'No pitch deck required. No equity taken. Just belief in your vision and potential.',
+      servingTitle: 'Serving Central & Upstate New York',
+      servingText: "Good Neighbor Fund Upstate NY supports entrepreneurs across Central and Upstate New York — from Syracuse to Ithaca, Binghamton to Utica. Wherever you're building, we believe in your potential.",
+      counties: ['Onondaga County', 'Tompkins County', 'Broome County', 'Oneida County', 'Madison County', 'Cortland County', 'Tioga County', 'Chemung County'],
+      poweredByText: "Good Neighbor Fund is a collective giving organization. Our funding comes from Limited Partners (LPs) — local founders, operators, and community members who pool their own capital each quarter to fund the boldest new ideas in Upstate NY. No overhead. No bureaucracy. Just neighbors investing in neighbors.",
+      showLPs: false, showGallery: false
+    },
+    {
+      slug: 'capital-region', pageSlug: 'capital-region', name: 'Capital Region',
+      tagline: "Supporting bold ideas across New York's Capital Region — Albany, Schenectady, Troy and the surrounding area.",
+      foundedYear: 2026,
+      emailAlias: 'capitalregion@goodneighbor.fund', slackChannel: 'C0B096U4KK2', lpSlackChannel: 'C0AV7QJS1TK', order: 4,
+      heroTitle: '$1,000 Micro-Grants for Capital Region Business Ideas',
+      heroTagline: 'No pitch deck required. No equity taken. Just belief in your vision and potential.',
+      servingTitle: "Serving New York's Capital Region",
+      servingText: "Good Neighbor Fund Capital Region supports entrepreneurs across Albany, Schenectady, Troy, Saratoga Springs and the surrounding counties. Wherever you're building, we believe in your potential.",
+      counties: ['Albany County', 'Schenectady County', 'Rensselaer County', 'Saratoga County', 'Columbia County', 'Greene County', 'Washington County', 'Warren County'],
+      poweredByText: "Good Neighbor Fund is a collective giving organization. Our funding comes from Limited Partners (LPs) — local founders, operators, and community members who pool their own capital each quarter to fund the boldest new ideas in the Capital Region. No overhead. No bureaucracy. Just neighbors investing in neighbors.",
+      showLPs: false, showGallery: false
+    },
+  ];
+  try {
+    let created = 0, toppedUp = 0, unchanged = 0;
+    for (const c of legacyChapters) {
+      const existing = chapters.find(x => x.id === c.slug);
+      if (!existing) {
+        await setDoc(doc(db, "chapters", c.slug), {
+          ...c,
+          active: true,
+          createdAt: Timestamp.now(),
+          createdBy: user.uid,
+          updatedAt: Timestamp.now()
+        });
+        created++;
+        continue;
+      }
+      // Chapter exists — only fill in fields that are currently empty/missing.
+      // Never overwrite a value the user has already set.
+      const topUp = {};
+      const isEmpty = (v) => v === undefined || v === null || v === '';
+      for (const [k, v] of Object.entries(c)) {
+        if (isEmpty(existing[k])) topUp[k] = v;
+      }
+      if (Object.keys(topUp).length === 0) {
+        unchanged++;
+      } else {
+        topUp.updatedAt = Timestamp.now();
+        await setDoc(doc(db, "chapters", existing.id), topUp, { merge: true });
+        toppedUp++;
+      }
+    }
+    showAppAlert(`Seed complete.\n• Created: ${created}\n• Topped up (added missing fields): ${toppedUp}\n• Already complete (no changes): ${unchanged}`);
+    loadChapters();
+  } catch (error) {
+    console.error('Seed chapters error:', error);
+    showAppAlert(`Seed failed: ${error.message}`);
   }
 };
 
@@ -2992,6 +3746,8 @@ const handleAdminPitchExport = () => {
       "Self Identification": p.selfIdentification?.join(", ") || "",
       "Website": p.website || "",
       "Heard About": p.heardAbout || "",
+      "Terms & Privacy Agreed": p.consentToShare ? "Yes" : "No",
+      "In-Person Meetup Agreed": p.consentToMeetup ? "Yes" : "No",
       "Pitch Video URL": p.pitchVideoUrl || "",
       "Pitch Video File": p.pitchVideoFile || "", // Added
       "Total Reviews": groupedReviews.count || 0,
@@ -3017,6 +3773,56 @@ const handleAdminPitchExport = () => {
     console.log(`LPPortal: CSV export successful: ${filename}`);
   } catch (error) {
     console.error("LPPortal: CSV Export Error:", error);
+    showAppAlert(`CSV export failed: ${error.message}`);
+  }
+};
+
+// Export the LP pitch list (all fields, based on current filters)
+const handleLpPitchExport = () => {
+  const pitchesToExport = lpFilteredPitches;
+  if (!pitchesToExport || pitchesToExport.length === 0) {
+    showAppAlert("No pitches match the current filters to export.");
+    return;
+  }
+
+  const normalizeValue = (val) => {
+    if (val === null || val === undefined) return "";
+    if (typeof val === 'object') {
+      if (typeof val.toDate === 'function') {
+        try { return val.toDate().toISOString(); } catch { return ""; }
+      }
+      if (val instanceof Date) return val.toISOString();
+      if (Array.isArray(val)) return val.join(", ");
+      try { return JSON.stringify(val); } catch { return String(val); }
+    }
+    return val;
+  };
+
+  // Collect the union of all keys across pitches for "all fields"
+  const allKeys = new Set();
+  pitchesToExport.forEach((p) => Object.keys(p || {}).forEach((k) => allKeys.add(k)));
+  const orderedKeys = Array.from(allKeys).sort();
+
+  const rows = pitchesToExport.map((p) => {
+    const row = {};
+    orderedKeys.forEach((k) => { row[k] = normalizeValue(p[k]); });
+    const myReview = reviews[p.id];
+    row["myReviewRating"] = myReview?.overallLpRating || "";
+    row["myReviewComments"] = myReview?.comments || "";
+    row["mySubmittedAt"] = myReview?.submittedAt ? normalizeValue(myReview.submittedAt) : "";
+    return row;
+  });
+
+  try {
+    const csv = Papa.unparse(rows, { header: true });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const timestamp = new Date().toISOString().slice(0, 10);
+    const chapterPart = reviewChapterFilter || 'allChapters';
+    const quarterPart = reviewQuarterFilter.length === 0 ? 'allQuarters' : reviewQuarterFilter.join('-');
+    const filename = `neighborhoodOS_review_pitches_${chapterPart}_${quarterPart}_${timestamp}.csv`;
+    saveAs(blob, filename);
+  } catch (error) {
+    console.error("LPPortal: LP CSV Export Error:", error);
     showAppAlert(`CSV export failed: ${error.message}`);
   }
 };
@@ -3074,7 +3880,7 @@ const getGroupedReviewsForAdmin = useCallback((pitchId) => {
 
   const relevantReviews = allReviewsData.filter(r => r.pitchId === pitchId);
   const count = relevantReviews.length;
-  if (count === 0) return { count: 0, byRating: {}, details: [], comments: [] };
+  if (count === 0) return { count: 0, byRating: {}, details: [], comments: [], score: 0, scoredCount: 0, averageScore: null };
 
   const allComments = []; // Collect comments
 
@@ -3090,9 +3896,9 @@ const getGroupedReviewsForAdmin = useCallback((pitchId) => {
     const reviewerDisplay = reviewerInfo ? (reviewerInfo.name || reviewerInfo.email) : (review.reviewerName || `ID: ${review.reviewerId?.substring(0,6)}...` || 'Unknown Reviewer');
     acc[rating].reviewers.push(reviewerDisplay);
 
-    // Collect comment if it exists
+    // Collect comment with reviewer info
     if (review.comments && review.comments.trim() !== "") {
-        allComments.push(review.comments.trim());
+        allComments.push({ text: review.comments.trim(), reviewer: reviewerDisplay });
     }
 
     return acc;
@@ -3115,11 +3921,26 @@ const getGroupedReviewsForAdmin = useCallback((pitchId) => {
     return (timeB || 0) - (timeA || 0); // Sort newest first
   });
 
+  // Weighted score: Favorite +2, Consideration +1, Pass 0, Ineligible -2.
+  // "No Rating" rows are ignored so partial reviews don't skew the average.
+  let score = 0;
+  let scoredCount = 0;
+  Object.entries(groupedByRating).forEach(([rating, data]) => {
+    if (rating in LP_RATING_WEIGHTS) {
+      score += LP_RATING_WEIGHTS[rating] * data.count;
+      scoredCount += data.count;
+    }
+  });
+  const averageScore = scoredCount > 0 ? score / scoredCount : null;
+
   return {
     count: count,
     byRating: groupedByRating,
     details: detailedReviews,
-    comments: allComments // Add collected comments
+    comments: allComments,
+    score,
+    scoredCount,
+    averageScore
   };
 }, [allReviewsData, users]); // Depend on the full reviews list and the users list
 
@@ -3170,22 +3991,56 @@ const adminFilteredSortedPitches = useMemo(() => {
   });
 
   // --- Sorting Logic ---
-  // Only sort by favorites if one of the favorite filters is active
+  const submittedTime = (p) => (
+    p.createdAt?.toDate ? p.createdAt.toDate().getTime()
+      : (p.createdAt instanceof Date ? p.createdAt.getTime() : 0)
+  );
+
+  // Favorite-filter precedence: if the user is filtering by favorites,
+  // sort by favorite count regardless of sort dropdown.
   if (adminFavoriteFilterMode === 'favsOnly' || adminFavoriteFilterMode === 'favsAndCons') {
     filtered.sort((a, b) => {
       const favCountA = getGroupedReviewsForAdmin(a.id).byRating?.["Favorite"]?.count || 0;
       const favCountB = getGroupedReviewsForAdmin(b.id).byRating?.["Favorite"]?.count || 0;
-      // Sort descending by favorite count
-      if (favCountB !== favCountA) {
-        return favCountB - favCountA;
-      }
-      // Secondary sort: by submission date descending
-      const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (a.createdAt instanceof Date ? a.createdAt.getTime() : 0);
-      const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (b.createdAt instanceof Date ? b.createdAt.getTime() : 0);
-      return (timeB || 0) - (timeA || 0);
+      if (favCountB !== favCountA) return favCountB - favCountA;
+      return (submittedTime(b) || 0) - (submittedTime(a) || 0);
     });
+  } else if (adminSortMode === 'oldest') {
+    filtered.sort((a, b) => submittedTime(a) - submittedTime(b));
+  } else if (adminSortMode === 'sumDesc' || adminSortMode === 'sumAsc') {
+    // Raw score (sum). Rewards volume of favorable reviews. Unreviewed = 0.
+    filtered.sort((a, b) => {
+      const scoreA = getGroupedReviewsForAdmin(a.id).score || 0;
+      const scoreB = getGroupedReviewsForAdmin(b.id).score || 0;
+      const diff = adminSortMode === 'sumDesc' ? scoreB - scoreA : scoreA - scoreB;
+      if (diff !== 0) return diff;
+      return (submittedTime(b) || 0) - (submittedTime(a) || 0);
+    });
+  } else if (adminSortMode === 'avgDesc' || adminSortMode === 'avgAsc') {
+    // Average score (quality per review). Unreviewed treated as 0.
+    // Tiebreakers: more reviews first (higher confidence), then newest.
+    filtered.sort((a, b) => {
+      const gA = getGroupedReviewsForAdmin(a.id);
+      const gB = getGroupedReviewsForAdmin(b.id);
+      const avgA = gA.averageScore === null || gA.averageScore === undefined ? 0 : gA.averageScore;
+      const avgB = gB.averageScore === null || gB.averageScore === undefined ? 0 : gB.averageScore;
+      const diff = adminSortMode === 'avgDesc' ? avgB - avgA : avgA - avgB;
+      if (diff !== 0) return diff;
+      const reviewDiff = (gB.scoredCount || 0) - (gA.scoredCount || 0);
+      if (reviewDiff !== 0) return reviewDiff;
+      return (submittedTime(b) || 0) - (submittedTime(a) || 0);
+    });
+  } else if (adminSortMode === 'mostReviews') {
+    filtered.sort((a, b) => {
+      const countA = getGroupedReviewsForAdmin(a.id).count || 0;
+      const countB = getGroupedReviewsForAdmin(b.id).count || 0;
+      if (countB !== countA) return countB - countA;
+      return (submittedTime(b) || 0) - (submittedTime(a) || 0);
+    });
+  } else {
+    // 'newest' (default)
+    filtered.sort((a, b) => (submittedTime(b) || 0) - (submittedTime(a) || 0));
   }
-  // Otherwise, the default sort (by createdAt descending from query) is maintained.
 
   return filtered;
 
@@ -3196,7 +4051,8 @@ const adminFilteredSortedPitches = useMemo(() => {
     adminSearch,
     isSuperAdmin,
     adminHidePassed,
-    adminFavoriteFilterMode, // Updated dependency
+    adminFavoriteFilterMode,
+    adminSortMode,
     getGroupedReviewsForAdmin
 ]);
 
@@ -3215,79 +4071,101 @@ const sortedUsers = useMemo(() => {
 
 // --- Render Logic ---
 
-if (isLoadingAuth) {
-  // Simple loading indicator while checking auth status
-  return <div style={{ padding: '50px', textAlign: 'center', fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif', fontSize: '1.2em', color: '#444' }}>Verifying access...</div>;
+if (isLoadingAuth || completingSignIn) {
+  const message = completingSignIn ? "Signing you in…" : "Verifying access…";
+  return <div style={{ padding: '50px', textAlign: 'center', fontFamily: 'var(--font-content)', fontSize: '1.2em', color: 'var(--mb-ink-60)' }}>{message}</div>;
 }
 
 
 // --- Login Screen ---
 if (!user) {
+  const linkSent = !!signInLinkSentTo;
   return (
-    <div style={{ width: "100%", height: "100%", display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
-      <div style={{ width: "100%", maxWidth: "450px", padding: "15px 25px", textAlign: "center", background: '#f5f5f5', fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif' }}>
-        <h2 style={{ borderBottom: '2px solid #888', paddingBottom: '8px', marginBottom: '15px', color: '#222', fontSize: '1.5em' }}>LP Portal</h2>
+    <div className="lp-login">
+      <div className="lp-login__card">
+        <span className="lp-login__eyebrow">Limited Partner Access</span>
 
-      {/* Auth Error Display */}
-      {authError && (
-        <div style={{ color: "#8B0000", background: '#FFEBEE', border: '1px solid #FFCDD2', padding: '10px 15px', marginBottom: "20px", marginTop: '10px', fontSize: '0.9em', textAlign: 'left', borderRadius: '3px' }}>
-          <strong style={{marginRight: '5px'}}>Error:</strong>{authError}
-        </div>
-      )}
+        {linkSent ? (
+          <>
+            <h1 className="lp-login__title">Check <em>your email.</em></h1>
+            <p className="lp-login__lede">
+              We sent a one-tap sign-in link to <strong style={{ color: 'var(--mb-ink)' }}>{signInLinkSentTo}</strong>.
+              Open it on this device to sign in. The link expires in about an hour.
+            </p>
+            {authError && (
+              <div role="alert" className="lp-login__error">
+                <strong>Error:</strong><span>{authError}</span>
+              </div>
+            )}
+            <div className="lp-login__sent">
+              <div className="lp-login__sent-icon" aria-hidden="true">✉️</div>
+              <button
+                type="button"
+                onClick={() => { setSignInLinkSentTo(""); setAuthError(""); }}
+                className="lp-login__use-different"
+              >
+                Use a different email
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h1 className="lp-login__title">Welcome, <em>neighbor.</em></h1>
+            <p className="lp-login__lede">
+              Sign in to review pitches, vote on grants, and help your chapter decide who gets $1,000 next.
+            </p>
 
-      {/* Email Login Form Area */}
-      <div style={{ paddingTop: '5px' }}>
-        <div style={{ marginBottom: "12px", color: '#333', fontWeight: 'bold' }}>
-          Login with Email:
-        </div>
-        <>
-            <AuthInput type="email" placeholder="Email Address" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <AuthInput type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            <RetroButton 
-              onClick={handleEmailLogin} 
-              primary 
-              style={{ margin: "15px auto 5px auto", display: 'block', width: "calc(100% - 20px)"}}
+            {authError && (
+              <div role="alert" className="lp-login__error">
+                <strong>Error:</strong><span>{authError}</span>
+              </div>
+            )}
+
+            <form className="lp-login__form" onSubmit={(e) => { e.preventDefault(); if (!signInLinkSending) handleSendSignInLink(); }}>
+              <label className="lp-login__label" htmlFor="lp-login-email">Email Address</label>
+              <input
+                id="lp-login-email"
+                className="lp-login__input"
+                type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="you@goodneighbor.fund"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <button
+                type="submit"
+                className="lp-login__submit"
+                disabled={signInLinkSending}
+              >
+                {signInLinkSending ? 'Sending…' : 'Email me a sign-in link'}
+              </button>
+            </form>
+
+            <div className="lp-login__divider" aria-hidden="true">or</div>
+
+            <button
+              type="button"
+              className="lp-login__google"
+              onClick={handleGoogleLogin}
             >
-              Sign In
-            </RetroButton>
-            <button 
-              onClick={() => {
-                if (email) {
-                  import("firebase/auth").then(({ sendPasswordResetEmail }) => {
-                    sendPasswordResetEmail(auth, email)
-                      .then(() => showAppAlert("Password reset email sent! Check your inbox."))
-                      .catch(err => showAppAlert(`Error: ${err.message}`));
-                  });
-                } else {
-                  showAppAlert("Please enter your email address first.");
-                }
-              }} 
-              style={{background:'none', border:'none', color:'#0000EE', textDecoration:'underline', cursor:'pointer', fontSize:'0.9em', marginTop:'10px'}}
-            >
-              Forgot Password?
+              <svg viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                <path fill="#FBBC05" d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z"/>
+                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 7.294C4.672 5.167 6.656 3.58 9 3.58z"/>
+              </svg>
+              Continue with Google
             </button>
-        </>
-      </div>
+          </>
+        )}
 
-        {/* Google Login Separator & Button */}
-        <div style={{ margin: "20px 0 15px 0", paddingTop: '15px', borderTop: '1px solid #888' }}>
-          <div style={{ marginBottom: "12px", color: '#333', fontWeight: 'bold' }}>Login with Google:</div>
-          <button onClick={handleGoogleLogin} title="Login with Google" style={{ background: "transparent", border: "none", cursor: "pointer", padding: "0", display: 'inline-block' }}>
-            {/* Ensure this path is correct relative to your public folder */}
-            <img src="/assets/Google.webp" alt="Google logo" style={{ height: "50px", width: "auto", verticalAlign: 'middle' }} />
-          </button>
-        </div>
-
-        {/* Footer Link (Optional) */}
-        <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid #888', fontSize: '0.85em', color: '#444', lineHeight: '1.3' }}>
-          <p style={{ margin: '0 0 10px 0' }}>
-            This tool is for internal GNF Limited Partner use and requires an Admin invite. 
-          </p>
-          <p style={{ margin: '0' }}>
-            Interested in becoming a Limited Partner? <br />
-            <a href="https://airtable.com/app38xfYxu9HY6yT3/pagy7R4p6BCdXBpzF/form" target="_blank" rel="noopener noreferrer" style={{ color: "#0000EE", textDecoration: 'underline', fontWeight: 'bold' }} >
-              Apply Here
-            </a>
+        <div className="lp-login__footer">
+          <p>This tool is for internal GNF Limited Partner use and requires an Admin invite.</p>
+          <p>
+            Interested in becoming a Limited Partner?{' '}
+            <a href="/lp-application" className="lp-login__apply">Apply here →</a>
           </p>
         </div>
       </div>
@@ -3299,7 +4177,7 @@ if (!user) {
 
 // --- Logged-In View ---
 return (
-  <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif', background: '#f0f0f0' }}>
+  <div className="win95-window" style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', fontFamily: 'var(--font-content)' }}>
     
     {/* Mobile Styles */}
     <style>{`
@@ -3325,11 +4203,12 @@ return (
           height: 100vh;
           width: 80%;
           max-width: 300px;
-          background: #f8f8f8;
+          background: var(--gnf-bg-gray);
           transition: left 0.3s ease;
           z-index: 999;
           flex-direction: column;
-          box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+          border-right: 2px solid var(--gnf-border-pink);
+          box-shadow: 2px 2px 0 var(--gnf-pink-300);
         }
         .main-content-area {
           width: 100% !important;
@@ -3351,12 +4230,49 @@ return (
           width: 100% !important;
           max-width: 100% !important;
         }
-        .filter-bar {
-          flex-direction: column !important;
-          gap: 10px !important;
+        /* Filter bar: 2-col grid with full-width search + pitch-type and
+           paired chapter/quarter + Hide/Export. Overrides .filter-bar--one-row's
+           nowrap so nothing clips at 390px. Layout:
+             row 1: [search       ] (span 2)
+             row 2: [chapter][quarter]
+             row 3: [pitch-type   ] (span 2)
+             row 4: [hide-passes][export]
+        */
+        .filter-bar, .filter-bar--one-row {
+          display: grid !important;
+          grid-template-columns: 1fr 1fr !important;
+          flex-wrap: wrap !important;
+          gap: 8px !important;
+          padding: 10px !important;
+          margin-bottom: 14px !important;
         }
-        .filter-bar select, .filter-bar input {
+        .filter-bar select, .filter-bar input,
+        .filter-bar--one-row select, .filter-bar--one-row input {
           width: 100% !important;
+          min-width: 0 !important;
+          min-height: 40px !important;
+          font-size: 14px !important;
+        }
+        .filter-bar > input[type="text"],
+        .filter-bar > input[type="search"],
+        .filter-bar--one-row > input[type="text"],
+        .filter-bar--one-row > input[type="search"] {
+          grid-column: 1 / -1 !important;
+          min-width: 0 !important;
+        }
+        .filter-bar--one-row > .multi-select-dropdown {
+          min-width: 0 !important;
+        }
+        /* 4th child (pitch-type filter) spans full width on its own row */
+        .filter-bar--one-row > *:nth-child(4) {
+          grid-column: 1 / -1 !important;
+        }
+        .filter-bar--one-row > button,
+        .filter-bar--one-row > .retro-toggle {
+          height: 40px !important;
+          min-height: 40px !important;
+          padding: 0 10px !important;
+          font-size: 12px !important;
         }
         .badge-grid {
           grid-template-columns: repeat(2, 1fr) !important;
@@ -3390,60 +4306,11 @@ return (
           display: none !important;
         }
         
-        /* StatsBar responsive styles - single horizontal scroll row */
+        /* Hide the full stats bar (LP stats / chapter stats / awarded /
+           badges) on mobile — it takes too much vertical space. LPs can still
+           see these on desktop. */
         .stats-bar {
-          padding: 8px 10px !important;
-        }
-        .stats-bar > div:first-child {
-          flex-direction: row !important;
-          gap: 0 !important;
-          overflow-x: auto !important;
-          -webkit-overflow-scrolling: touch !important;
-          scrollbar-width: none !important;
-          -ms-overflow-style: none !important;
-          flex-wrap: nowrap !important;
-        }
-        .stats-bar > div:first-child::-webkit-scrollbar {
           display: none !important;
-        }
-        .stats-sections {
-          display: contents !important;
-        }
-        .stats-group {
-          display: contents !important;
-        }
-        .stats-items {
-          display: contents !important;
-        }
-        .stats-items > div {
-          min-width: 60px !important;
-          flex-shrink: 0 !important;
-          margin-right: 12px !important;
-        }
-        .stats-items > div > div:first-child {
-          font-size: 9px !important;
-        }
-        .stats-items > div > div:nth-child(2) {
-          font-size: 14px !important;
-        }
-        .stats-items > div > div:last-child {
-          font-size: 8px !important;
-        }
-        .stats-items > div:nth-child(2), .stats-items > div:nth-child(4), .stats-items > div:nth-child(6) {
-          display: none !important;
-        }
-        .badges-section {
-          display: contents !important;
-        }
-        .badges-section > div {
-          min-width: 65px !important;
-          min-height: 65px !important;
-          padding: 4px 6px !important;
-          margin-right: 8px !important;
-          flex-shrink: 0 !important;
-        }
-        .badges-section > div:last-child {
-          margin-right: 0 !important;
         }
         
         /* Admin table responsive */
@@ -3472,6 +4339,107 @@ return (
         .multi-select-dropdown {
           width: 100% !important;
         }
+
+        /* ── LP Pitch Card — tighter typography, stacked founder line ── */
+        .lp-pitch-card {
+          padding: 12px 14px !important;
+          margin-bottom: 10px !important;
+        }
+        .lp-pitch-card__head {
+          gap: 8px !important;
+        }
+        .lp-pitch-card__title {
+          font-size: 16px !important;
+          line-height: 1.2 !important;
+        }
+        .lp-pitch-card__by {
+          display: block !important;
+          font-size: 12px !important;
+          margin-top: 2px !important;
+        }
+        .lp-pitch-card__summary {
+          font-size: 13px !important;
+          line-height: 1.45 !important;
+        }
+        .lp-pitch-card__summary-body {
+          display: -webkit-box !important;
+          -webkit-line-clamp: 4 !important;
+          -webkit-box-orient: vertical !important;
+          overflow: hidden !important;
+        }
+        .lp-pitch-card__meta {
+          font-size: 11px !important;
+          margin-top: 8px !important;
+        }
+
+        /* ── Pitch Review grid — full-width single column on mobile with
+           reduced card padding and unlimited height so form flows naturally. */
+        .pr-grid {
+          grid-template-columns: 1fr !important;
+          gap: 14px !important;
+        }
+        .pr-card {
+          padding: 18px 14px !important;
+          max-height: none !important;
+        }
+        .pr-header__title {
+          font-size: 22px !important;
+        }
+        .pr-identity {
+          gap: 4px 14px !important;
+          font-size: 13px !important;
+        }
+        .pr-actions {
+          gap: 6px !important;
+          margin-bottom: 16px !important;
+        }
+        .pr-btn {
+          padding: 10px 12px !important;
+          font-size: 11px !important;
+          min-height: 40px !important;
+        }
+        .pr-ai {
+          padding: 12px 14px !important;
+          margin-bottom: 18px !important;
+        }
+        .pr-ai__body {
+          font-size: 13px !important;
+        }
+        .pr-section {
+          padding-top: 14px !important;
+          margin-top: 14px !important;
+        }
+        .pr-field {
+          margin-bottom: 14px !important;
+        }
+        .pr-field__value {
+          font-size: 13px !important;
+        }
+        /* Form controls get 44px touch targets */
+        .pr-select,
+        .pr-textarea {
+          font-size: 15px !important;
+          padding: 11px 12px !important;
+        }
+        .pr-select {
+          height: 44px !important;
+        }
+        .pr-form__title {
+          font-size: 20px !important;
+        }
+        .pr-form__group--required {
+          padding: 12px 14px !important;
+        }
+        .pr-submit-row {
+          flex-wrap: wrap !important;
+          gap: 8px !important;
+          padding-top: 14px !important;
+        }
+        .pr-submit-row .pr-btn {
+          padding: 12px 12px !important;
+          font-size: 12px !important;
+        }
+
       }
       @media (min-width: 769px) {
         .mobile-menu-btn { display: none !important; }
@@ -3497,20 +4465,20 @@ return (
       />
     )}
 
-    {/* Header Bar */}
-    <div style={{ borderBottom: '1px solid #e0e0e0', padding: '12px 20px', background: 'white', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    {/* Header Bar — Win95 Titlebar */}
+    <div className="win95-titlebar" style={{ padding: '6px 12px', flexShrink: 0, cursor: 'default' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
         {/* Mobile Menu Button */}
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           style={{
             display: 'none',
-            '@media (max-width: 768px)': { display: 'block' },
-            background: 'none',
-            border: 'none',
-            fontSize: '24px',
+            background: 'var(--mb-paper-deep)',
+            border: '2px solid',
+            borderColor: 'var(--mb-ink)',
+            fontSize: '16px',
             cursor: 'pointer',
-            padding: '5px',
+            padding: '2px 6px',
             lineHeight: '1'
           }}
           className="mobile-menu-btn"
@@ -3518,30 +4486,13 @@ return (
           ☰
         </button>
         <div className="header-text">
-          <div style={{ fontWeight: 'bold', fontSize: '1.1em', color: '#333', whiteSpace: 'nowrap' }}>{(user?.chapter || "Neighborhood OS") + ": LP Portal"}</div>
-          <div style={{ fontSize: '0.9em', color: '#666', whiteSpace: 'nowrap' }}> Welcome, {user?.name || user?.email}!</div>
+          <div style={{ fontWeight: 'bold', fontSize: '13px', whiteSpace: 'nowrap' }}>{(user?.chapter || "Neighborhood OS") + ": LP Portal"}</div>
+          <div style={{ fontSize: '11px', color: 'var(--mb-ink-60)', whiteSpace: 'nowrap', fontWeight: 'normal' }}>Welcome, {user?.name || user?.email}!</div>
         </div>
       </div>
-      <button onClick={handleSignOut} className="logout-btn" style={{ 
-        padding: "6px 16px", 
-        fontSize: "13px", 
-        background: "white", 
-        color: '#666',
-        border: "1px solid #e0e0e0", 
-        borderRadius: '6px',
-        cursor: 'pointer',
-        transition: 'all 0.2s ease'
-      }}
-      onMouseEnter={(e) => {
-        e.target.style.background = '#f5f5f5';
-        e.target.style.borderColor = '#ccc';
-      }}
-      onMouseLeave={(e) => {
-        e.target.style.background = 'white';
-        e.target.style.borderColor = '#e0e0e0';
-      }}>
+      <RetroButton onClick={handleSignOut} className="logout-btn" style={{ padding: '4px 12px', fontSize: '12px', margin: 0 }}>
         Logout
-      </button>
+      </RetroButton>
     </div>
     
     {/* Stats Bar */}
@@ -3603,8 +4554,9 @@ return (
       {/* Desktop Sidebar */}
       <div style={{
         width: '200px',
-        background: '#f8f8f8',
-        borderRight: '1px solid #e0e0e0',
+        background: 'var(--mb-paper)',
+        borderRight: '2px solid',
+        borderColor: 'var(--gnf-border-pink)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0
@@ -3616,8 +4568,8 @@ return (
       <div className="mobile-sidebar" style={{
         display: 'none',
         width: '200px',
-        background: '#f8f8f8',
-        borderRight: '1px solid #e0e0e0',
+        background: 'var(--mb-paper)',
+        borderRight: '2px solid var(--gnf-border-pink)',
         flexDirection: 'column',
         flexShrink: 0
       }}>
@@ -3625,7 +4577,7 @@ return (
       </div>
 
       {/* Main Content Area (Scrollable) */}
-      <div ref={listScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '20px', background: '#fafafa' }} className="main-content-area content-section">
+      <div ref={listScrollRef} style={{ flex: 1, overflowY: 'auto', padding: '20px', background: 'var(--gnf-bg)' }} className="main-content-area content-section">
 
       {/* --- Review Pitches Tab Content --- */}
       {activeTab === 'reviewPitches' && (
@@ -3633,91 +4585,64 @@ return (
           {/* --- Pitch List View --- */}
           {!selectedPitch ? (
             <>
-              {/* Filters and Controls - Added Quarter Filter */}
-              <div className="filter-bar" style={{ display: "flex", gap: "10px", marginBottom: "20px", alignItems: "center", flexWrap: "wrap", background: "white", padding: "15px", borderRadius: "8px", border: "1px solid #e0e0e0", boxShadow: '0 1px 3px rgba(0,0,0,0.05)', fontSize: '14px' }}>
+              {/* Filter bar — styling from `.filter-bar` utility class; controls
+                  inherit MB select/input styling (chalk bg, ink border, SVG
+                  chevron). Inline style hooks are dropped so the MB cascade
+                  wins and the oversized native chevron doesn't leak through. */}
+              <div className="filter-bar filter-bar--one-row" role="group" aria-label="Filter pitches">
                 <input
-                  type="text"
+                  type="search"
+                  aria-label="Search pitches"
                   placeholder="Search name/business"
                   value={reviewSearchTerm}
                   onChange={(e) => setReviewSearchTerm(e.target.value)}
-                  style={{ padding: "8px 12px", fontSize: "inherit", flexGrow: 1, minWidth: "200px", height: "36px", border: "1px solid #e0e0e0", borderRadius: "6px", boxSizing: "border-box", fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s ease' }}
-                  onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
-                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
                 />
-                {/* Chapter Filter */}
+                {isSuperAdmin && (
+                  <select
+                    aria-label="Filter by chapter"
+                    value={reviewChapterFilter}
+                    onChange={(e) => setReviewChapterFilter(e.target.value)}
+                    style={{ minWidth: 160 }}
+                  >
+                    <option value="">All Chapters</option>
+                    {[...new Set(lpPitches.map((p) => p.chapter).filter(Boolean))].sort().map((c) => (<option key={c} value={c}>{c}</option>))}
+                  </select>
+                )}
+                <MultiSelectDropdown
+                  options={[...new Set(lpPitches.map((p) => p.quarter).filter(q => q && q !== "Invalid Quarter"))]
+                    .sort((a, b) => {
+                      const [aQ, aY] = a.split(' ');
+                      const [bQ, bY] = b.split(' ');
+                      if (bY !== aY) return parseInt(bY) - parseInt(aY);
+                      return parseInt(bQ.substring(1)) - parseInt(aQ.substring(1));
+                    })}
+                  selected={reviewQuarterFilter}
+                  onChange={setReviewQuarterFilter}
+                  placeholder="All Quarters"
+                />
                 <select
-                  value={reviewChapterFilter}
-                  onChange={(e) => setReviewChapterFilter(e.target.value)}
-                  style={{ padding: "8px 12px", fontSize: "inherit", height: "36px", border: "1px solid #e0e0e0", borderRadius: "6px", backgroundColor: "white", boxSizing: "border-box", cursor: 'pointer', fontFamily: 'inherit', minWidth: '150px', outline: 'none', transition: 'border-color 0.2s ease' }}
-                  title="Filter by Chapter"
-                  onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
-                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
-                >
-                  <option value="">All Chapters</option> {/* Changed Text */}
-                  {/* Dynamically get unique chapters from loaded LP pitches */}
-                  {[...new Set(lpPitches.map((p) => p.chapter).filter(Boolean))].sort().map((c) => (<option key={c} value={c}>{c}</option>))}
-                </select>
-                 {/* Quarter Filter - Multi-Select */}
-                 <MultiSelectDropdown
-                   options={[...new Set(lpPitches.map((p) => p.quarter).filter(q => q && q !== "Invalid Quarter"))]
-                     .sort((a, b) => {
-                       const [aQ, aY] = a.split(' '); 
-                       const [bQ, bY] = b.split(' ');
-                       if (bY !== aY) return parseInt(bY) - parseInt(aY);
-                       return parseInt(bQ.substring(1)) - parseInt(aQ.substring(1));
-                     })}
-                   selected={reviewQuarterFilter}
-                   onChange={setReviewQuarterFilter}
-                   placeholder="All Quarters"
-                 />
-                <select
+                  aria-label="Filter by review status"
                   value={reviewFilter}
                   onChange={(e) => setReviewFilter(e.target.value)}
-                  style={{ padding: "8px 12px", fontSize: "inherit", height: "36px", border: "1px solid #e0e0e0", borderRadius: "6px", backgroundColor: "white", boxSizing: "border-box", cursor: 'pointer', fontFamily: 'inherit', minWidth: '140px', outline: 'none', transition: 'border-color 0.2s ease' }}
-                  title="Filter by Review Status"
-                  onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
-                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+                  style={{ minWidth: 150 }}
                 >
                   <option value="all">All Pitches</option>
                   <option value="reviewed">Reviewed</option>
                   <option value="notReviewed">Not Reviewed</option>
-                  <option value="favorites">⭐ Favorites Only</option> {/* Added Emoji */}
+                  <option value="favorites">Favorites Only</option>
                 </select>
-                {/* Hide Passed Button */}
                 <button
+                  type="button"
+                  className="retro-toggle"
+                  aria-pressed={hidePassedReviews}
                   onClick={() => setHidePassedReviews(!hidePassedReviews)}
                   title={hidePassedReviews ? "Show Passed/Ineligible Reviews" : "Hide Passed/Ineligible Reviews"}
-                  style={{
-                    background: hidePassedReviews ? "#FFB6D9" : "white",
-                    color: hidePassedReviews ? "white" : "#666",
-                    border: `1px solid ${hidePassedReviews ? '#FFB6D9' : '#e0e0e0'}`,
-                    borderRadius: '6px',
-                    padding: "0 16px",
-                    height: "36px",
-                    fontSize: "14px",
-                    whiteSpace: "nowrap",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    fontFamily: 'inherit'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!hidePassedReviews) {
-                      e.target.style.background = '#f5f5f5';
-                      e.target.style.borderColor = '#ccc';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!hidePassedReviews) {
-                      e.target.style.background = 'white';
-                      e.target.style.borderColor = '#e0e0e0';
-                    }
-                  }}
                 >
-                  {hidePassedReviews ? '👁️‍🗨️' : '👁️'} {hidePassedReviews ? 'Show' : 'Hide'} Passed/Ineligible
+                  {hidePassedReviews ? 'Show Passes' : 'Hide Passes'}
                 </button>
+                <RetroButton onClick={handleLpPitchExport} title="Export filtered pitches to CSV (all fields)">
+                  Export
+                </RetroButton>
               </div>
 
               {/* --- DEBUG LOG --- */}
@@ -3725,9 +4650,30 @@ return (
 
               {/* Pitch List or 'No Pitches' Message */}
               {lpFilteredPitches.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "40px 20px", color: "#666", background: '#fff', border: '1px solid #ccc', borderRadius:'3px' }}>
-                  {lpPitches.length === 0 ? "Loading pitches or no pitches submitted for your chapter(s) yet." : "No pitches match your current search/filter criteria."}
-                </div>
+                !lpPitchesLoaded ? (
+                  <EmptyState
+                    icon={null}
+                    title="Loading pitches…"
+                    description="One moment while we pull the latest submissions."
+                  />
+                ) : lpPitches.length === 0 ? (
+                  <EmptyState
+                    icon="📬"
+                    title="No pitches yet this quarter"
+                    description={
+                      <>
+                        When founders in <strong>{userChapter || 'your chapter'}</strong> submit, they'll land here for your review.
+                        Share <a href="/pitch" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--mb-magenta)' }}>goodneighbor.fund/pitch</a> to spread the word.
+                      </>
+                    }
+                  />
+                ) : (
+                  <EmptyState
+                    icon="🔍"
+                    title="No pitches match"
+                    description="Try clearing a filter or widening your search."
+                  />
+                )
               ) : (
                 <div>
                   {lpFilteredPitches.map((p) => {
@@ -3738,6 +4684,15 @@ return (
                     const isPassedOrIneligible = rating === "Pass" || rating === "Ineligible";
                     const isFavorite = rating === "Favorite";
 
+                    // Status → 4px left-accent color in the MB palette.
+                    const accent = !isReviewed
+                      ? 'var(--mb-magenta)'
+                      : isFavorite
+                        ? 'var(--mb-butter-deep)'
+                        : isPassedOrIneligible
+                          ? 'var(--mb-ink-15)'
+                          : 'var(--mb-aqua-deep)';
+
                     // --- USE ROBUST FORMATTING FOR DATE ---
                     const formattedDate = formatDate(p.createdAt || p.createdDate);
 
@@ -3745,63 +4700,58 @@ return (
                       <div
                         key={p.id}
                         onClick={() => selectPitchForReview(p)}
+                        className="lp-pitch-card"
                         style={{
-                          background: isReviewed ? (isPassedOrIneligible ? "#fff" : (isFavorite ? '#fff3e0' : '#e8f5e9') ) : "#fff", // Color based on review status
-                          padding: "12px 15px",
-                          marginBottom: "12px",
-                          border: `1px solid ${isReviewed ? (isPassedOrIneligible ? "#ddd" : (isFavorite ? '#ffe0b2' : '#a5d6a7')) : '#ccc'}`,
-                          borderLeft: `5px solid ${isReviewed ? (isPassedOrIneligible ? "#aaa" : (isFavorite ? '#ffb74d' : '#81c784')) : '#ccc'}`, // Left border indicator
-                          borderRadius: "3px",
-                          cursor: "pointer",
-                          transition: 'background-color 0.2s ease, border-color 0.2s ease',
-                          opacity: 1, // Opacity handled by filter logic now
-                          boxShadow: '1px 1px 3px rgba(0,0,0,0.1)'
+                          borderLeftColor: accent,
+                          opacity: isPassedOrIneligible ? 0.78 : 1,
                         }}
-                        title={`Click to view details & ${isReviewed ? 'edit' : 'submit'} review. Status: ${review ? (ratingEmojis[rating] || '') + ' ' + rating : 'Not Reviewed'}`}
+                        title={`Click to view details & ${isReviewed ? 'edit' : 'submit'} review. Status: ${review ? rating : 'Not Reviewed'}`}
                       >
-                        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px'}}>
-                          {/* Left side: Business/Founder Info */}
-                          <div style={{ flexGrow: 1 }}>
-                            <span style={{fontWeight: 'bold', fontSize: '1.1em'}}>{p.businessName || "No Business Name"}</span>
-                            <span style={{fontWeight: 'normal', color: '#555', marginLeft: '5px'}}>-- {p.founderName || "No Founder Name"}</span>
-                            {p.isContest && <span style={{ marginLeft: '10px', color: '#7b3ff2', fontWeight: 'bold', fontSize: '0.9em', background: '#f3e8ff', padding: '1px 5px', borderRadius: '3px', border: '1px solid #d4b5ff', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>🏆 Contest Submission</span>}
-                            {p.isWinner && <span style={{ marginLeft: '10px', color: 'green', fontWeight: 'bold', fontSize: '0.9em', background: '#d4edda', padding: '1px 5px', borderRadius: '3px', border: '1px solid #c3e6cb', display: 'inline-flex', alignItems: 'center', gap: '4px' }}> ✅ Grant Winner</span>} {/* Added Emoji */}
+                        <div className="lp-pitch-card__head">
+                          <div className="lp-pitch-card__info">
+                            <div className="lp-pitch-card__title">
+                              <strong>{p.businessName || 'No Business Name'}</strong>
+                              <span className="lp-pitch-card__by"> — {p.founderName || 'No Founder Name'}</span>
+                            </div>
+                            <div className="lp-pitch-card__tags">
+                              {p.isContest && <RetroPill tone="purple">🏆 Contest Submission</RetroPill>}
+                              {p.isWinner && <RetroPill tone="green">✅ Grant Winner</RetroPill>}
+                            </div>
                           </div>
-                          {/* Right side: Review Status Badge */}
-                          {review && (
-                            <div style={{
-                              fontSize: "13px",
-                              fontWeight: 'bold',
-                              color: isPassedOrIneligible ? '#757575' : (isFavorite ? '#e65100' : '#1b5e20'),
-                              border: '1px solid',
-                              borderColor: isPassedOrIneligible ? '#e0e0e0' : (isFavorite ? '#ffe0b2' : '#c8e6c9'),
-                              background: isPassedOrIneligible ? '#f5f5f5' : (isFavorite ? '#fff3e0' : '#e8f5e9'),
-                              padding: '3px 8px',
-                              borderRadius: '4px',
-                              whiteSpace: 'nowrap',
-                              flexShrink: 0,
-                              display: 'inline-flex', // Align emoji and text
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}>
-                              {/* Ensure ratingEmojis are prepended */}
-                              {ratingEmojis[rating] || ''} {rating}
-                            </div>
-                          )}
-                          {!review && (
-                            <div style={{ fontSize: "13px", fontWeight: 'bold', color: '#0d47a1', border: '1px solid #bbdefb', background: '#e3f2fd', padding: '3px 8px', borderRadius: '4px', whiteSpace: 'nowrap', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                               ✏️ Needs Review {/* Added Emoji */}
+                          <div className="lp-pitch-card__status">
+                            {review ? (
+                              <RetroPill tone={ratingTonePill(rating)} icon={<ReviewRatingIcon rating={rating} size={14} />}>
+                                {rating}
+                              </RetroPill>
+                            ) : (
+                              <RetroPill tone="pink">Needs Review</RetroPill>
+                            )}
+                          </div>
+                        </div>
+                        {/* AI summary (falls back to value prop) */}
+                        <div className="lp-pitch-card__summary">
+                          {p.aiSummary ? (
+                            <>
+                              <div className="lp-pitch-card__ai-tag">
+                                <span className="lp-pitch-card__ai-badge" aria-hidden="true">AI</span>
+                                <span>AI-generated overview</span>
+                              </div>
+                              <div className="lp-pitch-card__summary-body">{p.aiSummary}</div>
+                            </>
+                          ) : (
+                            <div className="lp-pitch-card__summary-body">
+                              {p.valueProp
+                                ? <em>&ldquo;{p.valueProp}&rdquo;</em>
+                                : 'No summary available.'}
                             </div>
                           )}
                         </div>
-                        {/* Value Prop Snippet */}
-                        <div style={{fontSize: '0.9em', color: '#444', margin: '6px 0', maxHeight: '3.6em', overflow: 'hidden', fontStyle:'italic'}}>
-                          {p.valueProp ? `"${p.valueProp.substring(0,150)}${p.valueProp.length > 150 ? '...' : ''}"` : "No value proposition provided."}
-                        </div>
-                        {/* Meta Info */}
-                        <div style={{fontSize: "12px", marginTop: "8px", color: "#666" }}>
-                          {/* Use the formatted date here */}
-                          Submitted: {formattedDate} | Chapter: {p.chapter || 'N/A'} | Quarter: {p.quarter || 'N/A'} {/* Added Quarter */}
+                        <div className="lp-pitch-card__meta">
+                          <span>Submitted {formattedDate}</span>
+                          <span className="lp-pitch-card__meta-sep" aria-hidden="true">·</span>
+                          <span>{p.chapter || 'N/A'}</span>
+                          <span className="lp-pitch-card__meta-sep" aria-hidden="true">·</span>
+                          <span style={{ fontFamily: 'var(--font-numeral)' }}>{p.quarter || 'N/A'}</span>
                         </div>
                       </div>
                     );
@@ -3813,444 +4763,303 @@ return (
           ) : (
             <div style={{ display: "flex", flexDirection: 'column', gap: "20px" }}>
               {/* Back Button */}
-              <button 
-                onClick={handleBackToList} 
-                style={{ 
-                  alignSelf: 'flex-start',
-                  padding: '8px 16px',
-                  background: 'white',
-                  color: '#666',
-                  border: '1px solid #e0e0e0',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontFamily: 'inherit',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#f5f5f5';
-                  e.currentTarget.style.borderColor = '#ccc';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'white';
-                  e.currentTarget.style.borderColor = '#e0e0e0';
-                }}
+              <button
+                type="button"
+                className="pr-back"
+                onClick={handleBackToList}
               >
                 ← Back to List
               </button>
 
-              {/* Layout for Details & Form (Flex wrap) */}
-              <div style={{ display: "flex", gap: "20px", flexDirection: 'row', flexWrap: 'wrap' }}>
+              {/* Two-column grid: pitch details + review form */}
+              <div className="pr-grid">
 
                 {/* Pitch Details Column */}
-                <div style={{ flex: '1 1 400px', minWidth: '300px', background: 'white', padding: '25px', border: '1px solid #e0e0e0', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', maxHeight: 'calc(100vh - 250px)', overflowY:'auto' }}>
-                  <div style={{ marginBottom: '20px' }}>
-                    <h3 style={{ margin: '0 0 10px 0', fontSize: '20px', color: '#333' }}>{selectedPitch.businessName || "N/A"}</h3>
-                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                      {selectedPitch.isContest && (
-                        <span style={{ 
-                          color: '#7b3ff2', 
-                          fontWeight: '600', 
-                          background: '#f3e8ff', 
-                          padding: '6px 12px', 
-                          borderRadius: '4px', 
-                          fontSize: '13px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          border: '1px solid #d4b5ff'
-                        }}>
-                          🏆 Contest Submission
-                        </span>
-                      )}
-                      {selectedPitch.isWinner && (
-                        <span style={{ 
-                          color: '#4CAF50', 
-                          fontWeight: '600', 
-                          background: '#E8F5E9', 
-                          padding: '6px 12px', 
-                          borderRadius: '4px', 
-                          fontSize: '13px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}>
-                          ✅ Grant Winner
-                        </span>
-                      )}
-                    </div>
+                <div className="pr-card">
+                  <div className="pr-header">
+                    <h3 className="pr-header__title">{selectedPitch.businessName || "N/A"}</h3>
+                    {(selectedPitch.isContest || selectedPitch.isWinner) && (
+                      <div className="pr-chips">
+                        {selectedPitch.isContest && (
+                          <span className="pr-chip pr-chip--contest">🏆 Contest Submission</span>
+                        )}
+                        {selectedPitch.isWinner && (
+                          <span className="pr-chip pr-chip--winner">✅ Grant Winner</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Contact Info Section */}
-                  <div style={{ marginBottom: '20px' }}>
-                    <div style={{ marginBottom: '12px' }}>
-                      <span style={{ color: '#999', fontSize: '13px', display: 'block', marginBottom: '3px' }}>Founder:</span>
-                      <span style={{ color: '#333', fontSize: '15px' }}>{selectedPitch.founderName || "N/A"}</span>
-                    </div>
-                    
-                    <div style={{ marginBottom: '12px' }}>
-                      <span style={{ color: '#999', fontSize: '13px', display: 'block', marginBottom: '3px' }}>Email:</span>
-                      <span style={{ color: '#333', fontSize: '15px' }}>
-                        {selectedPitch.email ? <a href={`mailto:${selectedPitch.email}`} style={{ color: '#0077B5' }}>{selectedPitch.email}</a> : "N/A"}
+                  {/* Founder + email inline */}
+                  <div className="pr-identity">
+                    <span className="pr-identity__item">
+                      <span className="pr-identity__label">Founder</span>
+                      <span className="pr-identity__value">{selectedPitch.founderName || "N/A"}</span>
+                    </span>
+                    {selectedPitch.email && (
+                      <span className="pr-identity__item">
+                        <span className="pr-identity__label">Email</span>
+                        <a href={`mailto:${selectedPitch.email}`}>{selectedPitch.email}</a>
                       </span>
-                    </div>
-                    
-                    <div style={{ marginBottom: '12px' }}>
-                      <span style={{ color: '#999', fontSize: '13px', display: 'block', marginBottom: '3px' }}>Website:</span>
-                      <span style={{ color: '#333', fontSize: '15px' }}>
-                        {selectedPitch.website ? (
-                          <a href={selectedPitch.website.startsWith('http') ? selectedPitch.website : `//${selectedPitch.website}`} 
-                             target="_blank" 
-                             rel="noopener noreferrer"
-                             style={{ color: '#0077B5' }}
-                          >
-                            {selectedPitch.website}
-                          </a>
-                        ) : "N/A"}
-                      </span>
-                    </div>
-                    
-                    <div style={{ marginBottom: '12px' }}>
-                      <span style={{ color: '#999', fontSize: '13px', display: 'block', marginBottom: '3px' }}>Video:</span>
-                      <span style={{ color: '#333', fontSize: '15px' }}>
-                        {selectedPitch.pitchVideoUrl ? (
-                          <a href={selectedPitch.pitchVideoUrl} 
-                             target="_blank" 
-                             rel="noopener noreferrer" 
-                             style={{ color: '#0077B5', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                          >
-                            🎬 Watch Pitch Video
-                          </a>
-                        ) : "Not provided"}
-                      </span>
-                    </div>
+                    )}
                   </div>
 
-                  <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '20px', marginBottom: '20px' }}>
-                    {/* Business Details */}
-                    <div style={{ marginBottom: '15px' }}>
-                      <div style={{ color: '#999', fontSize: '13px', marginBottom: '5px', fontWeight: '500' }}>Value Prop:</div>
-                      <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{selectedPitch.valueProp || "N/A"}</div>
+                  {/* Action buttons — left-aligned row */}
+                  {(selectedPitch.pitchVideoUrl || selectedPitch.website) && (
+                    <div className="pr-actions">
+                      {selectedPitch.pitchVideoUrl && (
+                        <button
+                          type="button"
+                          className="pr-btn"
+                          onClick={() => window.open(selectedPitch.pitchVideoUrl, '_blank', 'noopener,noreferrer')}
+                        >
+                          ▶ Watch Pitch Video
+                        </button>
+                      )}
+                      {selectedPitch.website && (
+                        <button
+                          type="button"
+                          className="pr-btn pr-btn--ghost"
+                          onClick={() => window.open(
+                            selectedPitch.website.startsWith('http') ? selectedPitch.website : `//${selectedPitch.website}`,
+                            '_blank',
+                            'noopener,noreferrer'
+                          )}
+                        >
+                          ↗ Visit Website
+                        </button>
+                      )}
                     </div>
-                    
-                    <div style={{ marginBottom: '15px' }}>
-                      <div style={{ color: '#999', fontSize: '13px', marginBottom: '5px', fontWeight: '500' }}>Problem:</div>
-                      <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{selectedPitch.problem || "N/A"}</div>
+                  )}
+
+                  {selectedPitch.aiSummary && (
+                    <div className="pr-ai">
+                      <div className="pr-eyebrow">AI Summary</div>
+                      <div className="pr-ai__body">{selectedPitch.aiSummary}</div>
                     </div>
-                    
-                    <div style={{ marginBottom: '15px' }}>
-                      <div style={{ color: '#999', fontSize: '13px', marginBottom: '5px', fontWeight: '500' }}>Solution:</div>
-                      <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{selectedPitch.solution || "N/A"}</div>
+                  )}
+
+                  <div className="pr-section">
+                    <div className="pr-field">
+                      <span className="pr-field__label">Value Prop</span>
+                      <div className="pr-field__value">{selectedPitch.valueProp || "N/A"}</div>
                     </div>
-                    
-                    <div style={{ marginBottom: '15px' }}>
-                      <div style={{ color: '#999', fontSize: '13px', marginBottom: '5px', fontWeight: '500' }}>Business Model:</div>
-                      <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{selectedPitch.businessModel || "N/A"}</div>
+
+                    <div className="pr-field">
+                      <span className="pr-field__label">Problem</span>
+                      <div className="pr-field__value">{selectedPitch.problem || "N/A"}</div>
                     </div>
-                    
-                    <div style={{ marginBottom: '15px' }}>
-                      <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Paying Customers:</span>
-                      <span style={{ 
-                        color: selectedPitch.hasPayingCustomers ? '#4CAF50' : '#666', 
-                        fontSize: '14px',
-                        fontWeight: selectedPitch.hasPayingCustomers ? '600' : 'normal'
-                      }}>
+
+                    <div className="pr-field">
+                      <span className="pr-field__label">Solution</span>
+                      <div className="pr-field__value">{selectedPitch.solution || "N/A"}</div>
+                    </div>
+
+                    <div className="pr-field">
+                      <span className="pr-field__label">Business Model</span>
+                      <div className="pr-field__value">{selectedPitch.businessModel || "N/A"}</div>
+                    </div>
+
+                    <div className="pr-field pr-field--inline">
+                      <span className="pr-field__label">Paying Customers</span>
+                      <span className={selectedPitch.hasPayingCustomers ? "pr-yes" : "pr-no"}>
                         {selectedPitch.hasPayingCustomers ? 'Yes' : 'No'}
                       </span>
                     </div>
-                    
-                    <div style={{ marginBottom: '15px' }}>
-                      <div style={{ color: '#999', fontSize: '13px', marginBottom: '5px', fontWeight: '500' }}>Grant Use:</div>
-                      <div style={{ color: '#333', fontSize: '14px', lineHeight: '1.6' }}>{selectedPitch.grantUsePlan || "N/A"}</div>
+
+                    <div className="pr-field">
+                      <span className="pr-field__label">Grant Use</span>
+                      <div className="pr-field__value">{selectedPitch.grantUsePlan || "N/A"}</div>
                     </div>
                   </div>
 
-                  <div style={{ borderTop: '1px solid #f0f0f0', paddingTop: '20px' }}>
-                    <div style={{ marginBottom: '12px' }}>
-                      <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Zip Code:</span>
-                      <span style={{ color: '#333', fontSize: '14px' }}>{selectedPitch.zipCode || "N/A"}</span>
+                  <div className="pr-section">
+                    <div className="pr-field pr-field--inline">
+                      <span className="pr-field__label">Zip Code</span>
+                      <span className="pr-field__value">{selectedPitch.zipCode || "N/A"}</span>
                     </div>
-                    
-                    <div style={{ marginBottom: '12px' }}>
-                      <div style={{ color: '#999', fontSize: '13px', marginBottom: '5px' }}>Self Identification Tags:</div>
-                      <div style={{ color: '#333', fontSize: '14px' }}>{selectedPitch.selfIdentification?.join(", ") || "N/A"}</div>
+
+                    <div className="pr-field">
+                      <span className="pr-field__label">Self Identification Tags</span>
+                      <div className="pr-field__value">{selectedPitch.selfIdentification?.join(", ") || "N/A"}</div>
                     </div>
-                    
-                    <div>
-                      <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Heard About:</span>
-                      <span style={{ color: '#333', fontSize: '14px' }}>{selectedPitch.heardAbout || "N/A"}</span>
+
+                    <div className="pr-field pr-field--inline">
+                      <span className="pr-field__label">Heard About</span>
+                      <span className="pr-field__value">{selectedPitch.heardAbout || "N/A"}</span>
+                    </div>
+
+                    <div className="pr-field pr-field--inline">
+                      <span className="pr-field__label">Terms &amp; Privacy Agreed</span>
+                      <span className={selectedPitch.consentToShare ? "pr-yes" : "pr-no"}>
+                        {selectedPitch.consentToShare ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+
+                    <div className="pr-field pr-field--inline">
+                      <span className="pr-field__label">In-Person Meetup Agreed</span>
+                      <span className={selectedPitch.consentToMeetup ? "pr-yes" : "pr-no"}>
+                        {selectedPitch.consentToMeetup ? 'Yes' : 'No'}
+                      </span>
                     </div>
                   </div>
                 </div>
 
                 {/* Review Form Column */}
-                <div style={{ 
-                  flex: '1 1 350px', 
-                  minWidth: '300px', 
-                  background: 'white', 
-                  padding: '25px', 
-                  border: '1px solid #e0e0e0', 
-                  borderRadius: '8px', 
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.05)', 
-                  maxHeight: 'calc(100vh - 250px)', 
-                  overflowY:'auto' 
-                }}>
-                  <h4 style={{ 
-                    margin: '0 0 20px 0', 
-                    fontSize: '18px', 
-                    color: '#333', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '8px' 
-                  }}>
-                    {reviews[selectedPitch.id] ? '✏️ Edit Your Review' : '✍️ Submit Your Review'}
+                <div className="pr-card">
+                  <h4 className="pr-form__title">
+                    {reviews[selectedPitch.id] ? 'Edit Your Review' : 'Submit Your Review'}
                   </h4>
-                  {/* Ensure form populates correctly using reviewFormData */}
+                  <div className="pr-form__subtitle">
+                    {reviews[selectedPitch.id]
+                      ? 'Update your recommendation and notes.'
+                      : 'Rate this pitch and share your thoughts with the team.'}
+                  </div>
+
                   <form onSubmit={handleReviewSubmit}>
-                    {/* Rating Selects */}
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ 
-                        display: 'block', 
-                        marginBottom: '6px', 
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        color: '#666'
-                      }}>
-                        Pitch Video Clarity & Persuasiveness
-                      </label>
-                      <select 
-                        name="pitchVideoRating" 
-                        value={reviewFormData.pitchVideoRating || ""} 
-                        onChange={handleReviewFormChange} 
-                        required 
-                        style={{
-                          width: '100%', 
-                          height: '36px',
-                          padding: '0 12px', 
-                          border: '1px solid #e0e0e0', 
-                          borderRadius: '6px', 
-                          fontFamily:'inherit', 
-                          background:'#fff', 
-                          fontSize:'14px',
-                          outline: 'none',
-                          transition: 'border-color 0.2s ease'
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
-                        onBlur={(e) => e.target.style.borderColor = '#E0E0E0'}
-                      >
-                        <option value="" disabled>-- Rate Video --</option>
-                        <option value="Strong">Strong</option>
-                        <option value="Average">Average</option>
-                        <option value="Poor">Poor</option>
-                      </select>
-                    </div>
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ 
-                        display: 'block', 
-                        marginBottom: '6px', 
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        color: '#666'
-                      }}>
-                        Business Model Viability
-                      </label>
-                      <select 
-                        name="businessModelRating" 
-                        value={reviewFormData.businessModelRating || ""} 
-                        onChange={handleReviewFormChange} 
-                        required 
-                        style={{
-                          width: '100%', 
-                          height: '36px',
-                          padding: '0 12px', 
-                          border: '1px solid #e0e0e0', 
-                          borderRadius: '6px', 
-                          fontFamily:'inherit', 
-                          background:'#fff', 
-                          fontSize:'14px',
-                          outline: 'none',
-                          transition: 'border-color 0.2s ease'
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
-                        onBlur={(e) => e.target.style.borderColor = '#E0E0E0'}
-                      >
-                        <option value="" disabled>-- Rate Model --</option>
-                        <option value="Strong">Strong</option>
-                        <option value="Average">Average</option>
-                        <option value="Poor">Poor</option>
-                      </select>
-                    </div>
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ 
-                        display: 'block', 
-                        marginBottom: '6px', 
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        color: '#666'
-                      }}>
-                        Product Market Fit Evidence
-                      </label>
-                      <select 
-                        name="productMarketFitRating" 
-                        value={reviewFormData.productMarketFitRating || ""} 
-                        onChange={handleReviewFormChange} 
-                        required 
-                        style={{
-                          width: '100%', 
-                          height: '36px',
-                          padding: '0 12px', 
-                          border: '1px solid #e0e0e0', 
-                          borderRadius: '6px', 
-                          fontFamily:'inherit', 
-                          background:'#fff', 
-                          fontSize:'14px',
-                          outline: 'none',
-                          transition: 'border-color 0.2s ease'
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
-                        onBlur={(e) => e.target.style.borderColor = '#E0E0E0'}
-                      >
-                        <option value="" disabled>-- Rate Fit --</option>
-                        <option value="Strong">Strong</option>
-                        <option value="Average">Average</option>
-                        <option value="Poor">Poor</option>
-                      </select>
-                    </div>
-                    <div style={{ marginBottom: '16px' }}>
-                      <label style={{ 
-                        display: 'block', 
-                        marginBottom: '6px', 
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        color: '#666'
-                      }}>
+                    {/* LP Recommendation - Required */}
+                    <div className="pr-form__group pr-form__group--required">
+                      <label className="pr-form__label" htmlFor="pr-overall-rating">
                         Overall LP Recommendation
+                        <span className="pr-form__required">(Required)</span>
                       </label>
-                      <select 
-                        name="overallLpRating" 
-                        value={reviewFormData.overallLpRating || ""} 
-                        onChange={handleReviewFormChange} 
-                        required 
-                        style={{
-                          width: '100%', 
-                          height: '36px',
-                          padding: '0 12px', 
-                          border: '1px solid #e0e0e0', 
-                          borderRadius: '6px', 
-                          fontFamily:'inherit', 
-                          background:'#fff', 
-                          fontSize:'14px',
-                          outline: 'none',
-                          transition: 'border-color 0.2s ease'
-                        }}
-                        onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
-                        onBlur={(e) => e.target.style.borderColor = '#E0E0E0'}
+                      <select
+                        id="pr-overall-rating"
+                        className="pr-select"
+                        name="overallLpRating"
+                        value={reviewFormData.overallLpRating || ""}
+                        onChange={handleReviewFormChange}
+                        required
                       >
-                        <option value="" disabled>-- Select Overall Rating --</option>
-                        {/* Added Emojis to options */}
-                        <option value="Favorite"> ⭐ Favorite (Strongly Recommend)</option>
-                        <option value="Consideration"> 💡 Consideration (Potential)</option>
-                        <option value="Pass"> ❌ Pass (Not a Fit/Concerns)</option>
-                        <option value="Ineligible"> 🚫 Ineligible (Doesn't meet criteria)</option>
+                        <option value="" disabled>Select an overall rating…</option>
+                        <option value="Favorite">Favorite (Strongly Recommend)</option>
+                        <option value="Consideration">Consideration (Potential)</option>
+                        <option value="Pass">Pass (Not a Fit/Concerns)</option>
+                        <option value="Ineligible">Ineligible (Doesn't meet criteria)</option>
                       </select>
                     </div>
+
+                    {/* Optional Rating Selects */}
+                    <div className="pr-form__group-head">Additional Ratings · Optional</div>
+
+                    <div className="pr-form__group">
+                      <label className="pr-form__label" htmlFor="pr-video-rating">
+                        Pitch Video Clarity &amp; Persuasiveness
+                        <span className="pr-form__optional">Optional</span>
+                      </label>
+                      <select
+                        id="pr-video-rating"
+                        className="pr-select"
+                        name="pitchVideoRating"
+                        value={reviewFormData.pitchVideoRating || ""}
+                        onChange={handleReviewFormChange}
+                      >
+                        <option value="">Rate video…</option>
+                        <option value="Strong">Strong</option>
+                        <option value="Average">Average</option>
+                        <option value="Poor">Poor</option>
+                      </select>
+                    </div>
+
+                    <div className="pr-form__group">
+                      <label className="pr-form__label" htmlFor="pr-model-rating">
+                        Business Model Viability
+                        <span className="pr-form__optional">Optional</span>
+                      </label>
+                      <select
+                        id="pr-model-rating"
+                        className="pr-select"
+                        name="businessModelRating"
+                        value={reviewFormData.businessModelRating || ""}
+                        onChange={handleReviewFormChange}
+                      >
+                        <option value="">Rate model…</option>
+                        <option value="Strong">Strong</option>
+                        <option value="Average">Average</option>
+                        <option value="Poor">Poor</option>
+                      </select>
+                    </div>
+
+                    <div className="pr-form__group">
+                      <label className="pr-form__label" htmlFor="pr-fit-rating">
+                        Product Market Fit Evidence
+                        <span className="pr-form__optional">Optional</span>
+                      </label>
+                      <select
+                        id="pr-fit-rating"
+                        className="pr-select"
+                        name="productMarketFitRating"
+                        value={reviewFormData.productMarketFitRating || ""}
+                        onChange={handleReviewFormChange}
+                      >
+                        <option value="">Rate fit…</option>
+                        <option value="Strong">Strong</option>
+                        <option value="Average">Average</option>
+                        <option value="Poor">Poor</option>
+                      </select>
+                    </div>
+
+                    {/* Team Notes from other LPs */}
+                    {selectedPitch && (() => {
+                      const otherComments = (pitchComments[selectedPitch.id] || [])
+                        .filter(c => c.reviewerId !== user.uid);
+                      if (otherComments.length === 0) return null;
+                      return (
+                        <div className="pr-form__group">
+                          <div className="pr-form__group-head" style={{ marginTop: 0 }}>
+                            Notes From the Team · {otherComments.length}
+                          </div>
+                          <div className="pr-team-notes">
+                            {otherComments.map((c, i) => (
+                              <div key={i} className="pr-team-note">
+                                <div className="pr-team-note__who">
+                                  {isSuperAdmin ? c.reviewerName : `LP ${i + 1}`}
+                                </div>
+                                <div className="pr-team-note__text">{c.comment}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {/* Comments Textarea */}
-                    <div style={{ marginBottom: '24px' }}>
-                      <label style={{ 
-                        display: 'block', 
-                        marginBottom: '6px', 
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        color: '#666'
-                      }}>
-                        Private Comments (Optional, for GNF team)
+                    <div className="pr-form__group">
+                      <label className="pr-form__label" htmlFor="pr-comments">
+                        Notes for the Team
+                        <span className="pr-form__optional">Optional</span>
                       </label>
                       <textarea
+                        id="pr-comments"
+                        className="pr-textarea"
                         name="comments"
-                        rows="5"
-                        style={{ 
-                          width: '100%', 
-                          padding: '10px 12px', 
-                          border: '1px solid #e0e0e0', 
-                          borderRadius: '6px', 
-                          fontFamily:'inherit', 
-                          fontSize:'14px',
-                          resize: 'vertical',
-                          backgroundColor: '#FFFFFF',
-                          outline: 'none',
-                          transition: 'border-color 0.2s ease',
-                          boxSizing: 'border-box'
-                        }}
+                        rows="4"
                         value={reviewFormData.comments || ""}
                         onChange={handleReviewFormChange}
-                        placeholder="Your internal notes, strengths, weaknesses, questions..."
-                        onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
-                        onBlur={(e) => e.target.style.borderColor = '#E0E0E0'}
+                        placeholder="Share your thoughts, strengths, concerns, or questions with the team…"
                       />
                     </div>
-                    {/* Submit Button */}
-                    <button
-                      type="submit"
-                      style={{
-                        width: '100%',
-                        padding: '12px',
-                        backgroundColor: '#FF69B4',
-                        color: '#FFFFFF',
-                        border: 'none',
-                        borderRadius: '6px',
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onMouseEnter={(e) => e.target.style.backgroundColor = '#FF1493'}
-                      onMouseLeave={(e) => e.target.style.backgroundColor = '#FF69B4'}
-                    >
-                      {/* Check user's review state `reviews` */}
-                      {reviews[selectedPitch.id] ? '💾 Update Review' : '✨ Submit Review'} {/* Added Emojis */}
-                    </button>
-                    
-                    {/* Next Unreviewed Pitch Button */}
+
+                    {/* Submit + Next Unreviewed Buttons (side by side) */}
                     {(() => {
                       const nextPitch = getNextUnreviewedPitch();
-                      return nextPitch ? (
-                        <button
-                          type="button"
-                          onClick={() => setSelectedPitch(nextPitch)}
-                          style={{
-                            width: '100%',
-                            padding: '10px',
-                            backgroundColor: '#f8f8f8',
-                            color: '#666',
-                            border: '1px solid #e0e0e0',
-                            borderRadius: '6px',
-                            fontSize: '14px',
-                            fontWeight: '500',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            marginTop: '8px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.backgroundColor = '#FFE4F0';
-                            e.target.style.borderColor = '#FFB6D9';
-                            e.target.style.color = '#FF69B4';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.backgroundColor = '#f8f8f8';
-                            e.target.style.borderColor = '#e0e0e0';
-                            e.target.style.color = '#666';
-                          }}
-                        >
-                          ⏭️ Next Unreviewed ({nextPitch.businessName})
-                        </button>
-                      ) : null;
+                      return (
+                        <div className="pr-submit-row">
+                          <button type="submit" className="pr-btn pr-btn--primary">
+                            {reviews[selectedPitch.id] ? 'Update Review' : 'Submit Review'}
+                          </button>
+                          {nextPitch && (
+                            <button
+                              type="button"
+                              className="pr-btn pr-btn--ghost"
+                              onClick={() => setSelectedPitch(nextPitch)}
+                              title={`Next Unreviewed: ${nextPitch.businessName}`}
+                            >
+                              Next Unreviewed →
+                            </button>
+                          )}
+                        </div>
+                      );
                     })()}
                   </form>
                 </div>
@@ -4262,174 +5071,134 @@ return (
 
       {/* --- Social Cards Tab Content --- */}
       {activeTab === 'socialCards' && (
-        <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto' }}>
-          <h2 style={{ marginBottom: '20px', fontSize: '24px', color: '#333' }}>Share Your Impact</h2>
-          <p style={{ marginBottom: '30px', color: '#666', fontSize: '16px', lineHeight: '1.6' }}>
-            Show the world you back bold ideas and early-stage entrepreneurship.<br />
-            Click a card to download and share on Instagram, LinkedIn, or wherever you make noise online.<br /><br />
-            By posting, you're helping spotlight underrepresented founders and spreading the mission of Good Neighbor Fund—$1,000 at a time.
-          </p>
-          
-          <div className="social-cards-container" style={{ display: 'flex', gap: '40px', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {/* Welcome Card */}
-            <div className="social-card-wrapper">
-              <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333', textAlign: 'center' }}>Welcome to GNF</h3>
-              <canvas
-                id="welcome-canvas"
-                width="1080"
-                height="1080"
-                style={{ 
-                  width: '350px', 
-                  height: '350px', 
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                  transition: 'transform 0.2s ease',
-                  display: 'block'
-                }}
-                onClick={() => downloadCard('welcome')}
-                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
-                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
-              />
-              <p style={{ marginTop: '10px', fontSize: '13px', color: '#666', textAlign: 'center' }}>Click to download</p>
+        <div className="social-cards-page">
+          <section className="admin-section admin-section--hero admin-section--magenta">
+            <div className="admin-section-head">
+              <span className="admin-section-head__eyebrow">Social · Share Kit</span>
+              <h2 className="admin-section-head__title">
+                Make some <em>noise</em> for your neighborhood.
+              </h2>
+              <p className="admin-section-head__lede">
+                Download and post these on Instagram, LinkedIn, or wherever you hang out online.
+                Every share helps spotlight under-resourced founders and spreads the mission &mdash; $1,000 at a time.
+              </p>
             </div>
-            
-            {/* Badge Achievement Card */}
-            <div className="social-card-wrapper">
-              <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333', textAlign: 'center' }}>Badge Achievements</h3>
-              <canvas
-                id="badge-canvas"
-                width="1080"
-                height="1080"
-                style={{ 
-                  width: '350px', 
-                  height: '350px', 
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                  transition: 'transform 0.2s ease',
-                  display: 'block'
-                }}
-                onClick={() => downloadCard('badge')}
-                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
-                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+          </section>
+
+          <section className="admin-section admin-section--paper">
+            <div className="social-cards-container">
+              <SocialCardTile
+                canvasId="welcome-canvas"
+                title="Welcome to GNF"
+                eyebrow="Card 01"
+                description="Introduce yourself to the chapter."
+                onDownload={() => downloadCard('welcome')}
               />
-              <p style={{ marginTop: '10px', fontSize: '13px', color: '#666', textAlign: 'center' }}>Click to download</p>
-            </div>
-            
-            {/* Chapter Stats Card */}
-            <div className="social-card-wrapper">
-              <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333', textAlign: 'center' }}>Chapter Impact Stats</h3>
-              <canvas
-                id="stats-canvas"
-                width="1080"
-                height="1080"
-                style={{ 
-                  width: '350px', 
-                  height: '350px', 
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                  transition: 'transform 0.2s ease',
-                  display: 'block'
-                }}
-                onClick={() => downloadCard('stats')}
-                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
-                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              <SocialCardTile
+                canvasId="badge-canvas"
+                title="Badge Achievements"
+                eyebrow="Card 02"
+                description="Show off the trophies you&rsquo;ve earned."
+                onDownload={() => downloadCard('badge')}
               />
-              <p style={{ marginTop: '10px', fontSize: '13px', color: '#666', textAlign: 'center' }}>Click to download</p>
-            </div>
-            
-            {/* Recruitment Card */}
-            <div className="social-card-wrapper">
-              <h3 style={{ marginBottom: '15px', fontSize: '18px', color: '#333', textAlign: 'center' }}>Limited Partner CTA</h3>
-              <canvas
-                id="recruitment-canvas"
-                width="1080"
-                height="1080"
-                style={{ 
-                  width: '350px', 
-                  height: '350px', 
-                  borderRadius: '12px',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
-                  transition: 'transform 0.2s ease',
-                  display: 'block'
-                }}
-                onClick={() => downloadCard('recruitment')}
-                onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
-                onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+              <SocialCardTile
+                canvasId="stats-canvas"
+                title="Chapter Impact"
+                eyebrow="Card 03"
+                description="Your chapter&rsquo;s funded-business tally."
+                onDownload={() => downloadCard('stats')}
               />
-              <p style={{ marginTop: '10px', fontSize: '13px', color: '#666', textAlign: 'center' }}>Click to download</p>
+              <SocialCardTile
+                canvasId="recruitment-canvas"
+                title="LP Recruitment"
+                eyebrow="Card 04"
+                description="Rally new LPs into the network."
+                onDownload={() => downloadCard('recruitment')}
+              />
             </div>
-          </div>
+          </section>
         </div>
       )}
 
       {/* --- Admin Panel Tab Content --- */}
-      {activeTab === 'adminPanel' && isSuperAdmin && (
-        <div style={{ background: '#fff', border: '1px solid #ccc', padding: '15px 20px', borderRadius: '4px' }}>
-          {/* Admin Sub-Tabs Navigation - Reduced font, unabbreviated "Super Admin Tools" */}
-          <div style={{ display: 'flex', borderBottom: '1px solid #aaa', marginBottom: '20px', marginTop: '-5px', fontSize: '0.9em' /* Reduced font */ }}>
-            <button
-              onClick={() => setActiveAdminTab('pitchesAndReviews')}
-              style={{ padding: '7px 12px', border: 'none', borderBottom: activeAdminTab === 'pitchesAndReviews' ? '3px solid #FFD6EC' : '3px solid transparent', background: 'transparent', cursor: 'pointer', fontWeight: activeAdminTab === 'pitchesAndReviews' ? 'bold' : 'normal', fontSize:'inherit', fontFamily:'inherit'}}
-            >
-              Reviews
-            </button>
-            <button
-              onClick={() => setActiveAdminTab('grantWinners')}
-              style={{
-                padding: '7px 12px',
-                border: 'none',
-                borderBottom: activeAdminTab === 'grantWinners' ? '3px solid #FFD6EC' : '3px solid transparent',
-                background: 'transparent',
-                cursor: 'pointer',
-                fontWeight: activeAdminTab === 'grantWinners' ? 'bold' : 'normal',
-                fontSize: 'inherit',
-                fontFamily: 'inherit'
-              }}
-            >
-              Grant Winners
-            </button>
-            <button
-              onClick={() => setActiveAdminTab('userManagement')}
-              style={{ padding: '7px 12px', border: 'none', borderBottom: activeAdminTab === 'userManagement' ? '3px solid #FFD6EC' : '3px solid transparent', background: 'transparent', cursor: 'pointer', fontWeight: activeAdminTab === 'userManagement' ? 'bold' : 'normal', fontSize:'inherit', fontFamily:'inherit'}}
-            >
-              Users
-            </button>
-            <button
-              onClick={() => setActiveAdminTab('createUser')}
-              style={{ padding: '7px 12px', border: 'none', borderBottom: activeAdminTab === 'createUser' ? '3px solid #FFD6EC' : '3px solid transparent', background: 'transparent', cursor: 'pointer', fontWeight: activeAdminTab === 'createUser' ? 'bold' : 'normal', fontSize:'inherit', fontFamily:'inherit'}}
-            >
-              Create User
-            </button>
-            {isSuperAdmin && (
-              <>
-                <button
-                  onClick={() => setActiveAdminTab('superAdminTools')}
-                  style={{ padding: '7px 12px', border: 'none', borderBottom: activeAdminTab === 'superAdminTools' ? '3px solid #FFD6EC' : '3px solid transparent', background: 'transparent', cursor: 'pointer', fontWeight: activeAdminTab === 'superAdminTools' ? 'bold' : 'normal', fontSize:'inherit', fontFamily:'inherit'}}
-                >
-                  Super Admin Tools {/* Changed back */}
-                </button>
-                <button
-                  onClick={() => setActiveAdminTab('resourcesManagement')}
-                  style={{ padding: '7px 12px', border: 'none', borderBottom: activeAdminTab === 'resourcesManagement' ? '3px solid #FFD6EC' : '3px solid transparent', background: 'transparent', cursor: 'pointer', fontWeight: activeAdminTab === 'resourcesManagement' ? 'bold' : 'normal', fontSize:'inherit', fontFamily:'inherit'}}
-                >
-                  Resources
-                </button>
-              </>
-            )}
-          </div>
+      {activeTab === 'adminPanel' && isAdmin && (
+        <div>
+          {/* Admin Sub-Tabs Navigation — Win95 folder-tab look.
+              Tab strip extracted to a shared primitive with full keyboard
+              (←/→, Home/End) support and proper role="tablist" semantics.
+              The panel below is `.admin-tabpanel` which merges visually with
+              the selected tab via negative margin. */}
+          <AdminTabStrip
+            ariaLabel="Admin sections"
+            activeKey={activeAdminTab}
+            onChange={setActiveAdminTab}
+            tabs={[
+              { key: 'pitchesAndReviews', label: 'Reviews' },
+              { key: 'grantWinners', label: 'Grant Winners' },
+              { key: 'userManagement', label: 'Users' },
+              { key: 'createUser', label: 'Create User' },
+              ...(isSuperAdmin
+                ? [
+                    { key: 'superAdminTools', label: 'Super Admin Tools' },
+                    { key: 'chaptersManagement', label: 'Chapters' },
+                    { key: 'resourcesManagement', label: 'Resources' },
+                  ]
+                : isChapterDirector
+                  ? [
+                      // Chapter directors get the Chapters tab too, but the tab's
+                      // render branch scopes the list + form to their own chapter.
+                      { key: 'chaptersManagement', label: 'Chapter' },
+                    ]
+                  : []),
+            ]}
+          />
+          <div className="admin-tabpanel">
 
           {/* Admin: Pitches & Reviews Sub-Tab Content */}
-          {activeAdminTab === 'pitchesAndReviews' && (
+          {activeAdminTab === 'pitchesAndReviews' && (() => {
+            // Compute hero stats once so they render in the page header rather
+            // than being buried at the bottom of a filter toolbar.
+            const totalPitches = adminFilteredSortedPitches.length;
+            const totalReviews = allReviewsData.length;
+            const reviewedByMe = Object.keys(reviews || {}).length;
+            return (
             <>
-              <h4> Admin: LP Reviews Summary</h4>
-              {/* Filters for Admin Pitches - Styles adjusted, Fav filter changed to dropdown */}
-              <div style={{ display: "flex", flexWrap: 'wrap', gap: "10px", marginBottom: "20px", padding: '15px', border: '1px solid #e0e0e0', background: 'white', borderRadius: '8px', alignItems: 'center', fontSize: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+              <section className="admin-section admin-section--hero admin-section--paper">
+                <div className="admin-section-head">
+                  <span className="admin-section-head__eyebrow">Reviews · Admin</span>
+                  <h2 className="admin-section-head__title">
+                    LP Reviews <em>Summary</em>
+                  </h2>
+                  <p className="admin-section-head__lede">
+                    Every submission, every rating, every comment from your LP team — filtered, sorted, and exportable.
+                  </p>
+                </div>
+                <div className="admin-hero-stats">
+                  <div className="admin-hero-stat">
+                    <span className="admin-hero-stat__num">{totalPitches}</span>
+                    <span className="admin-hero-stat__label">Pitches shown</span>
+                  </div>
+                  <div className="admin-hero-stat">
+                    <span className="admin-hero-stat__num">{totalReviews}</span>
+                    <span className="admin-hero-stat__label">LP reviews total</span>
+                  </div>
+                  <div className="admin-hero-stat">
+                    <span className="admin-hero-stat__num">{reviewedByMe}</span>
+                    <span className="admin-hero-stat__label">Reviewed by you</span>
+                  </div>
+                </div>
+              </section>
+
+              <section className="admin-section admin-section--chalk">
+              {/* Filter bar — styling lives in `.filter-bar` utility class.
+                  Controls use the global input/select bevel styling from win95-base.css. */}
+              <div className="filter-bar filter-bar--one-row" role="group" aria-label="Filter and sort reviews">
                 {isSuperAdmin && (
-                  <select value={adminChapterFilter} onChange={(e) => setAdminChapterFilter(e.target.value)} style={{ padding: '8px 12px', height: '36px', border:'1px solid #e0e0e0', borderRadius: '6px', fontFamily:'inherit', background:'white', fontSize:'inherit', outline: 'none', transition: 'border-color 0.2s ease', cursor: 'pointer' }} onFocus={(e) => e.target.style.borderColor = '#FFB6D9'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}>
+                  <select
+                    aria-label="Filter by chapter"
+                    value={adminChapterFilter}
+                    onChange={(e) => setAdminChapterFilter(e.target.value)}
+                  >
                     <option value="">All Chapters</option>
                     {[...new Set(adminPitches.map((p) => p.chapter).filter(Boolean))].sort().map((c) => (<option key={c} value={c}>{c}</option>))}
                   </select>
@@ -4437,7 +5206,7 @@ return (
                 <MultiSelectDropdown
                   options={[...new Set(adminPitches.map((p) => p.quarter).filter(Boolean))]
                     .sort((a, b) => {
-                      const [aQ, aY] = a.split(' '); 
+                      const [aQ, aY] = a.split(' ');
                       const [bQ, bY] = b.split(' ');
                       if (bY !== aY) return parseInt(bY) - parseInt(aY);
                       return parseInt(bQ.substring(1)) - parseInt(aQ.substring(1));
@@ -4446,201 +5215,167 @@ return (
                   onChange={setAdminQuarterFilter}
                   placeholder="All Quarters"
                 />
-                {/* Favorite Filter Dropdown */}
-                <select value={adminFavoriteFilterMode} onChange={(e) => setAdminFavoriteFilterMode(e.target.value)} style={{ padding: '8px 12px', height: '36px', border:'1px solid #e0e0e0', borderRadius: '6px', fontFamily:'inherit', background:'white', fontSize:'inherit', outline: 'none', transition: 'border-color 0.2s ease', cursor: 'pointer' }} onFocus={(e) => e.target.style.borderColor = '#FFB6D9'} onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}>
-                    <option value="all">All Ratings</option>
-                    <option value="favsOnly">⭐ Favorites Only</option>
-                    <option value="favsAndCons">⭐/💡 Favs & Considerations</option>
+                <select
+                  aria-label="Filter by rating"
+                  value={adminFavoriteFilterMode}
+                  onChange={(e) => setAdminFavoriteFilterMode(e.target.value)}
+                >
+                  <option value="all">All Ratings</option>
+                  <option value="favsOnly">Favorites Only</option>
+                  <option value="favsAndCons">Favs &amp; Considerations</option>
+                </select>
+                <select
+                  aria-label="Sort order"
+                  value={adminSortMode}
+                  onChange={(e) => setAdminSortMode(e.target.value)}
+                  disabled={adminFavoriteFilterMode === 'favsOnly' || adminFavoriteFilterMode === 'favsAndCons'}
+                  title={adminFavoriteFilterMode === 'favsOnly' || adminFavoriteFilterMode === 'favsAndCons'
+                    ? 'Sort is fixed to favorite count while filtering by favorites'
+                    : 'Sort order'}
+                >
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                  <option value="avgDesc">Avg Score ↓</option>
+                  <option value="avgAsc">Avg Score ↑</option>
+                  <option value="sumDesc">Total Score ↓</option>
+                  <option value="sumAsc">Total Score ↑</option>
+                  <option value="mostReviews">Most Reviews</option>
                 </select>
                 <input
-                  type="text"
+                  type="search"
+                  aria-label="Search pitches"
                   placeholder="Search name, business, email..."
-                  value={adminSearch} onChange={(e) => setAdminSearch(e.target.value)}
-                  style={{ flexGrow: 1, minWidth: '200px', padding: '8px 12px', height: '36px', border: '1px solid #e0e0e0', borderRadius: '6px', fontFamily:'inherit', fontSize:'inherit', outline: 'none', transition: 'border-color 0.2s ease', boxSizing: 'border-box' }}
-                  onFocus={(e) => e.target.style.borderColor = '#FFB6D9'}
-                  onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
+                  value={adminSearch}
+                  onChange={(e) => setAdminSearch(e.target.value)}
                 />
-                {/* Hide Pass Button */}
                 <button
-                    onClick={() => setAdminHidePassed(!adminHidePassed)}
-                    title={adminHidePassed ? "Show pitches with only Pass/Ineligible reviews" : "Hide pitches with only Pass/Ineligible reviews"}
-                    style={{ 
-                      height: '36px', 
-                      fontSize: 'inherit', 
-                      background: adminHidePassed ? '#FFB6D9' : 'white', 
-                      color: adminHidePassed ? 'white' : '#666',
-                      border: `1px solid ${adminHidePassed ? '#FFB6D9' : '#e0e0e0'}`,
-                      borderRadius: '6px',
-                      padding: '0 16px', 
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      fontFamily: 'inherit'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!adminHidePassed) {
-                        e.target.style.background = '#f5f5f5';
-                        e.target.style.borderColor = '#ccc';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!adminHidePassed) {
-                        e.target.style.background = 'white';
-                        e.target.style.borderColor = '#e0e0e0';
-                      }
-                    }}
+                  type="button"
+                  className="retro-toggle"
+                  aria-pressed={adminHidePassed}
+                  onClick={() => setAdminHidePassed(!adminHidePassed)}
+                  title={adminHidePassed ? "Show pitches with only Pass/Ineligible reviews" : "Hide pitches with only Pass/Ineligible reviews"}
                 >
-                    {adminHidePassed ? '👁️ Show Pass/Ineligible' : '👁️ Hide Pass/Ineligible'}
+                  {adminHidePassed ? 'Show Passes' : 'Hide Passes'}
                 </button>
-                {/* Export Button */}
-                <button 
-                  onClick={handleAdminPitchExport} 
-                  style={{
-                    height:'36px', 
-                    fontSize: 'inherit', 
-                    padding:'0 16px',
-                    background: 'white',
-                    color: '#666',
-                    border: '1px solid #e0e0e0',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    fontFamily: 'inherit',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = '#f5f5f5';
-                    e.target.style.borderColor = '#ccc';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = 'white';
-                    e.target.style.borderColor = '#e0e0e0';
-                  }}
-                > 
-                  💾 Export CSV
-                </button> {/* Added Emoji */}
+                <RetroButton onClick={handleAdminPitchExport} title="Download current results as CSV">
+                  Export
+                </RetroButton>
               </div>
 
               {/* Admin Pitches List - Uses adminFilteredSortedPitches */}
-              {adminFilteredSortedPitches.length === 0 && <p style={{ color: '#666', textAlign:'center', padding:'20px' }}>No pitches match the current filters.</p>}
+              {adminFilteredSortedPitches.length === 0 && (
+                <EmptyState
+                  icon="📭"
+                  title="No pitches match"
+                  description="Try clearing a filter or widening your search."
+                />
+              )}
               {adminFilteredSortedPitches.map((p) => {
                 const groupedReviews = getGroupedReviewsForAdmin(p.id); // Get the summary
                 const formattedAdminDate = formatDate(p.createdAt || p.createdDate);
                 return (
-                  <div key={p.id} style={{ padding: "15px", border: "1px solid #ccc", marginBottom: "15px", borderRadius: "6px", background: p.isWinner ? "#d7fddc" : "#fff", boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                  <div key={p.id} className="admin-pitch-card">
                     {/* Top Section: Info & Actions */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+                    <div className="admin-pitch-card__head">
                       {/* Pitch Info */}
-                      <div style={{ flexGrow: 1 }}>
-                        <strong style={{ fontSize: '1.1em' }}>{p.businessName || "N/A"}</strong> by {p.founderName || "N/A"} <br />
-                        <em style={{ color: '#555', display:'block', margin:'3px 0' }}>{p.valueProp?.substring(0, 120)}{p.valueProp?.length > 120 ? '...' : ''}</em>
-                        <span style={{ fontSize: '0.9em', color: '#777' }}>
-                          Chapter: {p.chapter || "N/A"} | Quarter: {p.quarter || "N/A"} | Submitted: {formattedAdminDate}
-                        </span>
-                        {p.isContest && <span style={{ marginLeft: '10px', color: '#7b3ff2', fontWeight: 'bold', background: '#f3e8ff', padding: '1px 5px', borderRadius: '3px', display:'inline-flex', alignItems:'center', gap:'4px', border: '1px solid #d4b5ff' }}>🏆 Contest Submission</span>}
-                        {p.isWinner && <span style={{ marginLeft: '10px', color: 'green', fontWeight: 'bold', background: '#c3e6cb', padding: '1px 5px', borderRadius: '3px', display:'inline-flex', alignItems:'center', gap:'4px' }}> ✅ Grant Winner</span>} {/* Added Emoji */}
+                      <div className="admin-pitch-card__info">
+                        <div className="admin-pitch-card__title">
+                          <strong>{p.businessName || 'N/A'}</strong>
+                          <span className="admin-pitch-card__by"> by {p.founderName || 'N/A'}</span>
+                        </div>
+                        {p.aiSummary
+                          ? <div className="admin-pitch-card__summary">{p.aiSummary}</div>
+                          : <div className="admin-pitch-card__summary admin-pitch-card__summary--fallback"><em>{p.valueProp?.substring(0, 120)}{p.valueProp?.length > 120 ? '…' : ''}</em></div>
+                        }
+                        <div className="admin-pitch-card__meta">
+                          <span>{p.chapter || 'N/A'}</span>
+                          <span className="admin-pitch-card__meta-sep">·</span>
+                          <span style={{ fontFamily: 'var(--font-numeral)' }}>{p.quarter || 'N/A'}</span>
+                          <span className="admin-pitch-card__meta-sep">·</span>
+                          <span>Submitted {formattedAdminDate}</span>
+                        </div>
+                        <div className="admin-pitch-card__tags">
+                          {p.isContest && <RetroPill tone="purple">🎉 Contest Submission</RetroPill>}
+                          {p.isWinner && <RetroPill tone="green">🏆 Grant Winner</RetroPill>}
+                        </div>
                       </div>
-                      {/* Action Buttons - Reduced font, improved centering */}
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
-                        <button
-                          onClick={() => handleAssignWinner(p.id, p.isWinner)}
-                          style={{
-                            background: p.isWinner ? 'white' : '#B8E6B8',
-                            color: p.isWinner ? '#666' : '#2D5A2D',
-                            border: `1px solid ${p.isWinner ? '#e0e0e0' : '#A5D6A7'}`,
-                            borderRadius: '6px',
-                            padding: '6px 14px',
-                            height: '32px',
-                            fontSize: '13px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            fontFamily: 'inherit',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                          }}
-                          onMouseEnter={(e) => {
-                            if (p.isWinner) {
-                              e.target.style.background = '#f5f5f5';
-                              e.target.style.borderColor = '#ccc';
-                            } else {
-                              e.target.style.background = '#A5D6A7';
-                              e.target.style.borderColor = '#81C784';
-                            }
-                          }}
-                          onMouseLeave={(e) => {
-                            if (p.isWinner) {
-                              e.target.style.background = 'white';
-                              e.target.style.borderColor = '#e0e0e0';
-                            } else {
-                              e.target.style.background = '#B8E6B8';
-                              e.target.style.borderColor = '#A5D6A7';
-                            }
-                          }}
-                        >
-                          {p.isWinner ? '🏆 Remove Winner' : '🏆 Assign Winner'}
-                        </button>
-                        <button
+                      {/* Action */}
+                      <div className="admin-pitch-card__actions">
+                        <RetroButton
+                          size="sm"
                           onClick={() => setExpandedPitchId(expandedPitchId === p.id ? null : p.id)}
-                          style={{
-                            background: 'white',
-                            color: '#666',
-                            border: '1px solid #e0e0e0',
-                            borderRadius: '6px',
-                            padding: '6px 14px',
-                            height: '32px',
-                            fontSize: '13px',
-                            cursor: 'pointer',
-                            transition: 'all 0.2s ease',
-                            fontFamily: 'inherit',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px'
-                          }}
-                          onMouseEnter={(e) => {
-                            e.target.style.background = '#f5f5f5';
-                            e.target.style.borderColor = '#ccc';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.target.style.background = 'white';
-                            e.target.style.borderColor = '#e0e0e0';
-                          }}
+                          aria-expanded={expandedPitchId === p.id}
                         >
-                          {expandedPitchId === p.id ? '📖 Hide Details' : '📖 View Details'}
-                        </button>
+                          {expandedPitchId === p.id ? 'Hide Details' : 'Expand Details'}
+                        </RetroButton>
                       </div>
                     </div>
                     {/* Review Summary Section */}
                     {groupedReviews.count > 0 && (
-                      <div style={{ marginTop: "12px", paddingTop: '12px', borderTop: '1px dashed #eee', fontSize: "13px", color: '#444' }}>
-                        <strong>LP Reviews ({groupedReviews.count}):</strong>
-                        {/* Sort ratings: Favorite > Consideration > Pass > Ineligible > No Rating */}
-                        {Object.entries(groupedReviews.byRating)
-                          .sort(([ratingA], [ratingB]) => {
-                            const order = { "Favorite": 1, "Consideration": 2, "Pass": 3, "Ineligible": 4, "No Rating": 5 };
-                            return (order[ratingA] || 99) - (order[ratingB] || 99);
-                          })
-                          .map(([rating, data]) => (
-                            <span key={rating} style={{ marginLeft: '10px', border: '1px solid #eee', padding: '2px 6px', borderRadius: '3px', background: '#f9f9f9', display: 'inline-flex', alignItems:'center', gap:'4px', marginBottom: '3px', cursor:'help' }} title={`Reviewers: ${data.reviewers.join(', ')}`}>
-                              {/* Ensure ratingEmojis are prepended */}
-                              {ratingEmojis[rating] || ''} {rating}: <strong>{data.count}</strong>
+                      <div className="admin-pitch-card__reviews">
+                        <div className="admin-pitch-card__reviews-label">
+                          LP Reviews (<span style={{ fontFamily: 'var(--font-numeral)' }}>{groupedReviews.count}</span>)
+                        </div>
+                        <div className="admin-pitch-card__reviews-chips">
+                          {Object.entries(groupedReviews.byRating)
+                            .sort(([ratingA], [ratingB]) => {
+                              const order = { Favorite: 1, Consideration: 2, Pass: 3, Ineligible: 4, 'No Rating': 5 };
+                              return (order[ratingA] || 99) - (order[ratingB] || 99);
+                            })
+                            .map(([rating, data]) => (
+                              <RetroPill
+                                key={rating}
+                                tone={ratingTonePill(rating)}
+                                icon={<ReviewRatingIcon rating={rating} size={14} />}
+                                title={`Reviewers: ${data.reviewers.join(', ')}`}
+                              >
+                                {rating}: <span style={{ fontFamily: 'var(--font-numeral)', marginLeft: 2 }}>{data.count}</span>
+                              </RetroPill>
+                            ))}
+                          {groupedReviews.scoredCount > 0 && (
+                            <span
+                              className="admin-pitch-card__score"
+                              title={`Weighted score. Favorite +2, Consideration +1, Pass 0, Ineligible -2. Average across ${groupedReviews.scoredCount} rated review(s).`}
+                            >
+                              Score <strong style={{ fontFamily: 'var(--font-numeral)' }}>
+                                {groupedReviews.score > 0 ? `+${groupedReviews.score}` : groupedReviews.score}
+                              </strong>
+                              <span className="admin-pitch-card__score-avg">
+                                avg <span style={{ fontFamily: 'var(--font-numeral)' }}>{groupedReviews.averageScore.toFixed(2)}</span>
+                              </span>
                             </span>
-                          ))}
+                          )}
+                        </div>
                       </div>
                     )}
                     {groupedReviews.count === 0 && (
-                      <div style={{ marginTop: "12px", paddingTop: '12px', borderTop: '1px dashed #eee', fontSize: "13px", color: '#888' }}>
+                      <div className="admin-pitch-card__reviews admin-pitch-card__reviews--empty">
                         No LP reviews submitted yet.
                       </div>
                     )}
                     {/* Expanded Details Section (Conditional) */}
                     {expandedPitchId === p.id && (
-                      <div style={{ marginTop: "20px", paddingTop: '20px', borderTop: '1px solid #e0e0e0', display: 'flex', gap: '20px', flexWrap:'wrap' }}>
+                      <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--mb-ink-15)' }}>
+                        {/* Grant Winner controls */}
+                        <div style={{
+                          display: 'flex', justifyContent: 'flex-end', alignItems: 'center',
+                          gap: 10, marginBottom: 14, fontSize: 12, color: 'var(--mb-ink-60)',
+                          fontFamily: 'var(--font-pixel)', letterSpacing: '0.14em', textTransform: 'uppercase',
+                        }}>
+                          <span>Grant Winner Status</span>
+                          <RetroButton
+                            size="sm"
+                            variant={p.isWinner ? 'default' : 'primary'}
+                            onClick={() => handleAssignWinner(p.id, p.isWinner)}
+                          >
+                            {p.isWinner ? 'Remove Winner' : 'Assign Winner'}
+                          </RetroButton>
+                        </div>
+                        <div style={{ display: 'flex', gap: '15px', flexWrap:'wrap' }}>
                         {/* Pitch Details */}
                         <div style={{ flex: '1 1 50%', minWidth: '300px' }}>
-                          <h5 style={{ marginBottom: '15px', color: '#333', fontSize: '16px', fontWeight: '600' }}>Full Pitch Details</h5>
-                          <div style={{ background: 'white', padding: '25px', borderRadius: '8px', border: '1px solid #e0e0e0', maxHeight:'500px', overflowY:'auto' }}>
+                          <h5 style={{ margin: '0 0 8px 0', color: 'var(--mb-ink)', fontSize: '14px', fontWeight: 'bold' }}>Full Pitch Details</h5>
+                          <div style={{ padding: '20px', maxHeight:'500px', overflowY:'auto', background: 'var(--gnf-bg)', border: '1px solid #e0e0e0' }}>
                             {/* Basic Info */}
                             <div style={{ marginBottom: '12px' }}>
                               <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Founder:</span>
@@ -4705,33 +5440,60 @@ return (
                                 <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Zip Code:</span>
                                 <span style={{ color: '#333', fontSize: '14px' }}>{p.zipCode || "N/A"}</span>
                               </div>
-                              
+
                               <div style={{ marginBottom: '12px' }}>
                                 <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Video URL:</span>
                                 <span style={{ color: '#333', fontSize: '14px' }}>{p.pitchVideoUrl || "N/A"}</span>
                               </div>
-                              
-                              <div>
+
+                              <div style={{ marginBottom: '12px' }}>
                                 <div style={{ color: '#999', fontSize: '13px', marginBottom: '6px' }}>Self Identification Tags:</div>
                                 <div style={{ color: '#333', fontSize: '14px' }}>{p.selfIdentification?.join(", ") || "N/A"}</div>
+                              </div>
+
+                              <div style={{ marginBottom: '12px' }}>
+                                <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>Terms & Privacy Agreed:</span>
+                                <span style={{ color: p.consentToShare ? '#4CAF50' : '#666', fontSize: '14px', fontWeight: p.consentToShare ? '600' : 'normal' }}>
+                                  {p.consentToShare ? 'Yes' : 'No'}
+                                </span>
+                              </div>
+
+                              <div>
+                                <span style={{ color: '#999', fontSize: '13px', marginRight: '10px' }}>In-Person Meetup Agreed:</span>
+                                <span style={{ color: p.consentToMeetup ? '#4CAF50' : '#666', fontSize: '14px', fontWeight: p.consentToMeetup ? '600' : 'normal' }}>
+                                  {p.consentToMeetup ? 'Yes' : 'No'}
+                                </span>
                               </div>
                             </div>
                           </div>
                         </div>
                         {/* Aggregated Comments Added */}
                         <div style={{ flex: '1 1 40%', minWidth: '250px' }}>
-                          <h5 style={{ marginBottom: '15px', color: '#333', fontSize: '16px', fontWeight: '600' }}>LP Review Comments ({groupedReviews.comments.length})</h5>
-                          <div style={{ background: 'white', padding: '20px', borderRadius: '8px', border: '1px solid #e0e0e0', maxHeight:'500px', overflowY:'auto' }}>
+                          <h5 style={{ margin: '0 0 8px 0', color: 'var(--mb-ink)', fontSize: '14px', fontWeight: 'bold' }}>LP Review Comments ({groupedReviews.comments.length})</h5>
+                          <div style={{ padding: '20px', maxHeight:'500px', overflowY:'auto', background: 'var(--gnf-bg)', border: '1px solid #e0e0e0' }}>
                             {groupedReviews.comments.length > 0 ? (
                                 groupedReviews.comments.map((comment, index) => (
-                                    <div key={index} style={{ 
-                                      padding: '12px 0', 
+                                    <div key={index} style={{
+                                      padding: '12px 0',
                                       borderBottom: index < groupedReviews.comments.length - 1 ? '1px solid #f0f0f0' : 'none',
-                                      fontSize: '14px',
-                                      lineHeight: '1.6',
-                                      color: '#333'
                                     }}>
-                                      {comment}
+                                      <div style={{
+                                        fontSize: '11px',
+                                        fontWeight: '600',
+                                        color: '#999',
+                                        marginBottom: '4px',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.3px'
+                                      }}>
+                                        {comment.reviewer}
+                                      </div>
+                                      <div style={{
+                                        fontSize: '14px',
+                                        lineHeight: '1.6',
+                                        color: '#333'
+                                      }}>
+                                        {comment.text}
+                                      </div>
                                     </div>
                                 ))
                             ) : (
@@ -4739,14 +5501,17 @@ return (
                             )}
                           </div>
                         </div>
+                        </div>
                       </div>
                     )}
                   </div>
                 );
               })}
+              </section>
             </>
-          )}
-          
+            );
+          })()}
+
           {activeAdminTab === 'grantWinners' && (() => {
             const winnerPitches = adminFilteredSortedPitches.filter(p => p.isWinner);
 
@@ -4768,68 +5533,90 @@ return (
               }));
             };
 
+            const handleGenerateAbout = async (pitchId) => {
+              const existing = aboutById[pitchId];
+              const fallback = (winnerPitches.find(p => p.id === pitchId) || {}).about || "";
+              const current = (existing ?? fallback).trim();
+              if (current && !window.confirm("Replace the current About text with an AI-generated version?")) return;
+              setGeneratingAboutId(pitchId);
+              try {
+                const result = await generateAboutCallable({ pitchId });
+                const text = result?.data?.about || "";
+                if (!text) {
+                  showAppAlert("AI returned no text.");
+                } else {
+                  handleFieldChange(pitchId, "about", text);
+                  showAppAlert("Generated. Review and Save All Changes when ready.");
+                }
+              } catch (err) {
+                console.error("Generate about failed:", err);
+                showAppAlert(`Generate failed: ${err.message || err}`);
+              }
+              setGeneratingAboutId(null);
+            };
+
+            // Upload a grant winner's photo to pitch-photos/ in Firebase Storage,
+            // then write the URL into the pitch's `pitch-photo` field. Storage
+            // permissions are enforced by storage.rules (any portal user, image
+            // ≤ 5 MB). Saves immediately to Firestore so it survives a tab close —
+            // independent of the Save All Changes button that batches About /
+            // Website edits.
             const handlePhotoUpload = async (pitchId, file) => {
-              if (!file) {
-                console.log("No file selected");
+              if (!file) return;
+              if (!file.type.startsWith('image/')) {
+                showAppAlert('Please choose an image file (PNG, JPG, etc.).');
                 return;
               }
-              
-              console.log("Starting upload for:", {
-                pitchId,
-                fileName: file.name,
-                fileSize: file.size,
-                fileType: file.type
-              });
-              
-              showAppAlert('Uploading photo...');
-              
+              if (file.size > 5 * 1024 * 1024) {
+                showAppAlert('Image must be smaller than 5 MB.');
+                return;
+              }
+
+              const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+              const path = `pitch-photos/${pitchId}_${Date.now()}.${ext}`;
+
+              setUploadingPhotoFor(prev => ({ ...prev, [pitchId]: true }));
               try {
-                // Create a storage reference
-                const storageRef = ref(storage, `pitch-photos/${pitchId}_${file.name}`);
-                console.log("Storage reference created:", `pitch-photos/${pitchId}_${file.name}`);
-                
-                // Upload the file
-                console.log("Starting upload...");
-                const uploadTask = await uploadBytes(storageRef, file);
-                console.log("Upload complete:", uploadTask);
-                
-                // Get the download URL
-                console.log("Getting download URL...");
+                const storageRef = ref(storage, path);
+                await uploadBytes(storageRef, file, { contentType: file.type });
                 const photoURL = await getDownloadURL(storageRef);
-                console.log("Download URL received:", photoURL);
-                
-                // Update local state
+
+                // Persist immediately. Field name matches what FounderMap and the
+                // public-facing pages read (`pitch-photo`, hyphenated — historical).
+                await updateDoc(doc(db, "pitches", pitchId), { "pitch-photo": photoURL });
+
                 setPhotosById(prev => ({ ...prev, [pitchId]: photoURL }));
-                setPendingChanges(prev => ({
-                  ...prev,
-                  [pitchId]: {
-                    ...(prev[pitchId] || {}),
-                    photoURL: photoURL
+                // Drop any stale pending edit for this field so the Save button
+                // state stays accurate after the immediate write.
+                setPendingChanges(prev => {
+                  const next = { ...prev };
+                  if (next[pitchId]) {
+                    const { ["pitch-photo"]: _drop, ...rest } = next[pitchId];
+                    if (Object.keys(rest).length === 0) delete next[pitchId];
+                    else next[pitchId] = rest;
                   }
-                }));
-                
-                showAppAlert('Photo uploaded successfully! Click "Save All Changes" to save.');
-                
-              } catch (error) {
-                console.error("Detailed upload error:", {
-                  message: error.message,
-                  code: error.code,
-                  fullError: error
+                  return next;
                 });
-                
-                // More specific error messages
+
+                showAppAlert('Photo uploaded and saved.');
+                loadAdminData();
+              } catch (error) {
+                console.error('Pitch photo upload failed:', error);
                 let errorMessage = 'Failed to upload photo: ';
                 if (error.code === 'storage/unauthorized') {
                   errorMessage += 'You do not have permission to upload files.';
                 } else if (error.code === 'storage/canceled') {
                   errorMessage += 'Upload was canceled.';
-                } else if (error.code === 'storage/unknown') {
-                  errorMessage += 'An unknown error occurred.';
                 } else {
-                  errorMessage += error.message;
+                  errorMessage += error.message || 'Unknown error.';
                 }
-                
                 showAppAlert(errorMessage);
+              } finally {
+                setUploadingPhotoFor(prev => {
+                  const next = { ...prev };
+                  delete next[pitchId];
+                  return next;
+                });
               }
             };
 
@@ -4866,47 +5653,69 @@ return (
                 p.founderName?.toLowerCase().includes(winnerSearchTerm.toLowerCase())
               );
 
+            const winnerCount = winnerPitches.length;
+            const shownCount = filteredWinners.length;
+            const totalAwarded = winnerCount * 1000; // $1,000 each
             return (
-              <div>
-                <h4> Grant Winners Editor</h4>
-                <p style={{ fontSize: '0.9em', color: '#555', marginBottom: '20px' }}>
-                  Use this panel to edit public-facing info for grant winners. Updates here power the Founder Map and Neighborhood Navigator.
-                </p>
+              <>
+                <section className="admin-section admin-section--hero admin-section--grape">
+                  <div className="admin-section-head">
+                    <span className="admin-section-head__eyebrow">Grant Winners · Editor</span>
+                    <h2 className="admin-section-head__title">
+                      The <em>founders</em> we funded.
+                    </h2>
+                    <p className="admin-section-head__lede">
+                      Edit public-facing info for grant winners. Updates power the Founder Map and Neighborhood Navigator.
+                    </p>
+                  </div>
+                  <div className="admin-hero-stats">
+                    <div className="admin-hero-stat">
+                      <span className="admin-hero-stat__num">{winnerCount}</span>
+                      <span className="admin-hero-stat__label">Grant winners</span>
+                    </div>
+                    <div className="admin-hero-stat">
+                      <span className="admin-hero-stat__num">${totalAwarded.toLocaleString()}</span>
+                      <span className="admin-hero-stat__label">Awarded since 2023</span>
+                    </div>
+                    <div className="admin-hero-stat">
+                      <span className="admin-hero-stat__num">{shownCount}</span>
+                      <span className="admin-hero-stat__label">Shown</span>
+                    </div>
+                  </div>
+                </section>
 
+                <section className="admin-section admin-section--chalk">
                 {/* Filters */}
-                <div style={{ marginBottom: '20px', display: 'flex', gap: '15px', alignItems: 'center' }}>
-                  <div>
-                    <label><strong>Filter by Chapter: </strong></label>
-                    <select
-                      value={winnerChapterFilter}
-                      onChange={(e) => setWinnerChapterFilter(e.target.value)}
-                      style={{ padding: '6px', fontFamily: 'inherit' }}
-                    >
-                      <option value="">All Chapters</option>
-                      {[...new Set(winnerPitches.map(p => p.chapter).filter(Boolean))].sort().map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  <div>
-                    <label><strong>Search: </strong></label>
-                    <input
-                      type="text"
-                      placeholder="Search business or founder..."
-                      value={winnerSearchTerm}
-                      onChange={(e) => setWinnerSearchTerm(e.target.value)}
-                      style={{ padding: '6px', width: '250px', fontFamily: 'inherit' }}
-                    />
-                  </div>
+                <div className="filter-bar">
+                  <select
+                    aria-label="Filter by chapter"
+                    value={winnerChapterFilter}
+                    onChange={(e) => setWinnerChapterFilter(e.target.value)}
+                  >
+                    <option value="">All Chapters</option>
+                    {[...new Set(winnerPitches.map(p => p.chapter).filter(Boolean))].sort().map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="search"
+                    aria-label="Search winners"
+                    placeholder="Search business or founder…"
+                    value={winnerSearchTerm}
+                    onChange={(e) => setWinnerSearchTerm(e.target.value)}
+                  />
                 </div>
 
                 {filteredWinners.length === 0 && (
-                  <p style={{ fontStyle: 'italic', color: '#888' }}>No winners found matching your criteria.</p>
+                  <EmptyState
+                    icon="🏆"
+                    title="No grant winners match"
+                    description="Try clearing a filter. Winners appear here after an admin marks a pitch as winning from the Reviews tab."
+                  />
                 )}
 
                 {filteredWinners.map((p) => (
-                  <div key={p.id} style={{ marginBottom: '20px', padding: '15px', border: '1px solid #ccc', borderRadius: '4px', background: '#f9f9f9' }}>
+                  <div key={p.id} style={{ marginBottom: '15px', padding: '15px', border: '2px solid', borderColor: 'var(--mb-ink)', boxShadow: 'var(--shadow-hard-sm)', background: 'var(--mb-paper-deep)' }}>
                     <h5 style={{ marginTop: 0 }}>{p.businessName} <span style={{ color: '#666', fontWeight: 'normal' }}>by {p.founderName}</span></h5>
                     <p style={{ fontSize: '0.85em', color: '#555', margin: '5px 0' }}>
                       Chapter: {p.chapter} | Quarter: {p.quarter} | Zip Code: {p.zipCode}
@@ -4926,7 +5735,17 @@ return (
 
                     {/* About Section */}
                     <div style={{ margin: '10px 0' }}>
-                      <label><strong>About Section:</strong></label><br />
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <label><strong>About Section:</strong></label>
+                        <button
+                          type="button"
+                          onClick={() => handleGenerateAbout(p.id)}
+                          disabled={generatingAboutId === p.id}
+                          style={{ padding: '4px 10px', fontSize: '0.85em', cursor: generatingAboutId === p.id ? 'wait' : 'pointer' }}
+                        >
+                          {generatingAboutId === p.id ? "Generating..." : "Generate from Application"}
+                        </button>
+                      </div>
                       <textarea
                         rows={4}
                         value={aboutById[p.id] ?? p.about ?? ""}
@@ -4936,16 +5755,56 @@ return (
                       />
                     </div>
 
-                    {/* Pitch Photo (Text Input instead of upload) */}
+                    {/* Pitch Photo: direct upload to pitch-photos/ in Firebase Storage. */}
                     <div style={{ margin: '10px 0' }}>
-                      <label><strong>Update Photo (URL):</strong></label><br />
-                      <input
-                        type="text"
-                        value={photosById[p.id] ?? p["pitch-photo"] ?? ""}
-                        onChange={(e) => handleFieldChange(p.id, "pitch-photo", e.target.value)}
-                        placeholder="https://example.com/photo.jpg"
-                        style={{ width: '100%', padding: '6px', fontFamily: 'inherit' }}
-                      />
+                      <label><strong>Pitch Photo:</strong></label>
+                      {(() => {
+                        const currentPhoto = photosById[p.id] || p["pitch-photo"] || null;
+                        const isUploading = !!uploadingPhotoFor[p.id];
+                        return (
+                          <div style={{ display: 'flex', gap: 16, alignItems: 'center', marginTop: 6 }}>
+                            {currentPhoto ? (
+                              <img
+                                src={currentPhoto}
+                                alt={`${p.businessName || 'Pitch'} photo`}
+                                style={{
+                                  width: 96, height: 96, objectFit: 'cover',
+                                  border: '2px solid var(--mb-ink)', background: '#fff', display: 'block'
+                                }}
+                                onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
+                              />
+                            ) : (
+                              <div style={{
+                                width: 96, height: 96,
+                                border: '2px dashed var(--mb-ink-40, #999)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: 11, color: 'var(--mb-ink-60, #666)', textAlign: 'center', padding: 4
+                              }}>
+                                No photo
+                              </div>
+                            )}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                              <input
+                                id={`pitchPhoto-${p.id}`}
+                                type="file"
+                                accept="image/*"
+                                disabled={isUploading}
+                                onChange={(e) => {
+                                  const file = e.target.files && e.target.files[0];
+                                  if (file) handlePhotoUpload(p.id, file);
+                                  e.target.value = '';
+                                }}
+                                style={{ fontFamily: 'inherit', fontSize: 12 }}
+                              />
+                              <div style={{ fontSize: 11, color: 'var(--mb-ink-60, #666)' }}>
+                                {isUploading
+                                  ? 'Uploading…'
+                                  : 'PNG or JPG. Max 5 MB. Saves immediately to pitch-photos/.'}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Single Save Button */}
@@ -4960,188 +5819,199 @@ return (
                       }}
                       disabled={!pendingChanges[p.id]}
                     >
-                      💾 Save All Changes
-                    </RetroButton> {/* Added Emoji */}
+                      Save All Changes
+                    </RetroButton>
                   </div>
                 ))}
-              </div>
+                </section>
+              </>
             );
           })()}
 
           {/* Admin: User Management Sub-Tab Content */}
-          {activeAdminTab === 'userManagement' && (
+          {activeAdminTab === 'userManagement' && (() => {
+            const totalMembers = Array.isArray(sortedUsers) ? sortedUsers.length : 0;
+            const totalAdmins = totalMembers > 0
+              ? sortedUsers.filter(u => u.role === 'chapter_director' || u.role === 'superAdmin').length
+              : 0;
+            const totalLPs = totalMembers > 0
+              ? sortedUsers.filter(u => u.role === 'lp').length
+              : 0;
+            return (
             <>
-              <h4> User Management</h4>
+              <section className="admin-section admin-section--hero admin-section--aqua-soft">
+                <div className="admin-section-head">
+                  <span className="admin-section-head__eyebrow">Team · Members</span>
+                  <h2 className="admin-section-head__title">
+                    Everyone on your <em>bench</em>.
+                  </h2>
+                  <p className="admin-section-head__lede">
+                    Manage profiles, roles, and chapter assignments. Edits sync to the LP directory instantly.
+                  </p>
+                </div>
+                <div className="admin-hero-stats">
+                  <div className="admin-hero-stat">
+                    <span className="admin-hero-stat__num">{totalMembers}</span>
+                    <span className="admin-hero-stat__label">Total members</span>
+                  </div>
+                  <div className="admin-hero-stat">
+                    <span className="admin-hero-stat__num">{totalLPs}</span>
+                    <span className="admin-hero-stat__label">Limited Partners</span>
+                  </div>
+                  <div className="admin-hero-stat">
+                    <span className="admin-hero-stat__num">{totalAdmins}</span>
+                    <span className="admin-hero-stat__label">Directors &amp; admins</span>
+                  </div>
+                </div>
+              </section>
 
-              {/* Create New User Section REMOVED */}
-
-
-              {/* Registered User Accounts List */}
+              <section className="admin-section admin-section--chalk">
               <h5>Registered User Accounts</h5>
               {(!Array.isArray(sortedUsers) || sortedUsers.length === 0) ? (
-                <p style={{ color: '#666', textAlign:'center', padding:'15px', background:'#f5f5f5', border:'1px dashed #ddd' }}>No registered user accounts found matching your view.</p>
+                <EmptyState
+                  icon="👥"
+                  title="No registered user accounts"
+                  description="Users will appear here once they accept an invitation or sign in for the first time."
+                />
               ) : (
-                <div style={{ overflowX: 'auto', border:'1px solid #ccc' }}>
-                  <table style={{ width: "100%", minWidth:'1200px', fontSize: "14px", borderCollapse: "collapse" }}>
+                <div className="retro-table-wrap">
+                  <table className="retro-table" style={{ width: '100%', tableLayout: 'fixed' }}>
                     <thead>
-                      <tr style={{ borderBottom: "2px solid #ccc", textAlign: "left", background: '#f2f2f2' }}>
-                        <th style={{ padding: "10px 8px" }}>Name</th>
-                        <th style={{ padding: "10px 8px" }}>Email</th>
-                        <th style={{ padding: "10px 8px" }}>System Role</th>
-                        <th style={{ padding: "10px 8px" }}>Chapter</th>
-                        <th style={{ padding: "10px 8px" }}>LinkedIn</th>
-                        <th style={{ padding: "10px 8px" }}>Professional Role</th>
-                        <th style={{ padding: "10px 8px" }}>Bio</th>
-                        <th style={{ padding: "10px 8px" }}>Actions</th>
+                      <tr>
+                        <th style={{ width: '28%' }}>Member</th>
+                        <th style={{ width: '14%' }}>Role</th>
+                        <th style={{ width: '18%' }}>Chapter</th>
+                        <th>Profile</th>
+                        <th style={{ width: '90px' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {sortedUsers
-                        // Optionally filter users by chapter if the current user is an Admin but not SuperAdmin
-                        .filter(u => isSuperAdmin || !userChapter /* Show all if user is superadmin or user has no chapter */ || u.chapter === userChapter || !u.chapter /* Also show users without chapter assigned */ )
+                        // SuperAdmin sees everyone. Chapter directors / legacy admins are scoped to their own chapter.
+                        .filter(u => isSuperAdmin || !userChapter || u.chapter === userChapter)
                         .map((u) => {
                           // Determine if controls should be disabled for this user row
                           const isSelf = u.uid === user.uid;
                           const targetIsSuperAdmin = u.role === 'superAdmin';
-                          const disableRoleChange = isSelf || (targetIsSuperAdmin && !isSuperAdmin) || (!isAdmin); // Added !isAdmin just in case
-                          const disableChapterChange = !isSuperAdmin || isSelf; // Only SuperAdmin can change chapter, cannot change own chapter
+                          const disableRoleChange = isSelf || (targetIsSuperAdmin && !isSuperAdmin) || (!isAdmin);
+                          // SuperAdmin can reassign anyone to any chapter.
+                          // Chapter directors can change chapter on users in their chapter (enforced to own chapter in handleUpdateUser).
+                          const disableChapterChange = isSelf || (!isSuperAdmin && !isChapterDirector);
                           const disablePasswordReset = isSelf;
                           const disableDelete = isSelf || (targetIsSuperAdmin && !isSuperAdmin);
 
+                          const isEditing = !!editingUsers[u.uid];
+                          const rowClass = isEditing ? 'is-editing' : (isSelf ? 'is-self' : '');
+                          const editPanelInputStyle = { width: '100%', padding: '8px 10px', fontSize: '13px', fontFamily: 'var(--font-content)', boxSizing: 'border-box' };
+                          // Same fallback the directory + edit-panel preview use.
+                          const rowLegacyPhoto = u.name
+                            ? `/assets/lps/${u.name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}.png`
+                            : null;
+                          const rowPhotoUrl = u.photoUrl || rowLegacyPhoto;
                           return (
-                            <tr key={u.uid} style={{ borderBottom: "1px solid #eee", background: isSelf ? '#f0f8ff' : '#fff' }}>
-                              <td style={{ padding: "8px" }}>{u.name || <i style={{color: '#888'}}>(No Name Set)</i>}</td>
-                              <td style={{ padding: "8px" }}>{u.email}</td>
-                              {/* Role Select */}
-                              <td style={{ padding: "8px" }}>
-                                <select
-                                  value={u.role || 'unauthorized'} // Default to unauthorized if role missing
-                                  onChange={(e) => handleUpdateUser(u.uid, "role", e.target.value)}
-                                  disabled={disableRoleChange}
-                                  style={{ padding: "4px", height: "28px", maxWidth: '150px', border: '1px solid #ccc', borderRadius: '3px', fontFamily:'inherit', background: disableRoleChange ? '#eee' : '#fff', fontSize:'1em' }}
-                                  title={disableRoleChange ? (isSelf ? "Cannot change own role" : "Permission denied") : "Change user role"}
-                                >
-                                  <option value="unauthorized"> Unauthorized</option>
-                                  <option value="lp">LP</option>
-                                  <option value="admin">Admin</option>
-                                  {/* Only show SuperAdmin option if current user is SuperAdmin OR if target is already SuperAdmin (to allow demotion maybe?) */}
-                                  {(isSuperAdmin || targetIsSuperAdmin) && <option value="superAdmin"> SuperAdmin</option>}
-                                </select>
-                              </td>
-                              {/* Chapter Select (Only SuperAdmin can change) */}
-                              <td style={{ padding: "8px" }}>
-                                <select
-                                  value={u.chapter || ""}
-                                  onChange={(e) => handleUpdateUser(u.uid, "chapter", e.target.value)}
-                                  disabled={disableChapterChange}
-                                  style={{ padding: "4px", height: "28px", maxWidth: '180px', border: '1px solid #ccc', borderRadius: '3px', fontFamily:'inherit', background: disableChapterChange ? '#eee' : '#fff', fontSize:'1em' }}
-                                  title={disableChapterChange ? "Only SuperAdmin can change chapter (cannot change own)" : "Change user chapter"}
-                                >
-                                  <option value="">-- No Chapter --</option>
-                                  {/* TODO: Make chapter list dynamic or constant */}
-                                  <option value="Western New York">Western New York</option>
-                                  <option value="Denver">Denver</option>
-                                  {/* Add other chapters */}
-                                </select>
-                              </td>
-                              {/* LinkedIn URL */}
-                              <td style={{ padding: "8px" }}>
-                                {editingUsers[u.uid] ? (
-                                  <input
-                                    type="text"
-                                    value={editingUsers[u.uid].linkedinUrl || ''}
-                                    onChange={(e) => setEditingUsers({
-                                      ...editingUsers,
-                                      [u.uid]: { ...editingUsers[u.uid], linkedinUrl: e.target.value }
-                                    })}
-                                    style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '3px' }}
-                                    placeholder="LinkedIn URL"
-                                  />
-                                ) : (
-                                  u.linkedinUrl ? (
-                                    <a href={u.linkedinUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#0077B5' }}>
-                                      LinkedIn
-                                    </a>
-                                  ) : (
-                                    <span style={{ color: '#888' }}>-</span>
-                                  )
-                                )}
-                              </td>
-                              {/* Professional Role */}
-                              <td style={{ padding: "8px" }}>
-                                {editingUsers[u.uid] ? (
-                                  <input
-                                    type="text"
-                                    value={editingUsers[u.uid].professionalRole || ''}
-                                    onChange={(e) => setEditingUsers({
-                                      ...editingUsers,
-                                      [u.uid]: { ...editingUsers[u.uid], professionalRole: e.target.value }
-                                    })}
-                                    style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '3px' }}
-                                    placeholder="e.g. CEO, Investor"
-                                  />
-                                ) : (
-                                  <span>{u.professionalRole || <span style={{ color: '#888' }}>-</span>}</span>
-                                )}
-                              </td>
-                              {/* Bio */}
-                              <td style={{ padding: "8px" }}>
-                                {editingUsers[u.uid] ? (
-                                  <textarea
-                                    value={editingUsers[u.uid].bio || ''}
-                                    onChange={(e) => setEditingUsers({
-                                      ...editingUsers,
-                                      [u.uid]: { ...editingUsers[u.uid], bio: e.target.value }
-                                    })}
-                                    style={{ width: '100%', padding: '4px', border: '1px solid #ccc', borderRadius: '3px', resize: 'vertical', minHeight: '50px' }}
-                                    placeholder="Short bio"
-                                  />
-                                ) : (
-                                  <span style={{ display: 'block', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {u.bio || <span style={{ color: '#888' }}>-</span>}
-                                  </span>
-                                )}
-                              </td>
-                              {/* Action Buttons */}
-                              <td style={{ padding: "8px", whiteSpace: 'nowrap' }}>
-                                {editingUsers[u.uid] ? (
-                                  <>
-                                    <RetroButton
-                                      onClick={async () => {
-                                        const updates = editingUsers[u.uid];
-                                        try {
-                                          await updateDoc(doc(db, "users", u.uid), {
-                                            linkedinUrl: updates.linkedinUrl || '',
-                                            professionalRole: updates.professionalRole || '',
-                                            bio: updates.bio || ''
-                                          });
-                                          showAppAlert("User profile updated successfully.");
-                                          const newEditingUsers = { ...editingUsers };
-                                          delete newEditingUsers[u.uid];
-                                          setEditingUsers(newEditingUsers);
-                                          loadAdminData(); // Refresh data
-                                        } catch (error) {
-                                          showAppAlert(`Error updating user: ${error.message}`);
-                                        }
-                                      }}
-                                      style={{ background: '#4CAF50', color: 'white', border: '1px solid #45a049', padding: '3px 8px', fontSize: '0.9em', marginRight: '5px' }}
+                            <React.Fragment key={u.uid}>
+                              <tr className={rowClass} style={{ borderBottom: isEditing ? 'none' : undefined }}>
+                                {/* Member: photo + name + email stacked */}
+                                <td>
+                                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
+                                    {rowPhotoUrl ? (
+                                      <img
+                                        src={rowPhotoUrl}
+                                        alt=""
+                                        style={{
+                                          width: 32, height: 32, objectFit: 'cover', flexShrink: 0,
+                                          border: '2px solid var(--gnf-border-pink-light, #FFD6EC)',
+                                          background: '#fff'
+                                        }}
+                                        onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
+                                      />
+                                    ) : (
+                                      <div style={{
+                                        width: 32, height: 32, flexShrink: 0,
+                                        border: '2px dashed var(--mb-ink-40, #999)', background: 'transparent'
+                                      }} />
+                                    )}
+                                    <div style={{ minWidth: 0, lineHeight: 1.2 }}>
+                                      <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {u.name || <i style={{ color: 'var(--mb-ink-60)' }}>(No Name Set)</i>}
+                                      </div>
+                                      <div style={{ fontSize: 11, color: 'var(--mb-ink-60)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                        {u.email}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                {/* Role Select (+ chapterRole for superAdmins) */}
+                                <td>
+                                  <select
+                                    aria-label={`Role for ${u.name || u.email}`}
+                                    value={u.role || 'unauthorized'}
+                                    onChange={(e) => handleUpdateUser(u.uid, "role", e.target.value)}
+                                    disabled={disableRoleChange}
+                                    style={{ width: '100%', maxWidth: '100%' }}
+                                    title={disableRoleChange ? (isSelf ? "Cannot change own role" : "Permission denied") : "Change user role"}
+                                  >
+                                    <option value="unauthorized">Unauthorized</option>
+                                    <option value="lp">LP</option>
+                                    <option value="chapter_director">Chapter Director</option>
+                                    {(isSuperAdmin || targetIsSuperAdmin) && <option value="superAdmin">Super Admin</option>}
+                                  </select>
+                                  {targetIsSuperAdmin && (
+                                    <select
+                                      aria-label={`List ${u.name || u.email} on chapter page as`}
+                                      value={u.chapterRole || ''}
+                                      onChange={(e) => handleUpdateUser(u.uid, "chapterRole", e.target.value)}
+                                      disabled={!isSuperAdmin}
+                                      style={{ width: '100%', maxWidth: '100%', marginTop: 4, fontSize: 11 }}
+                                      title="List this Super Admin on their chapter's public page"
                                     >
-                                      💾 Save
-                                    </RetroButton>
+                                      <option value="">List as: — none —</option>
+                                      <option value="lp">List as: LP</option>
+                                      <option value="chapter_director">List as: Chapter Director</option>
+                                    </select>
+                                  )}
+                                </td>
+                                {/* Chapter Select */}
+                                <td>
+                                  <select
+                                    aria-label={`Chapter for ${u.name || u.email}`}
+                                    value={u.chapter || ""}
+                                    onChange={(e) => handleUpdateUser(u.uid, "chapter", e.target.value)}
+                                    disabled={disableChapterChange}
+                                    style={{ width: '100%', maxWidth: '100%' }}
+                                    title={disableChapterChange ? "Only SuperAdmin can change chapter (cannot change own)" : "Change user chapter"}
+                                  >
+                                    <option value="">— No Chapter —</option>
+                                    {activeChapterNames.map(c => <option key={c} value={c}>{c}</option>)}
+                                  </select>
+                                </td>
+                                {/* Profile: professional role (bold) + bio truncated */}
+                                <td style={{ minWidth: 0 }}>
+                                  <div style={{ lineHeight: 1.3, minWidth: 0 }}>
+                                    <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      {dashIfEmpty(u.professionalRole)}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: 'var(--mb-ink-60)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      {u.bio || <span style={{ fontStyle: 'italic' }}>No bio</span>}
+                                    </div>
+                                  </div>
+                                </td>
+                                {/* Actions: Edit / Close. Send link + Delete moved into the edit panel below. */}
+                                <td className="actions">
+                                  {isEditing ? (
                                     <RetroButton
+                                      size="sm"
                                       onClick={() => {
                                         const newEditingUsers = { ...editingUsers };
                                         delete newEditingUsers[u.uid];
                                         setEditingUsers(newEditingUsers);
                                       }}
-                                      style={{ background: '#f44336', color: 'white', border: '1px solid #da190b', padding: '3px 8px', fontSize: '0.9em', marginRight: '5px' }}
                                     >
-                                      ❌ Cancel
+                                      Close
                                     </RetroButton>
-                                  </>
-                                ) : (
-                                  <>
+                                  ) : (
                                     <RetroButton
+                                      size="sm"
                                       onClick={() => setEditingUsers({
                                         ...editingUsers,
                                         [u.uid]: {
@@ -5150,681 +6020,1603 @@ return (
                                           bio: u.bio || ''
                                         }
                                       })}
-                                      style={{ background: '#2196F3', color: 'white', border: '1px solid #1976d2', padding: '3px 8px', fontSize: '0.9em', marginRight: '5px' }}
+                                      title={`Edit profile for ${u.email}`}
                                     >
-                                      ✏️ Edit
+                                      Edit
                                     </RetroButton>
-                                    <RetroButton
-                                      onClick={() => handleAdminPasswordReset(u.email)}
-                                      disabled={disablePasswordReset}
-                                      style={{ background: disablePasswordReset ? '#ccc':'#fff3e0', color: disablePasswordReset ? '#666':'#e65100', border: `1px solid ${disablePasswordReset ? '#bbb' : '#ffe0b2'}`, padding: '3px 8px', fontSize: '0.9em', marginRight: '5px' }}
-                                      title={disablePasswordReset ? "Cannot reset own password here" : `Send password reset to ${u.email}`}
-                                    >
-                                      🔑 Reset Pwd {/* Added Emoji */}
-                                    </RetroButton>
-                                    <RetroButton
-                                      onClick={() => handleDeleteUser(u.uid, u.email)}
-                                      disabled={disableDelete}
-                                      style={{ background: disableDelete ? '#ccc' : '#ffebee', color: disableDelete ? '#666' : 'red', border: `1px solid ${disableDelete ? '#bbb' : '#ffcdd2'}`, padding: '3px 8px', fontSize: '0.9em' }}
-                                      title={disableDelete ? (isSelf ? "Cannot delete self" : "Permission denied") : `Delete portal profile data for ${u.email}`}
-                                    >
-                                      🗑️ Delete {/* Added Emoji */}
-                                    </RetroButton>
-                                  </>
-                                )}
-                              </td>
-                            </tr>
+                                  )}
+                                </td>
+                              </tr>
+                              {isEditing && (
+                                <tr>
+                                  <td colSpan={5} style={{ padding: 0 }}>
+                                    <div className="retro-edit-panel">
+                                      <div className="retro-edit-panel-title">
+                                        Editing profile — {u.name || u.email}
+                                      </div>
+                                      {(() => {
+                                        // Mirror the directory fallback so existing members
+                                        // (whose photo lives at /assets/lps/{slug}.png and
+                                        // hasn't been re-uploaded yet) preview correctly.
+                                        const legacyPhoto = u.name
+                                          ? `/assets/lps/${u.name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}.png`
+                                          : null;
+                                        const previewUrl = u.photoUrl || legacyPhoto;
+                                        const isLegacy = !u.photoUrl && !!legacyPhoto;
+                                        return (
+                                      <div className="retro-form-row" style={{ marginBottom: 16 }}>
+                                        <label>Member Photo</label>
+                                        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                                          {previewUrl ? (
+                                            <div style={{ position: 'relative', width: 72, height: 72 }}>
+                                              <img
+                                                src={previewUrl}
+                                                alt={u.name || u.email}
+                                                style={{
+                                                  width: 72, height: 72, objectFit: 'cover',
+                                                  border: '3px solid var(--gnf-border-pink-light, #FFD6EC)',
+                                                  background: '#fff', display: 'block'
+                                                }}
+                                                onError={(e) => {
+                                                  // Hide a broken legacy fallback (member with no
+                                                  // matching /assets/lps/ file) so the user sees
+                                                  // an empty preview instead of a broken image.
+                                                  e.currentTarget.style.visibility = 'hidden';
+                                                }}
+                                              />
+                                              {isLegacy && (
+                                                <div title="Bundled photo from /assets/lps/. Upload a new one to manage it from here." style={{
+                                                  position: 'absolute', bottom: -2, right: -2,
+                                                  background: 'var(--mb-ink, #333)', color: '#fff',
+                                                  fontSize: 9, padding: '1px 4px', borderRadius: 2,
+                                                  fontFamily: 'var(--font-content)'
+                                                }}>
+                                                  legacy
+                                                </div>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <div style={{
+                                              width: 72, height: 72,
+                                              border: '2px dashed var(--mb-ink-40, #999)',
+                                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                              fontSize: 11, color: 'var(--mb-ink-60, #666)', textAlign: 'center', padding: 4
+                                            }}>
+                                              No photo
+                                            </div>
+                                          )}
+                                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                            <input
+                                              id={`memberPhoto-${u.uid}`}
+                                              type="file"
+                                              accept="image/*"
+                                              disabled={!!uploadingPhotoFor[u.uid]}
+                                              onChange={(e) => {
+                                                const file = e.target.files && e.target.files[0];
+                                                if (file) handleMemberPhotoUpload(u, file);
+                                                e.target.value = '';
+                                              }}
+                                              style={{ fontFamily: 'var(--font-content)', fontSize: 12 }}
+                                            />
+                                            <div style={{ fontSize: 11, color: 'var(--mb-ink-60, #666)' }}>
+                                              {uploadingPhotoFor[u.uid]
+                                                ? 'Uploading…'
+                                                : 'PNG or JPG. Max 5 MB. Saves immediately.'}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </div>
+                                        );
+                                      })()}
+                                      <div className="retro-form-grid">
+                                        <div className="retro-form-row">
+                                          <label htmlFor={`linkedin-${u.uid}`}>LinkedIn URL</label>
+                                          <input
+                                            id={`linkedin-${u.uid}`}
+                                            type="url"
+                                            value={editingUsers[u.uid].linkedinUrl || ''}
+                                            onChange={(e) => setEditingUsers({
+                                              ...editingUsers,
+                                              [u.uid]: { ...editingUsers[u.uid], linkedinUrl: e.target.value }
+                                            })}
+                                            style={editPanelInputStyle}
+                                            placeholder="https://linkedin.com/in/username"
+                                          />
+                                        </div>
+                                        <div className="retro-form-row">
+                                          <label htmlFor={`profrole-${u.uid}`}>Professional Role</label>
+                                          <input
+                                            id={`profrole-${u.uid}`}
+                                            type="text"
+                                            value={editingUsers[u.uid].professionalRole || ''}
+                                            onChange={(e) => setEditingUsers({
+                                              ...editingUsers,
+                                              [u.uid]: { ...editingUsers[u.uid], professionalRole: e.target.value }
+                                            })}
+                                            style={editPanelInputStyle}
+                                            placeholder="e.g. CEO, Investor"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="retro-form-row">
+                                        <label htmlFor={`bio-${u.uid}`}>Bio</label>
+                                        <textarea
+                                          id={`bio-${u.uid}`}
+                                          value={editingUsers[u.uid].bio || ''}
+                                          onChange={(e) => setEditingUsers({
+                                            ...editingUsers,
+                                            [u.uid]: { ...editingUsers[u.uid], bio: e.target.value }
+                                          })}
+                                          style={{ ...editPanelInputStyle, minHeight: '110px', resize: 'vertical' }}
+                                          placeholder="Short bio"
+                                        />
+                                      </div>
+                                      <div className="retro-action-row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                          <RetroButton
+                                            variant="primary"
+                                            onClick={async () => {
+                                              const updates = editingUsers[u.uid];
+                                              try {
+                                                await updateDoc(doc(db, "users", u.uid), {
+                                                  linkedinUrl: updates.linkedinUrl || '',
+                                                  professionalRole: updates.professionalRole || '',
+                                                  bio: updates.bio || ''
+                                                });
+                                                showAppAlert("User profile updated successfully.");
+                                                const newEditingUsers = { ...editingUsers };
+                                                delete newEditingUsers[u.uid];
+                                                setEditingUsers(newEditingUsers);
+                                                loadAdminData();
+                                              } catch (error) {
+                                                showAppAlert(`Error updating user: ${error.message}`);
+                                              }
+                                            }}
+                                          >
+                                            Save Changes
+                                          </RetroButton>
+                                          <RetroButton
+                                            onClick={() => {
+                                              const newEditingUsers = { ...editingUsers };
+                                              delete newEditingUsers[u.uid];
+                                              setEditingUsers(newEditingUsers);
+                                            }}
+                                          >
+                                            Cancel
+                                          </RetroButton>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: 8 }}>
+                                          <RetroButton
+                                            size="sm"
+                                            onClick={() => handleAdminPasswordReset(u.email)}
+                                            disabled={disablePasswordReset}
+                                            title={disablePasswordReset ? "Can't send yourself a sign-in link from here" : `Email a sign-in link to ${u.email}`}
+                                          >
+                                            Send sign-in link
+                                          </RetroButton>
+                                          <RetroButton
+                                            size="sm"
+                                            variant="danger"
+                                            onClick={() => handleDeleteUser(u.uid, u.email)}
+                                            disabled={disableDelete}
+                                            title={disableDelete ? (isSelf ? "Cannot delete self" : "Permission denied") : `Delete portal profile data for ${u.email}`}
+                                          >
+                                            Delete profile
+                                          </RetroButton>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
                           );
                         })}
                     </tbody>
                   </table>
                 </div>
               )}
+              </section>
             </>
-          )}
+            );
+          })()}
 
           {/* Admin: Create User Sub-Tab Content */}
           {activeAdminTab === 'createUser' && isAdmin && (
-            <div>
-              <h4>Create New LP User</h4>
-              <p style={{ fontSize: '0.9em', color: '#555', marginBottom: '20px' }}>
-                Create a new Limited Partner user profile. The user will need to use the "Forgot Password" 
-                flow to create their authentication credentials on first access.
-              </p>
-              
-              
-              <div style={{ maxWidth: '600px', background: '#f9f9f9', padding: '20px', border: '1px solid #ddd', borderRadius: '4px' }}>
-                <div style={{ marginBottom: '20px', padding: '15px', background: '#e3f2fd', border: '1px solid #1976d2', borderRadius: '4px' }}>
-                  <p style={{ margin: '0 0 10px 0', fontWeight: 'bold', color: '#1976d2' }}>
-                    📋 Before You Begin:
+            <>
+              <section className="admin-section admin-section--hero admin-section--butter-soft">
+                <div className="admin-section-head">
+                  <span className="admin-section-head__eyebrow">Team · Onboarding</span>
+                  <h2 className="admin-section-head__title">
+                    Invite a new <em>LP</em>.
+                  </h2>
+                  <p className="admin-section-head__lede">
+                    Fill out the form and click <strong>Send invite</strong>. We&rsquo;ll create their account and email them a one-tap magic-link to sign in &mdash; no passwords, no Firebase Console trips.
                   </p>
-                  <ol style={{ margin: '0', paddingLeft: '20px', color: '#555' }}>
-                    <li>Go to Firebase Console → Authentication</li>
-                    <li>Click "Add user" and create the account</li>
-                    <li>Copy the generated UID</li>
-                    <li>Paste it below to create the matching Firestore profile</li>
-                  </ol>
                 </div>
-                
+              </section>
+
+              <section className="admin-section admin-section--chalk">
+              <div className="retro-edit-panel" style={{ maxWidth: '640px' }}>
                 <form onSubmit={handleCreateUser}>
-                  {/* UID */}
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                      Firebase UID <span style={{ color: 'red' }}>*</span>
+                  <div className="retro-form-row">
+                    <label htmlFor="new-user-email">
+                      Email Address <span aria-hidden="true" style={{ color: 'var(--mb-magenta)' }}>*</span>
                     </label>
                     <input
-                      type="text"
-                      value={newUserData.uid || ''}
-                      onChange={(e) => setNewUserData({ ...newUserData, uid: e.target.value.trim() })}
-                      required
-                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', fontFamily: 'monospace', fontSize: '0.9em' }}
-                      placeholder="Paste the UID from Firebase Console"
-                    />
-                    <small style={{ color: '#666', fontSize: '0.85em' }}>
-                      This will be used as the document ID in Firestore
-                    </small>
-                  </div>
-                  
-                  {/* Email */}
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                      Email Address <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <input
+                      id="new-user-email"
                       type="email"
                       value={newUserData.email || ''}
                       onChange={(e) => setNewUserData({ ...newUserData, email: e.target.value.toLowerCase() })}
                       required
-                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', fontFamily: 'inherit' }}
                       placeholder="user@example.com"
                     />
                   </div>
-                  
-                  {/* Name */}
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                      Full Name <span style={{ color: 'red' }}>*</span>
+
+                  <div className="retro-form-row">
+                    <label htmlFor="new-user-name">
+                      Full Name <span aria-hidden="true" style={{ color: 'var(--mb-magenta)' }}>*</span>
                     </label>
                     <input
+                      id="new-user-name"
                       type="text"
                       value={newUserData.name || ''}
                       onChange={(e) => setNewUserData({ ...newUserData, name: e.target.value })}
                       required
-                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', fontFamily: 'inherit' }}
                       placeholder="Jane Smith"
                     />
                   </div>
-                  
-                  {/* Role */}
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                      Role <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <select
-                      value={newUserData.role || 'lp'}
-                      onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value })}
-                      required
-                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', fontFamily: 'inherit', background: '#fff' }}
-                    >
-                      <option value="lp">Limited Partner (LP)</option>
-                      <option value="admin">Admin</option>
-                      {isSuperAdmin && <option value="superAdmin">Super Admin</option>}
-                    </select>
+
+                  <div className="retro-form-grid">
+                    <div className="retro-form-row" style={{ marginBottom: 0 }}>
+                      <label htmlFor="new-user-role">
+                        Role <span aria-hidden="true" style={{ color: 'var(--mb-magenta)' }}>*</span>
+                      </label>
+                      <select
+                        id="new-user-role"
+                        value={newUserData.role || 'lp'}
+                        onChange={(e) => setNewUserData({ ...newUserData, role: e.target.value })}
+                        required
+                      >
+                        <option value="lp">Limited Partner (LP)</option>
+                        <option value="chapter_director">Chapter Director</option>
+                        {isSuperAdmin && <option value="superAdmin">Super Admin</option>}
+                      </select>
+                    </div>
+
+                    <div className="retro-form-row" style={{ marginBottom: 0 }}>
+                      <label htmlFor="new-user-chapter">
+                        Chapter <span aria-hidden="true" style={{ color: 'var(--mb-magenta)' }}>*</span>
+                      </label>
+                      <select
+                        id="new-user-chapter"
+                        value={isChapterDirector ? (userChapter || '') : (newUserData.chapter || '')}
+                        onChange={(e) => setNewUserData({ ...newUserData, chapter: e.target.value })}
+                        required
+                        disabled={isChapterDirector}
+                        title={isChapterDirector ? `Chapter directors can only invite to ${userChapter}.` : undefined}
+                      >
+                        {isChapterDirector ? (
+                          <option value={userChapter}>{userChapter}</option>
+                        ) : (
+                          <>
+                            <option value="">— Select Chapter —</option>
+                            {activeChapterNames.map(name => (
+                              <option key={name} value={name}>{name}</option>
+                            ))}
+                          </>
+                        )}
+                      </select>
+                    </div>
                   </div>
-                  
-                  {/* Chapter */}
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                      Chapter <span style={{ color: 'red' }}>*</span>
-                    </label>
-                    <select
-                      value={newUserData.chapter || ''}
-                      onChange={(e) => setNewUserData({ ...newUserData, chapter: e.target.value })}
-                      required
-                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', fontFamily: 'inherit', background: '#fff' }}
-                    >
-                      <option value="">-- Select Chapter --</option>
-                      <option value="Western New York">Western New York</option>
-                      <option value="Denver">Denver</option>
-                      {/* Add other chapters as needed */}
-                    </select>
-                  </div>
-                  
-                  {/* Anniversary Date */}
-                  <div style={{ marginBottom: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-                      Join Date (Anniversary) <span style={{ color: 'red' }}>*</span>
+
+                  {/* SuperAdmins can opt into appearing on their chapter's public
+                       roster in a secondary role (LP or Chapter Director). The
+                       role field still drives capabilities; chapterRole drives
+                       presentation only. */}
+                  {newUserData.role === 'superAdmin' && (
+                    <div className="retro-form-row">
+                      <label htmlFor="new-user-chapter-role">
+                        List on chapter page as
+                      </label>
+                      <select
+                        id="new-user-chapter-role"
+                        value={newUserData.chapterRole || ''}
+                        onChange={(e) => setNewUserData({ ...newUserData, chapterRole: e.target.value })}
+                      >
+                        <option value="">— Don't list —</option>
+                        <option value="lp">Limited Partner (LP)</option>
+                        <option value="chapter_director">Chapter Director</option>
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="retro-form-row">
+                    <label htmlFor="new-user-anniversary">
+                      Join Date (Anniversary) <span aria-hidden="true" style={{ color: 'var(--mb-magenta)' }}>*</span>
                     </label>
                     <input
+                      id="new-user-anniversary"
                       type="date"
                       value={newUserData.anniversary || new Date().toISOString().split('T')[0]}
                       onChange={(e) => setNewUserData({ ...newUserData, anniversary: e.target.value })}
                       required
-                      style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '3px', fontFamily: 'inherit' }}
                     />
                   </div>
-                  
-                  
-                  {/* Submit Buttons */}
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                    <RetroButton
-                      type="submit"
-                      primary
-                      style={{ 
-                        background: '#d4edda', 
-                        border: '1px solid #c3e6cb',
-                        padding: '8px 20px',
-                        fontSize: '0.9em'
-                      }}
-                    >
-                      ✅ Create User
+
+                  <div className="retro-action-row">
+                    <RetroButton type="submit" variant="primary" disabled={isInviting}>
+                      {isInviting ? 'Sending invite…' : 'Send invite'}
                     </RetroButton>
                     <RetroButton
                       type="button"
+                      disabled={isInviting}
                       onClick={() => {
                         setNewUserData({
                           email: '',
                           name: '',
                           role: 'lp',
-                          chapter: '',
-                          anniversary: new Date().toISOString().split('T')[0]
+                          chapter: isChapterDirector ? userChapter : '',
+                          anniversary: new Date().toISOString().split('T')[0],
+                          chapterRole: '',
                         });
                       }}
-                      style={{ 
-                        background: '#f0f0f0',
-                        padding: '8px 20px',
-                        fontSize: '0.9em'
-                      }}
                     >
-                      🔄 Reset Form
+                      Reset Form
                     </RetroButton>
                   </div>
                 </form>
               </div>
-              
-            </div>
+              </section>
+            </>
           )}
 
           {/* Admin: Super Admin Tools Sub-Tab Content (Conditional) */}
           {activeAdminTab === 'superAdminTools' && isSuperAdmin && (
-            <div>
-              <h4> Super Admin Tools</h4>
-              <p>This area is reserved for SuperAdmin functions.</p>
-              
-              {/* Anniversary Badge Assignment */}
-              <div style={{ marginBottom: '30px', padding: '20px', background: '#f9f9f9', border: '1px solid #ddd', borderRadius: '4px' }}>
-                <h5 style={{ marginTop: 0 }}>🎂 Anniversary Badge Assignment</h5>
-                <p style={{ fontSize: '0.9em', color: '#555' }}>
-                  Assign OG Neighbor and Year Club badges to all qualifying LPs based on their join dates.
-                </p>
-                <ul style={{ fontSize: '0.85em', color: '#666' }}>
-                  <li>🏛️ OG Neighbor - for LPs who joined in 2023</li>
-                  <li>📅 2 Year Club - for LPs active 2+ years</li>
-                  <li>🎂 3 Year Club - for LPs active 3+ years</li>
-                  <li>🎊 4 Year Club - for LPs active 4+ years</li>
-                  <li>🏅 5 Year Club - for LPs active 5+ years</li>
-                </ul>
+            <>
+              <section className="admin-section admin-section--hero admin-section--ink">
+                <div className="admin-section-head">
+                  <span className="admin-section-head__eyebrow">Super Admin · Tools</span>
+                  <h2 className="admin-section-head__title">
+                    The <em>dangerous</em> stuff.
+                  </h2>
+                  <p className="admin-section-head__lede">
+                    One-time migrations, badge runs, and stat recalculations. Most are safe to re-run &mdash; each card says so.
+                  </p>
+                </div>
+              </section>
+
+              <section className="admin-section admin-section--paper">
+              <div className="admin-tool-grid">
+                <AdminToolCard
+                  eyebrow="Migration"
+                  title="Migrate legacy admin users"
+                  body={
+                    <>
+                      Finds every user with <code>role: "admin"</code> and updates them to{' '}
+                      <code>role: "lp"</code>. Your super admin account is unaffected.
+                      Safe to re-run — does nothing if no legacy admins remain.
+                    </>
+                  }
+                  action={
+                    <RetroButton onClick={handleMigrateAdminToLP} variant="primary">
+                      Run admin → lp Migration
+                    </RetroButton>
+                  }
+                />
+
+                <AdminToolCard
+                  eyebrow="Badges"
+                  title="Anniversary Badge Assignment"
+                  body="Assigns OG Neighbor and Year Club badges to all qualifying LPs based on their join dates."
+                  footnote={
+                    <ul>
+                      <li>OG Neighbor — LPs who joined in 2023</li>
+                      <li>2 / 3 / 4 / 5 Year Clubs — LPs active that many years</li>
+                    </ul>
+                  }
+                  action={
+                    <RetroButton onClick={handleAssignAnniversaryBadges} variant="primary">
+                      Assign Anniversary Badges
+                    </RetroButton>
+                  }
+                />
+
+                <AdminToolCard
+                  eyebrow="Backfill"
+                  title="Backfill Review Quarters"
+                  body={
+                    <>
+                      Writes a <code>quarter</code> field onto legacy review docs (derived from
+                      each review's pitch). Required for Midas Touch, Completionist, and Perfect
+                      Attendance badges to see historical activity. Safe to re-run — only touches
+                      reviews that don't already have a quarter.
+                    </>
+                  }
+                  action={
+                    <RetroButton onClick={handleBackfillReviewQuarters} variant="primary">
+                      Run Review Quarter Backfill
+                    </RetroButton>
+                  }
+                />
+
+                <AdminToolCard
+                  eyebrow="Leaderboards"
+                  title={`Recalculate Chapter Rankings — ${getCurrentQuarter()}`}
+                  body="Computes this quarter's top reviewer in every chapter and bumps each top-3 finisher's counter. Unlocks Chapter MVP and Neighborhood Mayor badges."
+                  warning="Run this ONCE near the end of each quarter. Running multiple times will over-increment the top-3 counter."
+                  action={
+                    <RetroButton onClick={handleRecalculateChapterRankings} variant="primary">
+                      Recalculate Rankings
+                    </RetroButton>
+                  }
+                />
+              </div>
+
+              <div className="retro-empty" style={{ marginTop: 24 }}>
+                <div className="retro-empty-icon" aria-hidden="true">🧰</div>
+                <div className="retro-empty-title">Coming soon</div>
+                <div className="retro-empty-body">
+                  More super admin tools for managing chapters, global settings, and analytics.
+                </div>
+              </div>
+              </section>
+            </>
+          )}
+
+          {/* Chapters Management Sub-Tab Content */}
+          {activeAdminTab === 'chaptersManagement' && (isSuperAdmin || isChapterDirector) && (() => {
+            // Chapter directors see only their own chapter; superAdmins see the full list.
+            const visibleChapters = isSuperAdmin
+              ? chapters
+              : chapters.filter(c => c.name === userChapter);
+            const totalChapters = chapters.length;
+            const activeChapters = chapters.filter(c => c.active !== false).length;
+            return (
+            <>
+              <section className="admin-section admin-section--hero admin-section--tangerine-soft">
+                <div className="admin-section-head">
+                  <span className="admin-section-head__eyebrow">
+                    {isSuperAdmin ? 'Chapters · Directory' : 'Your Chapter · Landing page'}
+                  </span>
+                  <h2 className="admin-section-head__title">
+                    {isSuperAdmin
+                      ? <>Where the <em>neighborhoods</em> live.</>
+                      : <>Your chapter&rsquo;s <em>front door</em>.</>}
+                  </h2>
+                  <p className="admin-section-head__lede">
+                    {isSuperAdmin
+                      ? <>The <code>/chapters</code> collection powers every chapter dropdown, hydrates the public <code>/&lt;slug&gt;</code> landing pages, and scopes role-based access across the portal.</>
+                      : <>Edit the content on your chapter&rsquo;s public landing page at <code>/{(visibleChapters[0]?.pageSlug || visibleChapters[0]?.id || 'your-chapter')}</code> — hero tagline, counties, &ldquo;Serving&hellip;&rdquo; text, and section toggles.</>}
+                  </p>
+                </div>
+                {isSuperAdmin && (
+                  <div className="admin-hero-stats">
+                    <div className="admin-hero-stat">
+                      <span className="admin-hero-stat__num">{totalChapters}</span>
+                      <span className="admin-hero-stat__label">Total chapters</span>
+                    </div>
+                    <div className="admin-hero-stat">
+                      <span className="admin-hero-stat__num">{activeChapters}</span>
+                      <span className="admin-hero-stat__label">Active</span>
+                    </div>
+                  </div>
+                )}
+              </section>
+
+              <section className="admin-section admin-section--chalk">
+              {isSuperAdmin && (
+                <div className="retro-hint" style={{ marginBottom: 20 }}>
+                  <strong>Chapter directors</strong> are derived, not stored — assign a user <em>Chapter Director</em> in the Users tab and their chapter. They&rsquo;ll appear here automatically.
+                  <br />
+                  <span style={{ color: 'var(--mb-tangerine-deep)', fontWeight: 600 }}>Heads-up:</span> Slack notifications and LP application emails still use hardcoded maps in <code>functions/index.js</code>. Adding a new chapter here won&rsquo;t fully wire notifications until those are updated.
+                </div>
+              )}
+
+              {isSuperAdmin && (() => {
+                const legacySlugs = ['wny', 'denver', 'upstate', 'capital-region'];
+                const missingSlugs = legacySlugs.filter(s => !chapters.some(c => c.id === s));
+                if (missingSlugs.length === 0) return null;
+                const isFreshSetup = chapters.length === 0;
+                return (
+                  <div className="admin-tool-card" style={{ marginBottom: 20 }}>
+                    <div className="admin-tool-card__eyebrow">Setup</div>
+                    <h5 className="admin-tool-card__title">
+                      {isFreshSetup ? 'No chapters yet' : `Missing ${missingSlugs.length} chapter${missingSlugs.length === 1 ? '' : 's'}`}
+                    </h5>
+                    <div className="admin-tool-card__body">
+                      {isFreshSetup ? (
+                        <>Seed the collection with the 4 legacy chapters using the Slack channel and email values currently in <code>functions/index.js</code>.</>
+                      ) : (
+                        <>
+                          Missing: <code>{missingSlugs.join(', ')}</code>. Seeding creates any missing chapters and fills in only empty fields on existing ones — it will never overwrite values you&rsquo;ve already edited.
+                        </>
+                      )}
+                    </div>
+                    <div className="admin-tool-card__action">
+                      <RetroButton onClick={handleSeedLegacyChapters} variant="primary">
+                        {isFreshSetup ? 'Seed Legacy Chapters' : 'Seed Missing Chapters'}
+                      </RetroButton>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {visibleChapters.length > 0 && (
+                <div className="retro-table-wrap" style={{ marginBottom: 20 }}>
+                  <table className="retro-table">
+                    <thead>
+                      <tr>
+                        {isSuperAdmin && <th style={{ width: '40px' }}>#</th>}
+                        <th>Chapter</th>
+                        {isSuperAdmin && <th>Public page</th>}
+                        {isSuperAdmin && <th>Contact</th>}
+                        {isSuperAdmin && <th>Director(s)</th>}
+                        <th style={{ textAlign: 'center', width: '130px' }}>Sections</th>
+                        {isSuperAdmin && <th style={{ textAlign: 'center', width: '80px' }}>Status</th>}
+                        <th style={{ width: '140px' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleChapters.map(c => {
+                        // Directors are DERIVED, not stored. Any user with role=chapter_director
+                        // and chapter matching this chapter's display name is a director.
+                        const directors = users.filter(u => u.role === 'chapter_director' && u.chapter === c.name);
+                        const pageSlug = c.pageSlug || c.id;
+                        const contactLines = [c.emailAlias, c.slackChannel && `pitch: ${c.slackChannel}`, c.lpSlackChannel && `lp: ${c.lpSlackChannel}`].filter(Boolean);
+                        return (
+                          <tr key={c.id} className={c.active === false ? 'is-inactive' : ''}>
+                            {isSuperAdmin && <td style={{ color: 'var(--mb-ink-60)', fontFamily: 'var(--font-numeral)' }}>{c.order ?? '—'}</td>}
+                            <td>
+                              <div style={{ fontWeight: 700 }}>{c.name || <span style={{ color: 'var(--mb-magenta-deep)' }}>(no name)</span>}</div>
+                              {isSuperAdmin && <div style={{ fontFamily: 'var(--font-numeral)', fontSize: '11px', color: 'var(--mb-ink-60)', marginTop: 2 }}>{c.id}</div>}
+                            </td>
+                            {isSuperAdmin && (
+                              <td>
+                                <a href={`/${pageSlug}`} target="_blank" rel="noreferrer" style={{ fontFamily: 'var(--font-numeral)', fontSize: 12 }}>
+                                  /{pageSlug} ↗
+                                </a>
+                              </td>
+                            )}
+                            {isSuperAdmin && (
+                              <td style={{ fontSize: 12, lineHeight: 1.4 }}>
+                                {contactLines.length === 0
+                                  ? <span style={{ color: 'var(--mb-ink-60)' }}>—</span>
+                                  : contactLines.map((line, i) => <div key={i} style={{ fontFamily: i === 0 ? 'var(--font-content)' : 'var(--font-numeral)' }}>{line}</div>)}
+                              </td>
+                            )}
+                            {isSuperAdmin && (
+                              <td style={{ fontSize: 13 }}>
+                                {directors.length === 0 ? (
+                                  <span style={{ color: 'var(--mb-ink-60)' }} title="Assign a user role 'Chapter Director' with this chapter in the Users tab.">none</span>
+                                ) : (
+                                  directors.map(d => d.name || d.email || d.uid).join(', ')
+                                )}
+                              </td>
+                            )}
+                            <td style={{ textAlign: 'center', fontSize: 12, whiteSpace: 'nowrap' }}>
+                              <span title="LP grid" style={{ marginRight: 8 }}>LPs {c.showLPs === false ? '🚫' : '✅'}</span>
+                              <span title="Community gallery">Gallery {c.showGallery === false ? '🚫' : '✅'}</span>
+                            </td>
+                            {isSuperAdmin && (
+                              <td style={{ textAlign: 'center' }}>{c.active === false ? '🚫' : '✅'}</td>
+                            )}
+                            <td className="actions">
+                              <RetroButton
+                                size="sm"
+                                onClick={() => {
+                                  setEditingChapterId(c.id);
+                                  setIsAddingChapter(false);
+                                  setChapterFormData({
+                                    slug: c.id,
+                                    name: c.name || '',
+                                    pageSlug: c.pageSlug || '',
+                                    tagline: c.tagline || '',
+                                    foundedYear: typeof c.foundedYear === 'number' ? c.foundedYear : '',
+                                    emailAlias: c.emailAlias || '',
+                                    slackChannel: c.slackChannel || '',
+                                    lpSlackChannel: c.lpSlackChannel || '',
+                                    active: c.active !== false,
+                                    order: typeof c.order === 'number' ? c.order : 0,
+                                    heroTitle: c.heroTitle || '',
+                                    heroTagline: c.heroTagline || '',
+                                    heroImage: c.heroImage || '',
+                                    heroImageCaption: c.heroImageCaption || '',
+                                    servingTitle: c.servingTitle || '',
+                                    servingText: c.servingText || '',
+                                    counties: Array.isArray(c.counties) ? c.counties : [],
+                                    poweredByText: c.poweredByText || '',
+                                    galleryPhotos: Array.isArray(c.galleryPhotos) ? c.galleryPhotos : [],
+                                    showLPs: c.showLPs !== false,
+                                    showGallery: c.showGallery !== false,
+                                  });
+                                }}
+                              >
+                                Edit
+                              </RetroButton>
+                              {isSuperAdmin && (
+                                <RetroButton
+                                  size="sm"
+                                  variant="danger"
+                                  onClick={() => handleDeleteChapter(c.id, c.name || c.id)}
+                                  ariaLabel={`Delete chapter ${c.name || c.id}`}
+                                >
+                                  🗑️
+                                </RetroButton>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {isSuperAdmin && !isAddingChapter && !editingChapterId && (
                 <RetroButton
-                  onClick={handleAssignAnniversaryBadges}
+                  onClick={() => {
+                    setIsAddingChapter(true);
+                    setEditingChapterId(null);
+                    setChapterFormData({ ...emptyChapterForm, order: chapters.length + 1 });
+                  }}
+                  variant="primary"
+                  style={{ marginBottom: '20px' }}
+                >
+                  + Add Chapter
+                </RetroButton>
+              )}
+
+              {(isAddingChapter || editingChapterId) && (() => {
+                // Minimal local styles — grid layout only. Label / input typography
+                // comes from `.mb-form-shell` via theme-tokens.css, which auto-themes
+                // every input/textarea/select/label inside the form container.
+                const fieldWrapStyle = { display: 'flex', flexDirection: 'column' };
+                const gridTwoCol = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' };
+                const gridThreeCol = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' };
+                const subCardStyle = {
+                  background: 'var(--mb-chalk)',
+                  border: '2px solid var(--mb-ink)',
+                  boxShadow: 'var(--shadow-hard-sm)',
+                  padding: '18px 20px 14px',
+                  marginBottom: '18px',
+                };
+                const subCardTitleStyle = {
+                  margin: '0 0 14px 0',
+                  padding: '0 0 8px 0',
+                  fontFamily: 'var(--font-pixel)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  color: 'var(--mb-ink)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.14em',
+                  borderBottom: '1px solid var(--mb-ink-15)',
+                };
+                const helpStyle = {
+                  display: 'block',
+                  marginTop: '6px',
+                  fontFamily: 'var(--font-content)',
+                  fontSize: '12px',
+                  color: 'var(--mb-ink-60)',
+                  lineHeight: 1.5,
+                };
+                // Empty objects so inline styles don't override .mb-form-shell rules.
+                const labelStyle = {};
+                const inputStyle = { width: '100%' };
+                const monoInputStyle = { width: '100%', fontFamily: 'var(--font-numeral)', fontSize: 13 };
+
+                const countyList = Array.isArray(chapterFormData.counties)
+                  ? chapterFormData.counties.map(s => String(s).trim()).filter(Boolean)
+                  : [];
+
+                return (
+                <div
+                  className="mb-form-shell"
                   style={{
-                    background: '#d4edda',
-                    border: '1px solid #c3e6cb',
-                    padding: '8px 16px',
-                    fontSize: '0.9em',
-                    marginTop: '10px'
+                    width: '100%',
+                    maxWidth: '980px',
+                    background: 'var(--mb-paper)',
+                    border: '2px solid var(--mb-ink)',
+                    boxShadow: 'var(--shadow-hard)',
+                    marginBottom: '24px',
                   }}
                 >
-                  🎊 Assign Anniversary Badges
+                  {/* Ink titlebar, matching the portal chrome */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '12px',
+                    background: 'var(--mb-ink)',
+                    color: 'var(--mb-chalk)',
+                    padding: '10px 14px',
+                    fontFamily: 'var(--font-pixel)',
+                    fontSize: '11px',
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                  }}>
+                    <span>
+                      {isAddingChapter ? 'New Chapter' : `Editing — ${chapterFormData.name || '(unnamed)'}`}
+                    </span>
+                    {!isAddingChapter && (chapterFormData.pageSlug || chapterFormData.slug) && (
+                      <a
+                        href={`/${chapterFormData.pageSlug || chapterFormData.slug}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          fontSize: '11px',
+                          color: 'var(--mb-butter)',
+                          whiteSpace: 'nowrap',
+                          textDecoration: 'underline',
+                          textUnderlineOffset: '3px',
+                        }}
+                      >
+                        View public page ↗
+                      </a>
+                    )}
+                  </div>
+
+                  <div style={{ padding: '20px 22px 12px' }}>
+                    {/* ─── Identity & Admin ─── superAdmin only */}
+                    {isSuperAdmin && (
+                      <section style={subCardStyle}>
+                        <h6 style={subCardTitleStyle}>Identity &amp; Admin</h6>
+
+                        <div style={gridTwoCol}>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>Display name <span style={{ color: '#c00' }}>*</span></label>
+                            <input
+                              type="text"
+                              value={chapterFormData.name}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, name: e.target.value })}
+                              placeholder="e.g. Western New York"
+                              style={inputStyle}
+                            />
+                            <small style={helpStyle}>Must match the <code>chapter</code> value already on user/pitch/review docs.</small>
+                          </div>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>
+                              Slug (doc ID) {isAddingChapter && <span style={{ color: '#c00' }}>*</span>}
+                            </label>
+                            <input
+                              type="text"
+                              value={chapterFormData.slug}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, slug: e.target.value })}
+                              placeholder={`auto: ${slugifyChapter(chapterFormData.name) || 'from-name'}`}
+                              disabled={!isAddingChapter}
+                              style={{ ...monoInputStyle, background: !isAddingChapter ? '#eee' : '#fff' }}
+                            />
+                            <small style={helpStyle}>Firestore doc ID. Immutable after creation.</small>
+                          </div>
+                        </div>
+
+                        <div style={gridTwoCol}>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>Page slug (public URL path)</label>
+                            <input
+                              type="text"
+                              value={chapterFormData.pageSlug}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, pageSlug: e.target.value })}
+                              placeholder={`defaults to slug (${chapterFormData.slug || 'e.g. wny'})`}
+                              style={monoInputStyle}
+                            />
+                            <small style={helpStyle}>e.g. <code>wny</code> → <code>goodneighbor.fund/wny</code>. Blank mirrors the slug.</small>
+                          </div>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>Email alias</label>
+                            <input
+                              type="text"
+                              value={chapterFormData.emailAlias}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, emailAlias: e.target.value })}
+                              placeholder="e.g. wny@goodneighbor.fund"
+                              style={inputStyle}
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ ...fieldWrapStyle, marginBottom: '12px' }}>
+                          <label style={labelStyle}>Tagline / short description</label>
+                          <textarea
+                            value={chapterFormData.tagline}
+                            onChange={(e) => setChapterFormData({ ...chapterFormData, tagline: e.target.value })}
+                            placeholder="e.g. Serving Buffalo and the surrounding 8 counties."
+                            rows={2}
+                            style={{ ...inputStyle, minHeight: '48px', resize: 'vertical' }}
+                          />
+                          <small style={helpStyle}>Shown on the chapter list and the dynamic chapter page fallback.</small>
+                        </div>
+
+                        <div style={gridTwoCol}>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>Pitch Slack channel ID</label>
+                            <input
+                              type="text"
+                              value={chapterFormData.slackChannel}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, slackChannel: e.target.value })}
+                              placeholder="e.g. C04V14N4W83"
+                              style={monoInputStyle}
+                            />
+                          </div>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>LP application Slack channel ID</label>
+                            <input
+                              type="text"
+                              value={chapterFormData.lpSlackChannel}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, lpSlackChannel: e.target.value })}
+                              placeholder="e.g. C04K9G2L29L"
+                              style={monoInputStyle}
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ ...gridThreeCol, marginBottom: '4px' }}>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>Founded year</label>
+                            <input
+                              type="number"
+                              value={chapterFormData.foundedYear}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, foundedYear: e.target.value })}
+                              placeholder="e.g. 2026"
+                              style={inputStyle}
+                            />
+                          </div>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>Order</label>
+                            <input
+                              type="number"
+                              value={chapterFormData.order}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, order: e.target.value })}
+                              style={inputStyle}
+                            />
+                          </div>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>Active</label>
+                            <select
+                              value={chapterFormData.active ? 'true' : 'false'}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, active: e.target.value === 'true' })}
+                              style={inputStyle}
+                            >
+                              <option value="true">✅ Active (appears in dropdowns)</option>
+                              <option value="false">🚫 Inactive (hidden)</option>
+                            </select>
+                          </div>
+                        </div>
+                      </section>
+                    )}
+
+                    {/* ─── Landing-page content ─── editable by chapter_director + superAdmin */}
+                    {!isAddingChapter && (
+                      <section style={subCardStyle}>
+                        <h6 style={subCardTitleStyle}>Landing-page content</h6>
+                        <p style={{ margin: '-6px 0 14px 0', fontSize: '11px', color: '#666' }}>
+                          Live-edits the public <code>/{chapterFormData.pageSlug || chapterFormData.slug}</code> page. Blank fields fall back to the defaults baked into the HTML.
+                        </p>
+
+                        <div style={{ ...fieldWrapStyle, marginBottom: '12px' }}>
+                          <label style={labelStyle}>Hero title (H1)</label>
+                          <input
+                            type="text"
+                            value={chapterFormData.heroTitle}
+                            onChange={(e) => setChapterFormData({ ...chapterFormData, heroTitle: e.target.value })}
+                            placeholder='e.g. "$1,000 Micro-Grants for Buffalo Business Ideas"'
+                            style={inputStyle}
+                          />
+                        </div>
+
+                        <div style={{ ...fieldWrapStyle, marginBottom: '12px' }}>
+                          <label style={labelStyle}>Hero tagline</label>
+                          <textarea
+                            value={chapterFormData.heroTagline}
+                            onChange={(e) => setChapterFormData({ ...chapterFormData, heroTagline: e.target.value })}
+                            placeholder='e.g. "No pitch deck required. No equity taken. Just belief in your vision and potential."'
+                            rows={2}
+                            style={{ ...inputStyle, minHeight: '48px', resize: 'vertical' }}
+                          />
+                          <small style={helpStyle}>The brand lede (<em>"We back brilliant ideas…"</em>) stays — this is the sentence that follows it.</small>
+                        </div>
+
+                        <div style={gridTwoCol}>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>"Serving…" heading</label>
+                            <input
+                              type="text"
+                              value={chapterFormData.servingTitle}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, servingTitle: e.target.value })}
+                              placeholder='e.g. "Serving All of Western New York"'
+                              style={inputStyle}
+                            />
+                          </div>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>"Serving…" description</label>
+                            <textarea
+                              value={chapterFormData.servingText}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, servingText: e.target.value })}
+                              placeholder="One paragraph describing the region."
+                              rows={3}
+                              style={{ ...inputStyle, minHeight: '64px', resize: 'vertical' }}
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ ...fieldWrapStyle, marginBottom: '12px' }}>
+                          <label style={labelStyle}>
+                            Counties
+                            <span style={{ fontWeight: 'normal', color: '#666', marginLeft: '8px' }}>
+                              {countyList.length} {countyList.length === 1 ? 'county' : 'counties'}
+                            </span>
+                          </label>
+                          <textarea
+                            value={Array.isArray(chapterFormData.counties) ? chapterFormData.counties.join('\n') : chapterFormData.counties}
+                            onChange={(e) => setChapterFormData({ ...chapterFormData, counties: e.target.value.split('\n') })}
+                            placeholder={"Erie County\nNiagara County\nCattaraugus"}
+                            rows={6}
+                            style={{ ...inputStyle, minHeight: '110px', resize: 'vertical' }}
+                          />
+                          <small style={helpStyle}>One county per line. Rendered as chips in the "Serving…" section.</small>
+                          {countyList.length > 0 && (
+                            <div style={{
+                              marginTop: 10,
+                              padding: '10px 12px',
+                              background: 'var(--mb-chalk)',
+                              border: '1.5px solid var(--mb-ink)',
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: 6,
+                            }}>
+                              {countyList.map((c, i) => (
+                                <span key={i} className="retro-pill" style={{ fontFamily: 'var(--font-content)', fontSize: 12, letterSpacing: '0.04em', textTransform: 'none' }}>{c}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        <div style={{ ...fieldWrapStyle, marginBottom: 0 }}>
+                          <label style={labelStyle}>"Powered by People, Not Institutions" paragraph</label>
+                          <textarea
+                            value={chapterFormData.poweredByText}
+                            onChange={(e) => setChapterFormData({ ...chapterFormData, poweredByText: e.target.value })}
+                            placeholder="Describe how your chapter's LPs pool capital to fund local founders."
+                            rows={4}
+                            style={{ ...inputStyle, minHeight: '90px', resize: 'vertical' }}
+                          />
+                        </div>
+                      </section>
+                    )}
+
+                    {/* ─── Landing-page photos ─── editable by chapter_director + superAdmin */}
+                    {!isAddingChapter && (() => {
+                      const heroBusy = !!uploadingPhotoFor[`hero:${editingChapterId}`];
+                      const galleryBusy = !!uploadingPhotoFor[`gallery:${editingChapterId}`];
+                      const galleryList = Array.isArray(chapterFormData.galleryPhotos) ? chapterFormData.galleryPhotos : [];
+                      return (
+                        <section style={subCardStyle}>
+                          <h6 style={subCardTitleStyle}>Landing-page photos</h6>
+                          <p style={{ margin: '-6px 0 14px 0', fontSize: '11px', color: '#666' }}>
+                            Uploads save immediately to <code>chapter-photos/{editingChapterId}/</code>. No "Save" click needed.
+                          </p>
+
+                          {/* Hero image */}
+                          <div style={{ ...fieldWrapStyle, marginBottom: '16px' }}>
+                            <label style={labelStyle}>Hero image</label>
+                            <div style={{
+                              display: 'flex',
+                              gap: '14px',
+                              alignItems: 'flex-start',
+                              flexWrap: 'wrap',
+                              marginTop: '4px',
+                            }}>
+                              <div style={{
+                                width: '220px',
+                                height: '140px',
+                                background: 'var(--mb-chalk)',
+                                border: '2px solid var(--mb-ink)',
+                                boxShadow: 'var(--shadow-hard-sm)',
+                                overflow: 'hidden',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                              }}>
+                                {chapterFormData.heroImage ? (
+                                  <img
+                                    src={chapterFormData.heroImage}
+                                    alt="Hero preview"
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                  />
+                                ) : (
+                                  <span style={{ fontSize: '11px', color: 'var(--mb-ink-60)', fontFamily: 'var(--font-pixel)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                                    No image
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ flex: 1, minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                <label
+                                  className="win95-btn win95-btn-primary"
+                                  style={{ display: 'inline-block', textAlign: 'center', cursor: heroBusy ? 'wait' : 'pointer', opacity: heroBusy ? 0.6 : 1 }}
+                                >
+                                  {heroBusy ? 'Uploading…' : chapterFormData.heroImage ? 'Replace hero image' : 'Upload hero image'}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    style={{ display: 'none' }}
+                                    disabled={heroBusy}
+                                    onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (file) handleChapterHeroUpload(file);
+                                      e.target.value = '';
+                                    }}
+                                  />
+                                </label>
+                                <small style={helpStyle}>PNG/JPG, under 5 MB. Shown on the right side of the hero on <code>/{chapterFormData.pageSlug || chapterFormData.slug}</code>.</small>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Hero caption */}
+                          <div style={{ ...fieldWrapStyle, marginBottom: '18px' }}>
+                            <label style={labelStyle}>Hero image caption</label>
+                            <input
+                              type="text"
+                              value={chapterFormData.heroImageCaption}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, heroImageCaption: e.target.value })}
+                              placeholder={`e.g. "Fat Daddy's — Past Micro-Grant Awardee"`}
+                              style={inputStyle}
+                            />
+                            <small style={helpStyle}>Small caption overlaid on the bottom of the hero photo. Leave blank to hide.</small>
+                          </div>
+
+                          {/* Gallery photos */}
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>
+                              Community gallery
+                              <span style={{ fontWeight: 'normal', color: '#666', marginLeft: '8px' }}>
+                                {galleryList.length} photo{galleryList.length === 1 ? '' : 's'}
+                              </span>
+                            </label>
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+                              gap: '10px',
+                              marginTop: '6px',
+                              marginBottom: '10px',
+                            }}>
+                              {galleryList.map((photo, i) => (
+                                <div key={photo.storagePath || photo.url || i} style={{
+                                  position: 'relative',
+                                  aspectRatio: '4 / 3',
+                                  background: 'var(--mb-chalk)',
+                                  border: '2px solid var(--mb-ink)',
+                                  boxShadow: 'var(--shadow-hard-sm)',
+                                  overflow: 'hidden',
+                                }}>
+                                  <img
+                                    src={photo.url}
+                                    alt={`Gallery ${i + 1}`}
+                                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleGalleryPhotoDelete(i)}
+                                    style={{
+                                      position: 'absolute',
+                                      top: '4px',
+                                      right: '4px',
+                                      width: '26px',
+                                      height: '26px',
+                                      background: 'var(--mb-magenta)',
+                                      color: 'var(--mb-chalk)',
+                                      border: '2px solid var(--mb-ink)',
+                                      boxShadow: 'var(--shadow-hard-sm)',
+                                      cursor: 'pointer',
+                                      fontFamily: 'var(--font-content)',
+                                      fontWeight: 700,
+                                      fontSize: '13px',
+                                      lineHeight: 1,
+                                      padding: 0,
+                                    }}
+                                    aria-label={`Delete gallery photo ${i + 1}`}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              <label
+                                className="win95-btn"
+                                style={{
+                                  aspectRatio: '4 / 3',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  textAlign: 'center',
+                                  cursor: galleryBusy ? 'wait' : 'pointer',
+                                  opacity: galleryBusy ? 0.6 : 1,
+                                  fontSize: '11px',
+                                  lineHeight: 1.3,
+                                  padding: '10px',
+                                }}
+                              >
+                                {galleryBusy ? 'Uploading…' : '+ Add photo'}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  style={{ display: 'none' }}
+                                  disabled={galleryBusy}
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleGalleryPhotoUpload(file);
+                                    e.target.value = '';
+                                  }}
+                                />
+                              </label>
+                            </div>
+                            <small style={helpStyle}>Photos render in a grid under "Building &lt;Chapter&gt;'s Entrepreneurial Community." Toggle the whole grid on/off via "Show community gallery" below.</small>
+                          </div>
+                        </section>
+                      );
+                    })()}
+
+                    {/* ─── Section visibility ─── */}
+                    {!isAddingChapter && (
+                      <section style={subCardStyle}>
+                        <h6 style={subCardTitleStyle}>Section visibility</h6>
+                        <div style={{ ...gridTwoCol, marginBottom: 0 }}>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>Show LP grid</label>
+                            <select
+                              value={chapterFormData.showLPs ? 'true' : 'false'}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, showLPs: e.target.value === 'true' })}
+                              style={inputStyle}
+                            >
+                              <option value="true">✅ Shown on public page</option>
+                              <option value="false">🚫 Hidden</option>
+                            </select>
+                            <small style={helpStyle}>Toggles the "Chapter LPs" section on the landing page.</small>
+                          </div>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>Show community gallery</label>
+                            <select
+                              value={chapterFormData.showGallery ? 'true' : 'false'}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, showGallery: e.target.value === 'true' })}
+                              style={inputStyle}
+                            >
+                              <option value="true">✅ Shown on public page</option>
+                              <option value="false">🚫 Hidden</option>
+                            </select>
+                            <small style={helpStyle}>Toggles the photo grid at the bottom of the page.</small>
+                          </div>
+                        </div>
+                      </section>
+                    )}
+                  </div>
+
+                  {/* Save bar — static footer inside the card */}
+                  <div style={{
+                    display: 'flex',
+                    gap: 10,
+                    justifyContent: 'flex-end',
+                    padding: '14px 20px',
+                    background: 'var(--mb-chalk)',
+                    borderTop: '1px solid var(--mb-ink-15)',
+                  }}>
+                    <RetroButton
+                      onClick={() => {
+                        setIsAddingChapter(false);
+                        setEditingChapterId(null);
+                        setChapterFormData({ ...emptyChapterForm });
+                      }}
+                    >
+                      Cancel
+                    </RetroButton>
+                    <RetroButton onClick={handleSaveChapter} variant="primary">
+                      Save Chapter
+                    </RetroButton>
+                  </div>
+                </div>
+                );
+              })()}
+              </section>
+            </>
+            );
+          })()}
+
+          {/* Resources Management Sub-Tab Content */}
+          {activeAdminTab === 'resourcesManagement' && isSuperAdmin && (() => {
+            const RESOURCE_TYPES = [
+              'Funding', 'Incubator/Accelerator', 'Mentorship', 'Community', 'Government',
+              'Legal', 'Education', 'Venture Capital', 'Angel Group', 'Private Investment Office',
+              'Corporate Venture', 'Venture Studio', 'Coworking', 'Nonprofit', 'Private Equity',
+              'Investment Platform'
+            ];
+            const BUSINESS_STAGES = ['Ideation', 'Early', 'Growth', 'Established', 'All'];
+            const filteredResources = managedResources.filter(resource => {
+              const search = resourceSearchTerm.toLowerCase();
+              const matchesSearch = !resourceSearchTerm ||
+                resource.Resource?.toLowerCase().includes(search) ||
+                resource.Type?.toLowerCase().includes(search) ||
+                resource.FocusArea?.toLowerCase().includes(search) ||
+                resource['Focus Area']?.toLowerCase().includes(search) ||
+                (resource.Chapter || resource.chapter || '').toLowerCase().includes(search);
+              const matchesType = !resourceTypeFilter ||
+                resource.Type === resourceTypeFilter || resource.type === resourceTypeFilter;
+              const matchesStage = !resourceStageFilter ||
+                resource.Stage === resourceStageFilter ||
+                resource['Business Stage'] === resourceStageFilter ||
+                resource.businessStage === resourceStageFilter;
+              const resourceChapter = resource.Chapter || resource.chapter || '';
+              const matchesChapter = !resourceChapterFilter || resourceChapter === resourceChapterFilter;
+              return matchesSearch && matchesType && matchesStage && matchesChapter;
+            });
+            const hasFilters = resourceSearchTerm || resourceTypeFilter || resourceStageFilter || resourceChapterFilter;
+            // Local style stubs — empty so .mb-form-shell + .filter-bar can take over.
+            const labelStyle = {};
+            const inputStyle = { width: '100%' };
+            const clearFilters = () => {
+              setResourceSearchTerm('');
+              setResourceTypeFilter('');
+              setResourceStageFilter('');
+              setResourceChapterFilter('');
+            };
+            const openAddForm = () => {
+              setEditingResource(null);
+              setResourceFormData({
+                Resource: '', Chapter: '', Type: '', 'Focus Area': '',
+                'Business Stage': 'Ideation', 'Counties Served': '', URL: '',
+                'Expanded Details': '', 'Average Check Size': '', 'Relocation Required?': 'No'
+              });
+              setIsAddingResource(true);
+            };
+
+            const uniqueChapters = new Set(managedResources.map(r => r.Chapter || r.chapter).filter(Boolean)).size;
+            return (
+            <>
+              <section className="admin-section admin-section--hero admin-section--butter">
+                <div className="admin-section-head admin-section-head--split">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <span className="admin-section-head__eyebrow">Resources · Directory</span>
+                    <h2 className="admin-section-head__title">
+                      The <em>navigator</em> index.
+                    </h2>
+                    <p className="admin-section-head__lede">
+                      Every funding org, incubator, and community resource your chapters point founders toward.
+                    </p>
+                  </div>
+                  <RetroButton onClick={openAddForm} variant="primary" size="lg">
+                    + Add Resource
+                  </RetroButton>
+                </div>
+                <div className="admin-hero-stats">
+                  <div className="admin-hero-stat">
+                    <span className="admin-hero-stat__num">{managedResources.length}</span>
+                    <span className="admin-hero-stat__label">Total resources</span>
+                  </div>
+                  <div className="admin-hero-stat">
+                    <span className="admin-hero-stat__num">{uniqueChapters}</span>
+                    <span className="admin-hero-stat__label">Chapters indexed</span>
+                  </div>
+                  {hasFilters && (
+                    <div className="admin-hero-stat">
+                      <span className="admin-hero-stat__num">{filteredResources.length}</span>
+                      <span className="admin-hero-stat__label">Shown right now</span>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="admin-section admin-section--chalk">
+              {/* Toolbar: search + filters */}
+              <div className="filter-bar">
+                <input
+                  type="search"
+                  aria-label="Search resources"
+                  placeholder="Search name, type, focus, chapter…"
+                  value={resourceSearchTerm}
+                  onChange={(e) => setResourceSearchTerm(e.target.value)}
+                />
+                <select
+                  aria-label="Filter by chapter"
+                  value={resourceChapterFilter}
+                  onChange={(e) => setResourceChapterFilter(e.target.value)}
+                >
+                  <option value="">All Chapters</option>
+                  {activeChapterNames.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select
+                  aria-label="Filter by type"
+                  value={resourceTypeFilter}
+                  onChange={(e) => setResourceTypeFilter(e.target.value)}
+                >
+                  <option value="">All Types</option>
+                  {RESOURCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+                <select
+                  aria-label="Filter by stage"
+                  value={resourceStageFilter}
+                  onChange={(e) => setResourceStageFilter(e.target.value)}
+                >
+                  <option value="">All Stages</option>
+                  {BUSINESS_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <RetroButton onClick={clearFilters} disabled={!hasFilters}>
+                  Clear
                 </RetroButton>
               </div>
-              
-              <div style={{border:'1px dashed #ccc', padding:'20px', background:'#fafafa'}}>
-                <strong>Coming Soon:</strong> More super admin tools for managing chapters, global settings, etc.
-              </div>
-            </div>
-          )}
-          
-          {/* Resources Management Sub-Tab Content */}
-          {activeAdminTab === 'resourcesManagement' && isSuperAdmin && (
-            <div>
-              <h4>🗺️ Neighborhood Resources Management</h4>
-              
-              {/* Search, Filters and Add New Button */}
-              <div style={{ marginBottom: '20px' }}>
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px', flexWrap: 'wrap' }}>
-                  <input
-                    type="text"
-                    placeholder="Search resources..."
-                    value={resourceSearchTerm}
-                    onChange={(e) => setResourceSearchTerm(e.target.value)}
-                    style={{ 
-                      padding: '8px 12px', 
-                      width: '300px', 
-                      border: '1px solid #dee2e6', 
-                      borderRadius: '6px',
-                      backgroundColor: '#ffffff'
-                    }}
-                  />
-                  <select
-                    value={resourceTypeFilter}
-                    onChange={(e) => setResourceTypeFilter(e.target.value)}
-                    style={{ 
-                      padding: '8px 12px', 
-                      border: '1px solid #dee2e6', 
-                      borderRadius: '6px',
-                      backgroundColor: '#ffffff',
-                      minWidth: '150px'
-                    }}
-                  >
-                    <option value="">All Types</option>
-                    <option value="Funding">Funding</option>
-                    <option value="Incubator/Accelerator">Incubator/Accelerator</option>
-                    <option value="Mentorship">Mentorship</option>
-                    <option value="Legal">Legal</option>
-                    <option value="Education">Education</option>
-                    <option value="Community">Community</option>
-                    <option value="Government">Government</option>
-                    <option value="Venture Capital">Venture Capital</option>
-                    <option value="Angel Group">Angel Group</option>
-                    <option value="Coworking">Coworking</option>
-                    <option value="Nonprofit">Nonprofit</option>
-                    <option value="Corporate Venture">Corporate Venture</option>
-                    <option value="Private Equity">Private Equity</option>
-                    <option value="Investment Platform">Investment Platform</option>
-                    <option value="Venture Studio">Venture Studio</option>
-                  </select>
-                  <select
-                    value={resourceStageFilter}
-                    onChange={(e) => setResourceStageFilter(e.target.value)}
-                    style={{ 
-                      padding: '8px 12px', 
-                      border: '1px solid #dee2e6', 
-                      borderRadius: '6px',
-                      backgroundColor: '#ffffff',
-                      minWidth: '150px'
-                    }}
-                  >
-                    <option value="">All Stages</option>
-                    <option value="Ideation">Ideation</option>
-                    <option value="Early Stage">Early Stage</option>
-                    <option value="Growth">Growth</option>
-                    <option value="Established">Established</option>
-                    <option value="All">All Stages (Resource serves all)</option>
-                  </select>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button
-                    onClick={() => {
-                      setIsAddingResource(true);
-                      setEditingResource(null);
-                      setResourceFormData({
-                        Resource: '',
-                        Type: '',
-                        'Focus Area': '',
-                        'Business Stage': 'Ideation',
-                        'Counties Served': '',
-                        URL: '',
-                      'Expanded Details': '',
-                      'Average Check Size': '',
-                      'Relocation Required?': 'No'
-                    });
-                  }}
-                  style={{ 
-                    background: '#ffffff',
-                    color: '#28a745',
-                    border: '1px solid #28a745',
-                    padding: '10px 20px',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.background = '#28a745';
-                    e.target.style.color = '#ffffff';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.background = '#ffffff';
-                    e.target.style.color = '#28a745';
-                  }}
-                >
-                  + Add New Resource
-                </button>
-                </div>
-              </div>
-              
+
               {/* Resource Form (Add/Edit) */}
               {isAddingResource && (
-                <div style={{ 
-                  background: '#ffffff', 
-                  border: '1px solid #e9ecef', 
-                  borderRadius: '8px', 
-                  padding: '30px', 
-                  marginBottom: '20px',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.05)' 
+                <div className="mb-form-shell" style={{
+                  background: 'var(--mb-chalk)',
+                  border: '2px solid var(--mb-ink)',
+                  boxShadow: 'var(--shadow-hard)',
+                  padding: '24px',
+                  marginBottom: '20px'
                 }}>
-                  <h5 style={{ marginBottom: '20px', color: '#495057' }}>{editingResource ? 'Edit Resource' : 'Add New Resource'}</h5>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
-                        Resource Name *
-                      </label>
-                      <input
-                        type="text"
-                        value={resourceFormData.Resource}
-                        onChange={(e) => setResourceFormData({...resourceFormData, Resource: e.target.value})}
-                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
-                      />
+                  <h5 style={{ margin: '0 0 20px 0' }}>
+                    {editingResource ? 'Edit Resource' : 'Add New Resource'}
+                  </h5>
+
+                  {/* Section 1: Basics */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{
+                      fontFamily: 'var(--font-pixel)',
+                      fontSize: '11px', fontWeight: 600, letterSpacing: '0.14em',
+                      textTransform: 'uppercase', color: 'var(--mb-magenta)',
+                      paddingBottom: '6px', marginBottom: '14px',
+                      borderBottom: '1px solid var(--mb-ink-15)'
+                    }}>
+                      Basics
                     </div>
-                    
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
-                        Type *
-                      </label>
-                      <select
-                        value={resourceFormData.Type}
-                        onChange={(e) => setResourceFormData({...resourceFormData, Type: e.target.value})}
-                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
-                      >
-                        <option value="">Select Type</option>
-                        <option value="Funding">Funding</option>
-                        <option value="Incubator/Accelerator">Incubator/Accelerator</option>
-                        <option value="Mentorship">Mentorship</option>
-                        <option value="Community">Community</option>
-                        <option value="Government">Government</option>
-                        <option value="Legal">Legal</option>
-                        <option value="Education">Education</option>
-                        <option value="Venture Capital">Venture Capital</option>
-                        <option value="Angel Group">Angel Group</option>
-                        <option value="Private Investment Office">Private Investment Office</option>
-                        <option value="Corporate Venture">Corporate Venture</option>
-                        <option value="Venture Studio">Venture Studio</option>
-                      </select>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={labelStyle}>Resource Name *</label>
+                        <input
+                          type="text"
+                          value={resourceFormData.Resource}
+                          onChange={(e) => setResourceFormData({ ...resourceFormData, Resource: e.target.value })}
+                          style={inputStyle}
+                          placeholder="e.g., 43North Accelerator"
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Chapter *</label>
+                        <select
+                          value={resourceFormData.Chapter}
+                          onChange={(e) => setResourceFormData({ ...resourceFormData, Chapter: e.target.value })}
+                          style={{
+                            ...inputStyle,
+                            background: resourceFormData.Chapter ? 'var(--gnf-bg)' : 'var(--gnf-yellow-100, #fff9c4)'
+                          }}
+                        >
+                          <option value="">— Select Chapter —</option>
+                          {activeChapterNames.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
                     </div>
-                    
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
-                        Business Stage *
-                      </label>
-                      <select
-                        value={resourceFormData['Business Stage']}
-                        onChange={(e) => setResourceFormData({...resourceFormData, 'Business Stage': e.target.value})}
-                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
-                      >
-                        <option value="Ideation">Ideation</option>
-                        <option value="Early">Early</option>
-                        <option value="Growth">Growth</option>
-                        <option value="Established">Established</option>
-                        <option value="All">All</option>
-                      </select>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+                      <div>
+                        <label style={labelStyle}>Type *</label>
+                        <select
+                          value={resourceFormData.Type}
+                          onChange={(e) => setResourceFormData({ ...resourceFormData, Type: e.target.value })}
+                          style={inputStyle}
+                        >
+                          <option value="">Select Type</option>
+                          {RESOURCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Business Stage *</label>
+                        <select
+                          value={resourceFormData['Business Stage']}
+                          onChange={(e) => setResourceFormData({ ...resourceFormData, 'Business Stage': e.target.value })}
+                          style={inputStyle}
+                        >
+                          {BUSINESS_STAGES.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
                     </div>
-                    
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
-                        Focus Area
-                      </label>
-                      <input
-                        type="text"
-                        value={resourceFormData['Focus Area']}
-                        onChange={(e) => setResourceFormData({...resourceFormData, 'Focus Area': e.target.value})}
-                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
-                      />
+                  </div>
+
+                  {/* Section 2: Focus & Reach */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{
+                      fontFamily: 'var(--font-pixel)',
+                      fontSize: '11px', fontWeight: 600, letterSpacing: '0.14em',
+                      textTransform: 'uppercase', color: 'var(--mb-magenta)',
+                      paddingBottom: '6px', marginBottom: '14px',
+                      borderBottom: '1px solid var(--mb-ink-15)'
+                    }}>
+                      Focus &amp; Reach
                     </div>
-                    
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
-                        Counties Served
-                      </label>
-                      <input
-                        type="text"
-                        value={resourceFormData['Counties Served']}
-                        onChange={(e) => setResourceFormData({...resourceFormData, 'Counties Served': e.target.value})}
-                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
-                        placeholder="e.g., All 8 counties, Erie, Niagara"
-                      />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={labelStyle}>Focus Area</label>
+                        <input
+                          type="text"
+                          value={resourceFormData['Focus Area']}
+                          onChange={(e) => setResourceFormData({ ...resourceFormData, 'Focus Area': e.target.value })}
+                          style={inputStyle}
+                          placeholder="e.g., High-growth startups"
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Counties Served</label>
+                        <input
+                          type="text"
+                          value={resourceFormData['Counties Served']}
+                          onChange={(e) => setResourceFormData({ ...resourceFormData, 'Counties Served': e.target.value })}
+                          style={inputStyle}
+                          placeholder="e.g., All 8 counties, Erie, Niagara"
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Average Check Size</label>
+                        <input
+                          type="text"
+                          value={resourceFormData['Average Check Size']}
+                          onChange={(e) => setResourceFormData({ ...resourceFormData, 'Average Check Size': e.target.value })}
+                          style={inputStyle}
+                          placeholder="e.g., $50K-$250K"
+                        />
+                      </div>
+                      <div>
+                        <label style={labelStyle}>Relocation Required?</label>
+                        <select
+                          value={resourceFormData['Relocation Required?']}
+                          onChange={(e) => setResourceFormData({ ...resourceFormData, 'Relocation Required?': e.target.value })}
+                          style={inputStyle}
+                        >
+                          <option value="No">No</option>
+                          <option value="Yes">Yes</option>
+                        </select>
+                      </div>
                     </div>
-                    
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
-                        Average Check Size
-                      </label>
-                      <input
-                        type="text"
-                        value={resourceFormData['Average Check Size']}
-                        onChange={(e) => setResourceFormData({...resourceFormData, 'Average Check Size': e.target.value})}
-                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
-                        placeholder="e.g., $50K-$250K"
-                      />
+                  </div>
+
+                  {/* Section 3: Details */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{
+                      fontFamily: 'var(--font-pixel)',
+                      fontSize: '11px', fontWeight: 600, letterSpacing: '0.14em',
+                      textTransform: 'uppercase', color: 'var(--mb-magenta)',
+                      paddingBottom: '6px', marginBottom: '14px',
+                      borderBottom: '1px solid var(--mb-ink-15)'
+                    }}>
+                      Details
                     </div>
-                    
                     <div>
-                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
-                        URL
-                      </label>
+                      <label style={labelStyle}>URL</label>
                       <input
                         type="url"
                         value={resourceFormData.URL}
-                        onChange={(e) => setResourceFormData({...resourceFormData, URL: e.target.value})}
-                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
+                        onChange={(e) => setResourceFormData({ ...resourceFormData, URL: e.target.value })}
+                        style={inputStyle}
                         placeholder="https://..."
                       />
                     </div>
-                    
-                    <div>
-                      <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
-                        Relocation Required?
-                      </label>
-                      <select
-                        value={resourceFormData['Relocation Required?']}
-                        onChange={(e) => setResourceFormData({...resourceFormData, 'Relocation Required?': e.target.value})}
-                        style={{ width: '100%', padding: '10px 12px', border: '1px solid #dee2e6', borderRadius: '6px', backgroundColor: '#ffffff', fontSize: '14px' }}
-                      >
-                        <option value="No">No</option>
-                        <option value="Yes">Yes</option>
-                      </select>
+                    <div style={{ marginTop: '12px' }}>
+                      <label style={labelStyle}>Expanded Details</label>
+                      <textarea
+                        value={resourceFormData['Expanded Details']}
+                        onChange={(e) => setResourceFormData({ ...resourceFormData, 'Expanded Details': e.target.value })}
+                        style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }}
+                        placeholder="Detailed description of the resource..."
+                      />
                     </div>
                   </div>
-                  
-                  <div style={{ marginTop: '15px' }}>
-                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: '600', color: '#495057', fontSize: '14px' }}>
-                      Expanded Details
-                    </label>
-                    <textarea
-                      value={resourceFormData['Expanded Details']}
-                      onChange={(e) => setResourceFormData({...resourceFormData, 'Expanded Details': e.target.value})}
-                      style={{ 
-                        width: '100%', 
-                        padding: '10px 12px', 
-                        border: '1px solid #dee2e6', 
-                        borderRadius: '6px',
-                        backgroundColor: '#ffffff',
-                        fontSize: '14px',
-                        minHeight: '100px',
-                        resize: 'vertical'
-                      }}
-                      placeholder="Detailed description of the resource..."
-                    />
-                  </div>
-                  
-                  <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-                    <button
-                      onClick={handleSaveResource}
-                      style={{ 
-                        background: '#ffffff',
-                        color: '#007bff',
-                        border: '1px solid #007bff',
-                        padding: '10px 20px',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.background = '#007bff';
-                        e.target.style.color = '#ffffff';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.background = '#ffffff';
-                        e.target.style.color = '#007bff';
-                      }}
-                    >
+
+                  <div className="retro-action-row">
+                    <RetroButton onClick={handleSaveResource} variant="primary">
                       {editingResource ? 'Update Resource' : 'Save Resource'}
-                    </button>
-                    <button
+                    </RetroButton>
+                    <RetroButton
                       onClick={() => {
                         setIsAddingResource(false);
                         setEditingResource(null);
                       }}
-                      style={{ 
-                        background: '#ffffff',
-                        color: '#6c757d',
-                        border: '1px solid #6c757d',
-                        padding: '10px 20px',
-                        fontSize: '14px',
-                        fontWeight: '500',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.background = '#6c757d';
-                        e.target.style.color = '#ffffff';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.background = '#ffffff';
-                        e.target.style.color = '#6c757d';
-                      }}
                     >
                       Cancel
-                    </button>
+                    </RetroButton>
                   </div>
                 </div>
               )}
-              
+
               {/* Resources Table */}
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9em' }}>
+              <div className="retro-table-wrap">
+                <table className="retro-table">
                   <thead>
-                    <tr style={{ background: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
-                      <th style={{ padding: '10px', textAlign: 'left' }}>Resource Name</th>
-                      <th style={{ padding: '10px', textAlign: 'left' }}>Type</th>
-                      <th style={{ padding: '10px', textAlign: 'left' }}>Business Stage</th>
-                      <th style={{ padding: '10px', textAlign: 'left' }}>Focus Area</th>
-                      <th style={{ padding: '10px', textAlign: 'left' }}>Counties</th>
-                      <th style={{ padding: '10px', textAlign: 'center' }}>Actions</th>
+                    <tr>
+                      <th>Resource</th>
+                      <th>Chapter</th>
+                      <th>Type</th>
+                      <th>Stage</th>
+                      <th>Focus Area</th>
+                      <th>Counties</th>
+                      <th style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {managedResources
-                      .filter(resource => {
-                        // Search filter
-                        const matchesSearch = !resourceSearchTerm || 
-                          resource.Resource?.toLowerCase().includes(resourceSearchTerm.toLowerCase()) ||
-                          resource.Type?.toLowerCase().includes(resourceSearchTerm.toLowerCase()) ||
-                          resource.FocusArea?.toLowerCase().includes(resourceSearchTerm.toLowerCase()) ||
-                          resource['Focus Area']?.toLowerCase().includes(resourceSearchTerm.toLowerCase());
-                        
-                        // Type filter
-                        const matchesType = !resourceTypeFilter || 
-                          resource.Type === resourceTypeFilter || 
-                          resource.type === resourceTypeFilter;
-                        
-                        // Stage filter
-                        const matchesStage = !resourceStageFilter || 
-                          resource.Stage === resourceStageFilter || 
-                          resource['Business Stage'] === resourceStageFilter || 
-                          resource.businessStage === resourceStageFilter;
-                        
-                        return matchesSearch && matchesType && matchesStage;
-                      })
-                      .map((resource) => (
-                        <tr key={resource.id} style={{ borderBottom: '1px solid #dee2e6' }}>
-                          <td style={{ padding: '10px' }}>
-                            {resource.Resource || resource.resource || '-'}
-                            {(resource.Website || resource.URL || resource.url) && (
-                              <a 
-                                href={resource.Website || resource.URL || resource.url} 
-                                target="_blank" 
+                    {filteredResources.map((resource) => {
+                      const chapter = resource.Chapter || resource.chapter || '';
+                      const url = resource.Website || resource.URL || resource.url;
+                      return (
+                        <tr key={resource.id}>
+                          <td style={{ fontWeight: 700 }}>
+                            {resource.Resource || resource.resource || '—'}
+                            {url && (
+                              <a
+                                href={url}
+                                target="_blank"
                                 rel="noopener noreferrer"
-                                style={{ marginLeft: '5px', fontSize: '0.8em' }}
+                                style={{ marginLeft: 6, fontSize: '0.85em' }}
+                                title={url}
+                                aria-label={`Open ${resource.Resource || resource.resource || 'resource'} in new tab`}
                               >
                                 🔗
                               </a>
                             )}
                           </td>
-                          <td style={{ padding: '10px' }}>{resource.Type || resource.type || '-'}</td>
-                          <td style={{ padding: '10px' }}>{resource.Stage || resource['Business Stage'] || resource.businessStage || '-'}</td>
-                          <td style={{ padding: '10px', fontSize: '0.85em' }}>
-                            {resource.FocusArea || resource['Focus Area'] || resource.focusArea || '-'}
+                          <td style={{ fontSize: 13 }}>
+                            {chapter ? (
+                              <span className="retro-pill retro-pill--pink">{chapter}</span>
+                            ) : (
+                              <span style={{ color: 'var(--mb-ink-60)', fontStyle: 'italic' }}>Unassigned</span>
+                            )}
                           </td>
-                          <td style={{ padding: '10px', fontSize: '0.85em' }}>
-                            {resource.CountiesServed || resource['Counties Served'] || resource.countiesServed || '-'}
+                          <td>{resource.Type || resource.type || '—'}</td>
+                          <td>{resource.Stage || resource['Business Stage'] || resource.businessStage || '—'}</td>
+                          <td style={{ fontSize: 13 }}>
+                            {resource.FocusArea || resource['Focus Area'] || resource.focusArea || '—'}
                           </td>
-                          <td style={{ padding: '10px', textAlign: 'center' }}>
-                            <button
+                          <td style={{ fontSize: 13 }}>
+                            {resource.CountiesServed || resource['Counties Served'] || resource.countiesServed || '—'}
+                          </td>
+                          <td className="actions" style={{ textAlign: 'center' }}>
+                            <RetroButton
+                              size="sm"
                               onClick={() => handleEditResource(resource)}
-                              style={{
-                                background: '#ffffff',
-                                color: '#ffc107',
-                                border: '1px solid #ffc107',
-                                padding: '4px 12px',
-                                borderRadius: '4px',
-                                marginRight: '5px',
-                                cursor: 'pointer',
-                                fontSize: '0.85em',
-                                transition: 'all 0.2s ease'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.target.style.background = '#ffc107';
-                                e.target.style.color = '#000';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.target.style.background = '#ffffff';
-                                e.target.style.color = '#ffc107';
-                              }}
                             >
                               Edit
-                            </button>
-                            <button
+                            </RetroButton>
+                            <RetroButton
+                              size="sm"
+                              variant="danger"
                               onClick={() => handleDeleteResource(resource.id)}
-                              style={{
-                                background: '#ffffff',
-                                color: '#dc3545',
-                                border: '1px solid #dc3545',
-                                padding: '4px 12px',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontSize: '0.85em',
-                                transition: 'all 0.2s ease'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.target.style.background = '#dc3545';
-                                e.target.style.color = '#ffffff';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.target.style.background = '#ffffff';
-                                e.target.style.color = '#dc3545';
-                              }}
                             >
                               Delete
-                            </button>
+                            </RetroButton>
                           </td>
                         </tr>
-                      ))}
+                      );
+                    })}
                   </tbody>
                 </table>
-                
+
                 {managedResources.length === 0 && (
-                  <p style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
-                    No resources found. Add your first resource!
-                  </p>
+                  <EmptyState
+                    icon="📚"
+                    title="No resources yet"
+                    description="Click + Add Resource to create the first one."
+                  />
+                )}
+                {managedResources.length > 0 && filteredResources.length === 0 && (
+                  <EmptyState
+                    icon="🔎"
+                    title="No resources match"
+                    description="Try a different filter."
+                    action={
+                      <RetroButton size="sm" onClick={() => clearFilters()}>
+                        Clear filters
+                      </RetroButton>
+                    }
+                  />
                 )}
               </div>
-            </div>
-          )}
+              </section>
+            </>
+            );
+          })()}
+          </div> {/* End .admin-tabpanel */}
         </div>
       )} {/* End Admin Panel Content */}
       
@@ -5838,10 +7630,22 @@ return (
       
       {/* --- Chapter Members Tab Content --- */}
       {activeTab === 'chapterMembers' && (
-        <div style={{ padding: '20px', overflow: 'auto' }}>
-          <h2 style={{ marginBottom: '20px' }}>
-            {user?.chapter} Chapter Members ({chapterMembers.length})
-          </h2>
+        <div style={{ padding: '15px', overflow: 'auto' }}>
+          <div style={{
+            background: 'var(--mb-paper-deep)',
+            border: '2px solid',
+            borderColor: 'var(--mb-ink)',
+            boxShadow: 'var(--shadow-hard-sm)',
+            padding: '8px 12px',
+            marginBottom: '15px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>
+              {user?.chapter} Chapter Members ({chapterMembers.length})
+            </h2>
+          </div>
           
           {chapterMembers.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#666', padding: '40px' }}>
@@ -5855,8 +7659,8 @@ return (
             }}>
               {chapterMembers
                 .sort((a, b) => {
-                  // Sort by role (superAdmin > admin > lp), then by name
-                  const roleOrder = { superAdmin: 0, admin: 1, lp: 2 };
+                  // Sort by role (superAdmin > chapter_director > lp), then by name
+                  const roleOrder = { superAdmin: 0, chapter_director: 1, lp: 2 };
                   if (roleOrder[a.role] !== roleOrder[b.role]) {
                     return roleOrder[a.role] - roleOrder[b.role];
                   }
@@ -5873,24 +7677,19 @@ return (
                     })
                     .slice(0, 5);
                   
-                  // Generate photo URL based on member name
-                  const photoUrl = member.name 
-                    ? `/assets/lps/${member.name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}.png`
-                    : null;
+                  // Prefer the uploaded photo from /users/{uid}.photoUrl. Fall
+                  // back to the legacy /assets/lps/{slug}.png convention so
+                  // members who haven't been re-uploaded yet still render.
+                  const photoUrl = member.photoUrl
+                    || (member.name
+                        ? `/assets/lps/${member.name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '')}.png`
+                        : null);
                   
                   return (
-                    <div key={member.id} style={{
-                      background: 'white',
-                      border: '1px solid #e0e0e0',
-                      borderRadius: '12px',
+                    <div key={member.id} className="win95-window" style={{
                       padding: '20px',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                      transition: 'box-shadow 0.2s ease',
                       cursor: 'default'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'}
-                    onMouseLeave={(e) => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)'}
-                    >
+                    }}>
                       <div style={{ display: 'flex', gap: '15px', alignItems: 'start', marginBottom: '12px' }}>
                         {photoUrl && (
                           <img 
@@ -5899,7 +7698,6 @@ return (
                             style={{
                               width: '60px',
                               height: '60px',
-                              borderRadius: '50%',
                               objectFit: 'cover',
                               border: '3px solid #FFD6EC'
                             }}
@@ -5913,68 +7711,33 @@ return (
                           {member.professionalRole && (
                             <div style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>{member.professionalRole}</div>
                           )}
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                          {member.linkedinUrl && (
                             <button
-                              onClick={() => window.open(`mailto:${member.email}`, '_self')}
+                              onClick={() => window.open(member.linkedinUrl, '_blank')}
                               style={{
-                                background: 'white',
-                                color: '#666',
-                                border: '1px solid #e0e0e0',
-                                borderRadius: '6px',
-                                padding: '5px 12px',
-                                fontSize: '12px',
+                                background: 'var(--btn-bg)',
+                                color: 'var(--mb-ink)',
+                                border: '2px solid',
+                                borderColor: 'var(--mb-ink)',
+                                boxShadow: 'var(--shadow-hard-sm)',
+                                padding: '4px 10px',
+                                fontSize: '11px',
                                 cursor: 'pointer',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '5px',
-                                fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif',
-                                transition: 'all 0.2s ease'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.target.style.background = '#f5f5f5';
-                                e.target.style.borderColor = '#ccc';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.target.style.background = 'white';
-                                e.target.style.borderColor = '#e0e0e0';
+                                gap: '4px',
+                                fontFamily: 'var(--font-content)',
+                                fontWeight: 'bold',
+                                transition: 'none'
                               }}
                             >
-                              Email
+                              LinkedIn
                             </button>
-                            {member.linkedinUrl && (
-                              <button
-                                onClick={() => window.open(member.linkedinUrl, '_blank')}
-                                style={{
-                                  background: 'white',
-                                  color: '#0077B5',
-                                  border: '1px solid #e0e0e0',
-                                  borderRadius: '6px',
-                                  padding: '5px 12px',
-                                  fontSize: '12px',
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif',
-                                  transition: 'all 0.2s ease'
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.target.style.background = '#f5f5f5';
-                                  e.target.style.borderColor = '#0077B5';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.target.style.background = 'white';
-                                  e.target.style.borderColor = '#e0e0e0';
-                                }}
-                              >
-                                LinkedIn
-                              </button>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </div>
                       
-                      <div style={{ fontSize: '11px', color: '#999', paddingTop: '8px', borderTop: '1px solid #f0f0f0' }}>
+                      <div style={{ fontSize: '11px', color: 'var(--mb-ink-60)', paddingTop: '8px', borderTop: '1px solid var(--gnf-border-pink-light)' }}>
                         Member Since: {
                           member.anniversary 
                             ? (() => {
@@ -5988,39 +7751,41 @@ return (
                       </div>
                       
                       {memberBadges.length > 0 && (
-                        <div style={{ 
-                          borderTop: '1px solid #e0e0e0', 
+                        <div style={{
+                          borderTop: '1px solid var(--gnf-border-pink-light)',
                           paddingTop: '10px',
                           display: 'flex',
-                          gap: '8px',
+                          gap: '6px',
                           alignItems: 'center',
                           overflow: 'hidden',
                           flexWrap: 'wrap',
                           maxWidth: '100%'
                         }}>
-                          <span style={{ fontSize: '11px', color: '#666' }}>Recent:</span>
+                          <span style={{ fontSize: '10px', color: 'var(--mb-ink-60)', fontWeight: 'bold' }}>Recent:</span>
                           {memberBadges.map((badge, idx) => {
-                            const badgeData = BADGES[badge.badgeId || badge.id];
+                            const badgeId = badge.badgeId || badge.id;
+                            const badgeData = BADGES[badgeId];
                             if (!badgeData) return null;
-                            
+
                             return (
                               <div key={idx} style={{
-                                background: 'linear-gradient(135deg, #FFE4F1, #FFD6EC)',
-                                border: '1px solid #FFB6D9',
-                                borderRadius: '4px',
-                                padding: '4px 8px',
-                                fontSize: '12px',
+                                background: 'var(--gnf-pink-100)',
+                                border: '2px solid',
+                                borderColor: 'var(--mb-ink)',
+                                boxShadow: 'var(--shadow-hard-sm)',
+                                padding: '2px 6px',
+                                fontSize: '11px',
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '4px'
                               }} title={badgeData.description}>
-                                <span>{badgeData.name.split(' ')[0]}</span>
-                                <span style={{ fontSize: '10px' }}>{badgeData.name.split(' ').slice(1).join(' ')}</span>
+                                <BadgeIcon id={badgeId} size={14} />
+                                <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{badgeData.name.split(' ').slice(1).join(' ')}</span>
                               </div>
                             );
                           })}
                           {member.badges && member.badges.length > 5 && (
-                            <span style={{ fontSize: '11px', color: '#888' }}>
+                            <span style={{ fontSize: '10px', color: 'var(--mb-ink-60)', fontWeight: 'bold' }}>
                               +{member.badges.length - 5} more
                             </span>
                           )}
@@ -6036,25 +7801,34 @@ return (
       
       {/* --- Pitch Map Tab Content --- */}
       {activeTab === 'pitchMap' && (
-        <div style={{ padding: '20px', overflow: 'auto', height: '100%' }}>
-          <h2 style={{ marginBottom: '10px' }}>Pitch Map</h2>
-          <p style={{ 
-            marginBottom: '20px', 
-            fontSize: '14px', 
-            color: '#666', 
-            fontStyle: 'italic',
-            lineHeight: '1.4'
+        <div style={{ padding: '15px', overflow: 'auto', height: '100%' }}>
+          <div style={{
+            background: 'var(--mb-paper-deep)',
+            border: '2px solid',
+            borderColor: 'var(--mb-ink)',
+            boxShadow: 'var(--shadow-hard-sm)',
+            padding: '8px 12px',
+            marginBottom: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
           }}>
-            This map displays approximate locations based on zip codes we began collecting in late 2023. 
-            Pin locations represent general areas, not exact addresses. Earlier pitches without zip code data are not shown.
-          </p>
-          <PitchMap 
+            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>Pitch Map</h2>
+          </div>
+          <PitchMap
             pitches={isAdmin ? adminPitches : lpPitches}
             currentUserChapter={user?.chapter}
           />
         </div>
       )}
-      
+
+      {/* --- Resources Tab Content --- */}
+      {activeTab === 'resources' && (
+        <div style={{ padding: '20px', overflow: 'auto', height: '100%' }}>
+          <ResourceLibrary />
+        </div>
+      )}
+
       {/* --- Bulletin Board Tab Content --- */}
       {activeTab === 'bulletinBoard' && (
         <div style={{ height: '100%', overflow: 'hidden' }}>
@@ -6079,24 +7853,24 @@ return (
             }
           `}</style>
           
-          <div className="bulletin-container" style={{ 
-            display: 'flex', 
+          <div className="bulletin-container" style={{
+            display: 'flex',
             height: '100%',
-            background: '#f5f5f5'
+            background: 'var(--mb-paper)'
           }}>
             {/* Messages List - Left Side */}
-            <div className="bulletin-messages" style={{ 
+            <div className="bulletin-messages" style={{
               flex: '1',
               display: 'flex',
               flexDirection: 'column',
-              background: 'white',
+              background: 'var(--gnf-bg)',
               maxWidth: '700px',
               margin: '0 auto'
             }}>
-              <div style={{ 
-                padding: '20px',
-                borderBottom: '1px solid #e0e0e0',
-                background: '#fafafa'
+              <div style={{
+                padding: '15px 20px',
+                borderBottom: '1px solid var(--gnf-border-pink)',
+                background: 'var(--gnf-pink-100)'
               }}>
                 <h2 style={{ margin: 0, fontSize: '20px' }}>Chapter Message Board</h2>
               </div>
@@ -6124,7 +7898,6 @@ return (
                     style={{
                       background: '#fff9e6',
                       border: '2px solid #ffd700',
-                      borderRadius: '8px',
                       padding: '15px',
                       marginBottom: '15px',
                       boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
@@ -6174,7 +7947,6 @@ return (
                               style={{
                                 background: 'transparent',
                                 border: '1px solid #ddd',
-                                borderRadius: '4px',
                                 padding: '4px 8px',
                                 fontSize: '12px',
                                 cursor: 'pointer',
@@ -6190,7 +7962,6 @@ return (
                             style={{
                               background: 'transparent',
                               border: '1px solid #ddd',
-                              borderRadius: '4px',
                               padding: '4px 8px',
                               fontSize: '12px',
                               cursor: 'pointer',
@@ -6216,7 +7987,6 @@ return (
                       style={{
                         background: isNew ? '#f0f8ff' : 'white',
                         border: isNew ? '2px solid #4da6ff' : '1px solid #e0e0e0',
-                        borderRadius: '8px',
                         padding: '15px',
                         marginBottom: '15px',
                         boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
@@ -6231,7 +8001,6 @@ return (
                         background: '#4da6ff',
                         color: 'white',
                         padding: '2px 8px',
-                        borderRadius: '12px',
                         fontSize: '11px',
                         fontWeight: 'bold'
                       }}>
@@ -6278,7 +8047,6 @@ return (
                               style={{
                                 background: 'transparent',
                                 border: '1px solid #ddd',
-                                borderRadius: '4px',
                                 padding: '4px 8px',
                                 fontSize: '12px',
                                 cursor: 'pointer',
@@ -6294,7 +8062,6 @@ return (
                             style={{
                               background: 'transparent',
                               border: '1px solid #ddd',
-                              borderRadius: '4px',
                               padding: '4px 8px',
                               fontSize: '12px',
                               cursor: 'pointer',
@@ -6331,7 +8098,6 @@ return (
                 maxHeight: '120px',
                 padding: '10px',
                 border: '1px solid #e0e0e0',
-                borderRadius: '6px',
                 fontSize: '14px',
                 fontFamily: 'inherit',
                 resize: 'vertical',
@@ -6346,7 +8112,6 @@ return (
                   background: '#FFB6D9',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '6px',
                   fontSize: '14px',
                   fontWeight: '500',
                   cursor: 'pointer',
@@ -6366,6 +8131,7 @@ return (
       
       </div> {/* End Main Content Area */}
     </div> {/* End Main Content Container */}
+    {confirmDialog /* Retro confirm modal for destructive admin actions */}
   </div> // End Logged-In Container
 ); // End Main Return
 

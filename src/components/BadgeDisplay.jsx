@@ -1,7 +1,17 @@
-// BadgeDisplay.jsx - Trophy Case and Badge Notification System
+// BadgeDisplay.jsx - Trophy Case and Badge Notification System (Windows 95 styled)
 import React, { useState, useEffect } from 'react';
 import Confetti from 'react-confetti';
 import { BADGES, BADGE_CATEGORIES, getBadgesByCategory } from '../data/badgeDefinitions';
+import BadgeIcon from './icons/BadgeIcon';
+
+// Strip the leading emoji glyph from a stored badge.name like "👼 First Review".
+// Falls back to the full string if no leading emoji is present.
+const stripBadgeNameEmoji = (name) => {
+  if (!name) return '';
+  const parts = name.split(' ');
+  if (parts.length <= 1) return name;
+  return parts.slice(1).join(' ');
+};
 
 // Badge Notification Modal
 export function BadgeNotification({ badge, onClose }) {
@@ -22,41 +32,65 @@ export function BadgeNotification({ badge, onClose }) {
           recycle={false}
         />
       )}
-      
+
       <div style={{
         position: 'fixed',
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        background: 'white',
-        border: '3px solid #FFB6D9',
-        borderRadius: '12px',
-        padding: '30px',
+        width: 'calc(100% - 32px)',
+        maxWidth: '400px',
+        background: 'var(--mb-chalk)',
+        border: '2px solid var(--mb-ink)',
+        boxShadow: 'var(--shadow-hard-lg)',
+        padding: '0',
         textAlign: 'center',
         zIndex: 10000,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-        maxWidth: '400px'
+        fontFamily: 'var(--font-content)'
       }}>
-        <div style={{ fontSize: '72px', marginBottom: '20px' }}>{badge.name.split(' ')[0]}</div>
-        <h2 style={{ marginBottom: '10px', color: '#333' }}>Achievement Unlocked!</h2>
-        <h3 style={{ marginBottom: '15px', color: '#555' }}>{badge.name}</h3>
-        <p style={{ marginBottom: '20px', color: '#666' }}>{badge.description}</p>
-        <button
-          onClick={onClose}
-          style={{
-            background: '#FFD6EC',
-            border: '2px solid #FFB6D9',
-            borderRadius: '6px',
-            padding: '10px 30px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            cursor: 'pointer'
-          }}
-        >
-          Awesome! 🎉
-        </button>
+        {/* Title bar — ink + pixel font to match Navigator theme */}
+        <div style={{
+          background: 'var(--mb-ink)',
+          color: 'var(--mb-chalk)',
+          padding: '6px 10px',
+          minHeight: '28px',
+          display: 'flex',
+          alignItems: 'center',
+          fontFamily: 'var(--font-pixel)',
+          fontSize: '11px',
+          letterSpacing: '0.04em',
+          textAlign: 'left',
+          userSelect: 'none',
+          borderBottom: '1px solid rgba(255,255,255,0.1)'
+        }}>
+          Achievement Unlocked!
+        </div>
+        <div style={{ padding: '25px 30px', background: 'var(--mb-paper)' }}>
+          <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'center' }}>
+            <BadgeIcon id={badge.id || badge.badgeId} size={84} />
+          </div>
+          <h3 style={{ marginBottom: '10px', color: 'var(--mb-ink)', fontFamily: 'var(--font-display)', fontWeight: 400, fontSize: 24, letterSpacing: '-0.01em' }}>{stripBadgeNameEmoji(badge.name)}</h3>
+          <p style={{ marginBottom: '20px', color: 'var(--mb-ink-60)' }}>{badge.description}</p>
+          <button
+            onClick={onClose}
+            style={{
+              background: 'var(--mb-magenta)',
+              color: 'var(--mb-chalk)',
+              border: '2px solid var(--mb-ink)',
+              boxShadow: 'var(--shadow-hard-sm)',
+              padding: '8px 30px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-content)',
+              letterSpacing: '0.04em'
+            }}
+          >
+            OK
+          </button>
+        </div>
       </div>
-      
+
       <div style={{
         position: 'fixed',
         top: 0,
@@ -83,46 +117,72 @@ export function TrophyCase({ badges = [], userStats = {} }) {
   console.log('TrophyCase: Earned badge IDs:', earnedBadgeIds);
 
   // Get all badges by category and sort with hidden ones at the end
-  const allBadges = (selectedCategory === 'all' 
+  const allBadges = (selectedCategory === 'all'
     ? Object.values(BADGES)
     : getBadgesByCategory(selectedCategory))
     .sort((a, b) => {
-      // Sort hidden badges to the end
       if (a.hidden && !b.hidden) return 1;
       if (!a.hidden && b.hidden) return -1;
       return 0;
     });
 
-  // Category names for display
+  // Category labels for display (icons rendered separately via BadgeIcon)
   const categoryNames = {
-    [BADGE_CATEGORIES.MILESTONES]: '📊 Review Milestones',
-    [BADGE_CATEGORIES.ENGAGEMENT]: '💬 Engagement',
-    [BADGE_CATEGORIES.ACCURACY]: '🎯 Accuracy & Success',
-    [BADGE_CATEGORIES.TIMING]: '⏰ Consistency & Timing',
-    [BADGE_CATEGORIES.PATTERNS]: '🌟 Rating Patterns',
-    [BADGE_CATEGORIES.GENERAL]: '🏘️ General',
-    [BADGE_CATEGORIES.ELITE]: '🏆 Elite Tiers',
-    [BADGE_CATEGORIES.STREAK]: '📈 Streaks',
-    [BADGE_CATEGORIES.EASTER_EGG]: '🎮 Easter Eggs'
+    [BADGE_CATEGORIES.MILESTONES]: 'Review Milestones',
+    [BADGE_CATEGORIES.ENGAGEMENT]: 'Engagement',
+    [BADGE_CATEGORIES.ACCURACY]: 'Accuracy & Success',
+    [BADGE_CATEGORIES.TIMING]: 'Consistency & Timing',
+    [BADGE_CATEGORIES.PATTERNS]: 'Rating Patterns',
+    [BADGE_CATEGORIES.GENERAL]: 'General',
+    [BADGE_CATEGORIES.ELITE]: 'Elite Tiers',
+    [BADGE_CATEGORIES.STREAK]: 'Streaks',
+    [BADGE_CATEGORIES.EASTER_EGG]: 'Easter Eggs'
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: '"MS Sans Serif", "Pixel Arial", sans-serif' }}>
-      <h2 style={{ marginBottom: '20px', borderBottom: '2px solid #FFB6D9', paddingBottom: '10px' }}>
-        🏆 Trophy Case - {badges.length} Badges Earned
-      </h2>
+    <div style={{ padding: '20px', fontFamily: 'var(--font-content)' }}>
+      {/* Header */}
+      <div style={{
+        background: 'var(--mb-paper-deep)',
+        border: '2px solid',
+        borderColor: 'var(--mb-ink)',
+        boxShadow: 'var(--shadow-hard-sm)',
+        padding: '10px 15px',
+        marginBottom: '15px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px'
+      }}>
+        <BadgeIcon category={BADGE_CATEGORIES.ELITE} size={22} style={{ flex: '0 0 auto' }} />
+        <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
+          Trophy Case - {badges.length} Badges Earned
+        </h2>
+      </div>
 
-      {/* Category Filter */}
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+      {/* Category Filter - Win95 tab bar style */}
+      <div style={{
+        marginBottom: '15px',
+        display: 'flex',
+        gap: '4px',
+        flexWrap: 'wrap',
+        background: 'var(--mb-paper-deep)',
+        padding: '8px',
+        border: '2px solid',
+        borderColor: 'var(--mb-ink)',
+        boxShadow: '0 0 0 0 var(--mb-ink)'
+      }}>
         <button
           onClick={() => setSelectedCategory('all')}
           style={{
-            padding: '6px 12px',
-            background: selectedCategory === 'all' ? '#FFD6EC' : '#f0f0f0',
-            border: '2px solid #FFB6D9',
-            borderRadius: '4px',
+            padding: '4px 10px',
+            background: selectedCategory === 'all' ? 'var(--btn-primary-bg)' : 'var(--btn-bg)',
+            border: '2px solid',
+            borderColor: selectedCategory === 'all' ? 'var(--mb-ink)' : 'var(--mb-ink)',
+            boxShadow: selectedCategory === 'all' ? '0 0 0 0 var(--mb-ink)' : 'var(--shadow-hard-sm)',
             cursor: 'pointer',
-            fontWeight: selectedCategory === 'all' ? 'bold' : 'normal'
+            fontWeight: 'bold',
+            fontSize: '12px',
+            fontFamily: 'var(--font-content)'
           }}
         >
           All Badges
@@ -132,15 +192,21 @@ export function TrophyCase({ badges = [], userStats = {} }) {
             key={key}
             onClick={() => setSelectedCategory(key)}
             style={{
-              padding: '6px 12px',
-              background: selectedCategory === key ? '#FFD6EC' : '#f0f0f0',
-              border: '2px solid #FFB6D9',
-              borderRadius: '4px',
+              padding: '4px 10px',
+              background: selectedCategory === key ? 'var(--btn-primary-bg)' : 'var(--btn-bg)',
+              border: '2px solid',
+              borderColor: selectedCategory === key ? 'var(--mb-ink)' : 'var(--mb-ink)',
+              boxShadow: selectedCategory === key ? '0 0 0 0 var(--mb-ink)' : 'var(--shadow-hard-sm)',
               cursor: 'pointer',
               fontWeight: selectedCategory === key ? 'bold' : 'normal',
-              fontSize: '13px'
+              fontSize: '11px',
+              fontFamily: 'var(--font-content)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '5px'
             }}
           >
+            <BadgeIcon category={key} size={16} />
             {name}
           </button>
         ))}
@@ -149,8 +215,8 @@ export function TrophyCase({ badges = [], userStats = {} }) {
       {/* Badge Grid */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-        gap: '15px'
+        gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+        gap: '8px'
       }}>
         {allBadges.map(badge => {
           const isEarned = earnedBadgeIds.includes(badge.id);
@@ -163,52 +229,57 @@ export function TrophyCase({ badges = [], userStats = {} }) {
               onMouseEnter={() => setHoveredBadge(badge.id)}
               onMouseLeave={() => setHoveredBadge(null)}
               style={{
-                background: isEarned ? 'linear-gradient(135deg, #FFE4F1, #FFD6EC)' : '#f5f5f5',
-                border: `2px solid ${isEarned ? '#FFB6D9' : '#ddd'}`,
-                borderRadius: '8px',
-                padding: '15px',
+                background: isEarned ? 'var(--gnf-pink-100)' : 'var(--mb-paper-deep)',
+                border: '2px solid',
+                borderColor: isEarned ? 'var(--mb-ink)' : '#ccc #fff #fff #ccc',
+                boxShadow: isEarned ? 'var(--shadow-hard-sm)' : 'none',
+                padding: '12px 8px',
                 textAlign: 'center',
                 position: 'relative',
                 cursor: 'pointer',
-                transform: hoveredBadge === badge.id ? 'scale(1.05)' : 'scale(1)',
-                transition: 'transform 0.2s ease',
-                opacity: isEarned ? 1 : 0.6
+                opacity: isEarned ? 1 : 0.6,
+                transition: 'none'
               }}
             >
-              <div style={{ fontSize: '36px', marginBottom: '8px', filter: !isEarned ? 'grayscale(100%)' : 'none' }}>
-                {badge.hidden && !isEarned ? '❓' : badge.name.split(' ')[0]}
+              <div style={{ marginBottom: '6px', display: 'flex', justifyContent: 'center', filter: !isEarned ? 'grayscale(100%)' : 'none' }}>
+                <BadgeIcon
+                  id={badge.id}
+                  locked={badge.hidden && !isEarned}
+                  size={40}
+                />
               </div>
-              <div style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '4px' }}>
-                {badge.hidden && !isEarned ? 'Hidden Badge' : badge.name.split(' ').slice(1).join(' ')}
+              <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px', color: 'var(--gnf-text)' }}>
+                {badge.hidden && !isEarned ? 'Hidden Badge' : stripBadgeNameEmoji(badge.name)}
               </div>
-              
-              {/* Progress Bar for unearned badges */}
+
+              {/* Progress Bar for unearned badges - Win95 inset style */}
               {!isEarned && progress > 0 && (
                 <div style={{
                   width: '100%',
-                  height: '4px',
-                  background: '#ddd',
-                  borderRadius: '2px',
-                  marginTop: '8px',
+                  height: '10px',
+                  border: '2px solid',
+                  borderColor: 'var(--mb-ink)',
+                  boxShadow: '0 0 0 0 var(--mb-ink)',
+                  background: 'var(--gnf-bg)',
+                  marginTop: '6px',
                   overflow: 'hidden'
                 }}>
                   <div style={{
                     width: `${progress * 100}%`,
                     height: '100%',
-                    background: '#FFB6D9',
-                    transition: 'width 0.3s ease'
+                    background: 'var(--gnf-pink-300)',
+                    transition: 'none'
                   }} />
                 </div>
               )}
 
               {/* Earned Date */}
               {isEarned && earnedBadge && (
-                <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
+                <div style={{ fontSize: '9px', color: 'var(--gnf-text-muted)', marginTop: '4px' }}>
                   {(() => {
                     const dateValue = earnedBadge.earnedAt || earnedBadge.earnedDate;
                     if (!dateValue) return 'Date unknown';
-                    
-                    // Handle Firestore Timestamp
+
                     let date;
                     if (dateValue.toDate) {
                       date = dateValue.toDate();
@@ -219,40 +290,30 @@ export function TrophyCase({ badges = [], userStats = {} }) {
                     } else {
                       return 'Date unknown';
                     }
-                    
+
                     return isNaN(date.getTime()) ? 'Date unknown' : date.toLocaleDateString();
                   })()}
                 </div>
               )}
 
-              {/* Hover Tooltip */}
+              {/* Hover Tooltip - Win95 styled */}
               {hoveredBadge === badge.id && (
                 <div style={{
                   position: 'absolute',
                   bottom: '100%',
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  background: 'rgba(0,0,0,0.9)',
-                  color: 'white',
-                  padding: '8px 12px',
-                  borderRadius: '4px',
+                  background: 'var(--gnf-yellow-100)',
+                  color: 'var(--gnf-text)',
+                  padding: '4px 8px',
                   fontSize: '11px',
                   whiteSpace: 'nowrap',
-                  marginBottom: '5px',
-                  zIndex: 10
+                  marginBottom: '4px',
+                  zIndex: 10,
+                  border: '1px solid var(--gnf-text)',
+                  fontFamily: 'var(--font-content)'
                 }}>
                   {badge.hidden && !isEarned ? badge.hiddenDescription || '???' : badge.description}
-                  <div style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: 0,
-                    height: 0,
-                    borderLeft: '5px solid transparent',
-                    borderRight: '5px solid transparent',
-                    borderTop: '5px solid rgba(0,0,0,0.9)'
-                  }} />
                 </div>
               )}
             </div>
@@ -260,43 +321,63 @@ export function TrophyCase({ badges = [], userStats = {} }) {
         })}
       </div>
 
-      {/* Stats Summary */}
+      {/* Stats Summary - Win95 group box style */}
       <div style={{
-        marginTop: '30px',
-        padding: '20px',
-        background: '#f9f9f9',
-        borderRadius: '8px',
-        border: '1px solid #ddd'
+        marginTop: '20px',
+        padding: '15px',
+        background: 'var(--mb-paper-deep)',
+        border: '2px solid',
+        borderColor: 'var(--mb-ink)',
+        boxShadow: 'var(--shadow-hard-sm)'
       }}>
-        <h3 style={{ marginBottom: '15px' }}>📊 Badge Statistics</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+        <div style={{
+          fontSize: '13px',
+          fontWeight: 'bold',
+          marginBottom: '12px',
+          borderBottom: '1px solid var(--gnf-border-pink)',
+          paddingBottom: '6px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px'
+        }}>
+          <BadgeIcon category={BADGE_CATEGORIES.MILESTONES} size={16} />
+          Badge Statistics
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px' }}>
           {Object.entries(categoryNames).map(([category, name]) => {
             const categoryBadges = badges.filter(b => BADGES[b.id || b.badgeId]?.category === category);
             const totalInCategory = getBadgesByCategory(category).length;
-            
+
             return (
               <div key={category} style={{
-                background: 'white',
-                padding: '10px',
-                borderRadius: '6px',
-                border: '1px solid #eee'
+                background: 'var(--gnf-bg)',
+                padding: '8px 10px',
+                border: '2px solid',
+                borderColor: 'var(--mb-ink)',
+                boxShadow: '0 0 0 0 var(--mb-ink)'
               }}>
-                <div style={{ fontSize: '13px', marginBottom: '5px' }}>{name}</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#333' }}>
+                <div style={{ fontSize: '11px', marginBottom: '4px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <BadgeIcon category={category} size={14} />
+                  {name}
+                </div>
+                <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--gnf-text)' }}>
                   {categoryBadges.length} / {totalInCategory}
                 </div>
                 <div style={{
                   width: '100%',
-                  height: '4px',
-                  background: '#eee',
-                  borderRadius: '2px',
-                  marginTop: '5px',
+                  height: '10px',
+                  border: '2px solid',
+                  borderColor: 'var(--mb-ink)',
+                  boxShadow: '0 0 0 0 var(--mb-ink)',
+                  background: 'var(--gnf-bg)',
+                  marginTop: '4px',
                   overflow: 'hidden'
                 }}>
                   <div style={{
                     width: `${(categoryBadges.length / totalInCategory) * 100}%`,
                     height: '100%',
-                    background: '#FFB6D9'
+                    background: 'var(--gnf-pink-300)',
+                    transition: 'none'
                   }} />
                 </div>
               </div>

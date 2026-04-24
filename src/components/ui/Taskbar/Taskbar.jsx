@@ -11,7 +11,7 @@ export default function Taskbar() {
 
   return (
     <div className="taskbar">
-      <div className="taskbar-left">NeighborhoodOS</div>
+      <div className="taskbar-left">neighborhoodOS</div>
       <div className="taskbar-right">{dateStr} 1999</div>
     </div>
   );

@@ -35,6 +35,7 @@ const MobileBuddyMessenger = ({ onClose }) => {
   const [charCount, setCharCount] = useState(0);
   const [error, setError] = useState("");
   const messageEndRef = useRef(null);
+  const hasScrolledInitially = useRef(false);
 
   const CHARACTER_LIMIT = 140;
 
@@ -51,7 +52,10 @@ const MobileBuddyMessenger = ({ onClose }) => {
   }, []);
 
   useEffect(() => {
-    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length === 0) return;
+    const behavior = hasScrolledInitially.current ? "smooth" : "auto";
+    messageEndRef.current?.scrollIntoView({ behavior, block: "end" });
+    hasScrolledInitially.current = true;
   }, [messages]);
 
   const fetchMessages = async () => {
@@ -172,80 +176,92 @@ const MobileBuddyMessenger = ({ onClose }) => {
     >
       {/* No audio elements on mobile */}
 
-      <div 
+      <div
         style={{
           width: "90%",
           maxWidth: "400px",
-          background: "white",
-          borderRadius: "8px",
+          background: "var(--mb-chalk)",
           overflow: "hidden",
-          boxShadow: "0 4px 15px rgba(0, 0, 0, 0.3)",
+          border: "2px solid var(--mb-ink)",
+          boxShadow: "var(--shadow-hard-lg)",
           display: "flex",
-          flexDirection: "column"
+          flexDirection: "column",
+          fontFamily: "var(--font-content)"
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Chat title bar */}
-        <div 
+        {/* Chat title bar — ink + pixel font to match Navigator theme */}
+        <div
           style={{
-            background: "linear-gradient(to right, #ffb6e1, #ff9bd6)",
-            padding: "10px",
+            background: "var(--mb-ink)",
+            color: "var(--mb-chalk)",
+            padding: "6px 10px",
+            minHeight: "28px",
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            color: "white",
-            fontWeight: "bold"
+            fontFamily: "var(--font-pixel)",
+            fontSize: "11px",
+            letterSpacing: "0.04em",
+            userSelect: "none",
+            borderBottom: "1px solid rgba(255,255,255,0.1)"
           }}
         >
-          <div style={{ display: "flex", alignItems: "center" }}>
-            <img 
-              src="/assets/BuddyMessenger-icon.webp" 
-              alt="Buddy Messenger" 
-              style={{ height: "20px", width: "20px", marginRight: "8px" }} 
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <img
+              src="/assets/BuddyMessenger-icon.webp"
+              alt=""
+              aria-hidden="true"
+              style={{ height: "14px", width: "14px" }}
             />
             <span>Buddy Messenger</span>
           </div>
-          <button 
+          <button
             onClick={onClose}
+            aria-label="Close window"
             style={{
-              background: "#eeeeee",
-              border: "1px solid #aaaaaa",
+              background: "var(--mb-magenta)",
+              border: "1px solid var(--mb-chalk)",
+              color: "var(--mb-chalk)",
+              cursor: "pointer",
+              padding: "0",
+              fontSize: "12px",
               width: "20px",
               height: "20px",
-              fontSize: "12px",
               lineHeight: "1",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              cursor: "pointer",
-              borderRadius: "3px"
+              fontFamily: "var(--font-content)"
             }}
           >
-            ✖
+            ✕
           </button>
         </div>
 
         {/* Message window */}
-        <div 
+        <div
           style={{
-            background: "white",
-            border: "1px solid #ddd",
+            background: "var(--mb-paper)",
+            border: "2px solid var(--mb-ink)",
             height: "250px",
             overflowY: "auto",
-            padding: "10px",
-            fontSize: "13px",
-            margin: "5px"
+            overscrollBehavior: "contain",
+            padding: "8px",
+            fontSize: "12px",
+            margin: "8px",
+            color: "var(--mb-ink)"
           }}
         >
           {messages.map((msg, index) => (
             <div key={index} style={{ marginBottom: "6px", display: "flex", flexWrap: "wrap" }}>
-              <span style={{ color: msg.color || "#000", fontWeight: "bold" }}>
+              <span style={{ color: msg.color || "var(--mb-ink)", fontWeight: "bold" }}>
                 {msg.username}:
               </span>
               <span style={{ marginLeft: "4px", wordBreak: "break-word", flex: "1" }}>
                 {msg.text}
               </span>
-              <span style={{ marginLeft: "8px", color: "#999", fontSize: "10px" }}>
+              <span style={{ marginLeft: "8px", color: "var(--mb-ink-60)", fontSize: "10px" }}>
                 [{formatTimestamp(msg.timestamp)}]
               </span>
             </div>
@@ -254,58 +270,59 @@ const MobileBuddyMessenger = ({ onClose }) => {
         </div>
 
         {/* Message input area */}
-        <div style={{ padding: "0 5px 5px 5px" }}>
+        <div style={{ padding: "0 8px 5px 8px" }}>
           <textarea
             value={message}
             onChange={handleMessageChange}
-            placeholder="Leave a message, a tool rec, or your best idea! (These messages are public 😉)"
+            placeholder="Leave us a message, (PS These are public.)"
             maxLength={CHARACTER_LIMIT}
             style={{
               width: "100%",
               height: "60px",
-              border: "1px solid #ddd",
-              padding: "8px",
-              fontSize: "13px",
-              fontFamily: "inherit",
+              border: "2px solid var(--mb-ink)",
+              padding: "6px",
+              fontSize: "12px",
+              fontFamily: "var(--font-content)",
               resize: "none",
-              borderRadius: "4px",
               boxSizing: "border-box",
-              marginBottom: "5px"
+              marginBottom: "5px",
+              background: "var(--mb-chalk)",
+              color: "var(--mb-ink)"
             }}
           />
         </div>
 
         {/* Message footer */}
-        <div 
+        <div
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
-            padding: "0 5px 10px 5px",
+            padding: "0 8px 10px 8px",
             fontSize: "12px"
           }}
         >
-          <div style={{ color: "#777" }}>
+          <div style={{ color: "var(--mb-ink-60)" }}>
             {CHARACTER_LIMIT - charCount} characters left
           </div>
           {error && (
-            <div style={{ color: "#e74c3c", textAlign: "center", flexGrow: 1, padding: "0 10px", fontWeight: "bold" }}>
+            <div style={{ color: "var(--mb-magenta-deep)", textAlign: "center", flexGrow: 1, padding: "0 10px", fontWeight: "bold" }}>
               {error}
             </div>
           )}
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={handleSubmit}
             style={{
-              background: "linear-gradient(to bottom, #ffb6e1, #ff8fcb)",
-              border: "1px solid #ff8fcb",
-              color: "white",
-              padding: "8px 16px",
+              background: "var(--mb-magenta)",
+              border: "2px solid var(--mb-ink)",
+              boxShadow: "var(--shadow-hard-sm)",
+              color: "var(--mb-chalk)",
+              padding: "6px 16px",
               fontSize: "13px",
               fontWeight: "bold",
               cursor: "pointer",
-              borderRadius: "4px",
-              boxShadow: "0 1px 2px rgba(0,0,0,0.1)"
+              fontFamily: "var(--font-content)"
             }}
           >
             Send

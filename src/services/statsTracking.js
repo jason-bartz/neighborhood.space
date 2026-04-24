@@ -25,7 +25,6 @@ export const initializeUserStats = async (userId) => {
         reviewsByDayOfWeek: { sun: 0, mon: 0, tue: 0, wed: 0, thu: 0, fri: 0, sat: 0 },
         ratingDistribution: { Favorite: 0, Consideration: 0, Pass: 0, Ineligible: 0 },
         longComments: 0,
-        passWithComments: 0,
         changedRatings: 0,
         earlyReviews: 0,
         nightReviews: 0,
@@ -92,7 +91,9 @@ const getDayOfWeek = (date) => {
 };
 
 // Track review submission
-export const trackReviewSubmission = async (userId, reviewData, pitchData, isEdit = false) => {
+// previousReview (optional) lets us detect rating changes and track edit count;
+// pass the review currently in state before this submission (null on first submit).
+export const trackReviewSubmission = async (userId, reviewData, pitchData, isEdit = false, previousReview = null) => {
   const userRef = doc(db, "users", userId);
   const now = new Date();
   const quarter = getCurrentQuarter();
@@ -187,14 +188,9 @@ export const trackReviewSubmission = async (userId, reviewData, pitchData, isEdi
       updates['stats.exactly50WordComments'] = increment(1);
     }
     
-    // Track pass with comments
-    if (reviewData.overallLpRating === 'Pass') {
-      updates['stats.passWithComments'] = increment(1);
-      
-      // Track pass with detailed comments (50+ characters)
-      if (comment.length >= 50) {
-        updates['stats.passWithDetailedComments'] = increment(1);
-      }
+    // Track pass with detailed comments (50+ characters) — backs Tough Love badge
+    if (reviewData.overallLpRating === 'Pass' && comment.length >= 50) {
+      updates['stats.passWithDetailedComments'] = increment(1);
     }
     
     // Track "neighbor" word count
@@ -247,23 +243,45 @@ export const trackReviewSubmission = async (userId, reviewData, pitchData, isEdi
   if (transportKeywords.some(keyword => businessName.includes(keyword) || businessDescription.includes(keyword))) {
     updates['stats.transportationBusinessReviews'] = increment(1);
   }
-  
+
+  // Rating change tracking (edit where the overall rating actually changed) — backs Pivot Master
+  if (isEdit && previousReview && previousReview.overallLpRating && previousReview.overallLpRating !== reviewData.overallLpRating) {
+    updates['stats.changedRatings'] = increment(1);
+  }
+
+  // Track max edits on a single review — backs Perfectionist
+  if (isEdit && typeof reviewData.editCount === 'number' && reviewData.editCount > (stats.maxReviewEdits || 0)) {
+    updates['stats.maxReviewEdits'] = reviewData.editCount;
+  }
+
   // Apply updates
   await updateDoc(userRef, updates);
-  
-  // Check for new badges
-  const updatedUserDoc = await getDoc(userRef);
-  const updatedUserData = updatedUserDoc.data();
-  const newBadges = getNewBadges(updatedUserData.badges || [], updatedUserData.stats, updatedUserData);
-  
-  if (newBadges.length > 0) {
-    await updateDoc(userRef, {
-      badges: [...(updatedUserData.badges || []), ...newBadges]
-    });
-    return { newBadges, stats: updatedUserData.stats };
+
+  // Aggregate-stat helpers run only on non-edit submissions (these read Firestore, not the review we just wrote)
+  if (!isEdit) {
+    try { await checkFirstToReview(userId, pitchData.id || reviewData.pitchId); }
+    catch (e) { console.warn("trackReviewSubmission: checkFirstToReview failed:", e); }
+    try { await calculateQuarterlyCompletion(userId); }
+    catch (e) { console.warn("trackReviewSubmission: calculateQuarterlyCompletion failed:", e); }
   }
-  
-  return { newBadges: [], stats: updatedUserData.stats };
+
+  // Cascade badge checks so Elite tiers (Bronze/Silver/Gold/Diamond) unlock in the same session
+  // when crossing the badges-count threshold. Cap at 3 passes as a safety bound.
+  const allNewBadges = [];
+  for (let pass = 0; pass < 3; pass++) {
+    const snap = await getDoc(userRef);
+    const data = snap.data();
+    const currentBadges = data.badges || [];
+    const newBadges = getNewBadges(currentBadges, data.stats, data);
+    if (newBadges.length === 0) break;
+    await updateDoc(userRef, {
+      badges: [...currentBadges, ...newBadges]
+    });
+    allNewBadges.push(...newBadges);
+  }
+
+  const finalSnap = await getDoc(userRef);
+  return { newBadges: allNewBadges, stats: finalSnap.data().stats };
 };
 
 // Track rating change
@@ -295,53 +313,45 @@ export const updateWinnerPredictions = async (pitchId, pitchData) => {
     
     if (review.overallLpRating === 'Favorite' || review.overallLpRating === 'Consideration') {
       const userRef = doc(db, "users", userId);
-      
-      // First get current stats to update totalPredictions
+
       const userDoc = await getDoc(userRef);
       const currentStats = userDoc.data()?.stats || {};
-      
+
+      // totalPredictions is already incremented at review-submit time in trackReviewSubmission.
+      // Only bump correct counters here.
       const updates = {
         'stats.correctPredictions': increment(1),
-        'stats.totalPredictions': increment(1),
         'stats.winnersIdentified': increment(1)
       };
-      
+
       if (review.overallLpRating === 'Favorite') {
         updates['stats.favoriteWinners'] = increment(1);
       }
-      
-      // Update accuracy rate
+
       const newCorrectPredictions = (currentStats.correctPredictions || 0) + 1;
-      const newTotalPredictions = (currentStats.totalPredictions || 0) + 1;
-      updates['stats.accuracyRate'] = Math.round((newCorrectPredictions / newTotalPredictions) * 100);
-      
-      console.log(`Updating stats for user ${userId}:`, updates);
-      await updateDoc(userRef, updates);
-      
-      // Check for new badges
-      const updatedUserDoc = await getDoc(userRef);
-      const updatedUserData = updatedUserDoc.data();
-      const currentBadges = updatedUserData.badges || [];
-      const earnedBadgeIds = currentBadges.map(b => b.badgeId || b.id);
-      
-      const newBadges = [];
-      for (const [badgeId, badge] of Object.entries(BADGES)) {
-        if (!earnedBadgeIds.includes(badgeId) && badge.checkFunction(updatedUserData.stats, { badges: currentBadges })) {
-          newBadges.push({
-            badgeId: badge.id,
-            earnedDate: new Date(),
-            category: badge.category,
-            name: badge.name,
-            description: badge.description
-          });
-        }
+      const totalPredictions = currentStats.totalPredictions || 0;
+      if (totalPredictions > 0) {
+        updates['stats.accuracyRate'] = Math.round((newCorrectPredictions / totalPredictions) * 100);
       }
-      
-      if (newBadges.length > 0) {
+
+      await updateDoc(userRef, updates);
+
+      // Bump perfectQuarters if this user's quarter predictions are all-correct — backs Midas Touch
+      if (review.quarter) {
+        try { await checkPerfectQuarter(userId, review.quarter); }
+        catch (e) { console.warn("updateWinnerPredictions: checkPerfectQuarter failed:", e); }
+      }
+
+      // Cascade badge awards (3 passes for Elite-tier unlock when crossing thresholds)
+      for (let pass = 0; pass < 3; pass++) {
+        const snap = await getDoc(userRef);
+        const data = snap.data();
+        const currentBadges = data.badges || [];
+        const newBadges = getNewBadges(currentBadges, data.stats, data);
+        if (newBadges.length === 0) break;
         await updateDoc(userRef, {
           badges: [...currentBadges, ...newBadges]
         });
-        console.log(`User ${userId} earned ${newBadges.length} new badges from winner prediction!`);
       }
     }
   }
@@ -355,7 +365,7 @@ export const calculateChapterRankings = async (chapter) => {
   const usersQuery = query(
     collection(db, "users"),
     where("chapter", "==", chapter),
-    where("role", "in", ["lp", "admin", "superAdmin"])
+    where("role", "in", ["lp", "chapter_director", "superAdmin"])
   );
   
   const usersSnapshot = await getDocs(usersQuery);
@@ -406,7 +416,8 @@ export const checkFoundingMember = async (userId) => {
     const chapterFoundingDates = {
       'Western New York': new Date('2023-10-01'),
       'Denver': new Date('2024-01-01'),
-      // Add other chapters as needed
+      'Upstate New York': new Date('2026-05-26'),
+      'Capital Region': new Date('2026-05-26'),
     };
     
     const foundingDate = chapterFoundingDates[chapter];
@@ -490,10 +501,16 @@ export const calculateQuarterlyCompletion = async (userId) => {
   return { completionRate, totalPitches, completedReviews };
 };
 
-// Check and update perfect quarters for winner predictions
+// Check and update perfect quarters for winner predictions — idempotent per quarter
 export const checkPerfectQuarter = async (userId, quarter) => {
   const userRef = doc(db, "users", userId);
-  
+  const userDoc = await getDoc(userRef);
+  if (!userDoc.exists()) return;
+
+  // Skip if already credited for this quarter
+  const stats = userDoc.data().stats || {};
+  if (stats.perfectQuartersEarned && stats.perfectQuartersEarned[quarter]) return;
+
   // Get all user's predictions for this quarter
   const reviewsQuery = query(
     collection(db, "reviews"),
@@ -501,20 +518,18 @@ export const checkPerfectQuarter = async (userId, quarter) => {
     where("quarter", "==", quarter),
     where("overallLpRating", "in", ["Favorite", "Consideration"])
   );
-  
+
   const reviewsSnapshot = await getDocs(reviewsQuery);
-  
   if (reviewsSnapshot.empty) return;
-  
+
   let allCorrect = true;
   let totalPredictions = 0;
-  
-  // Check each prediction
+
   for (const reviewDoc of reviewsSnapshot.docs) {
     const review = reviewDoc.data();
     const pitchRef = doc(db, "pitches", review.pitchId);
     const pitchDoc = await getDoc(pitchRef);
-    
+
     if (pitchDoc.exists()) {
       totalPredictions++;
       if (!pitchDoc.data().isWinner) {
@@ -523,11 +538,11 @@ export const checkPerfectQuarter = async (userId, quarter) => {
       }
     }
   }
-  
-  // If all predictions were correct and there were predictions
+
   if (allCorrect && totalPredictions > 0) {
     await updateDoc(userRef, {
-      'stats.perfectQuarters': increment(1)
+      'stats.perfectQuarters': increment(1),
+      [`stats.perfectQuartersEarned.${quarter}`]: true
     });
   }
 };

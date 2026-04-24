@@ -13,11 +13,9 @@
 
 body {
   margin: 0;
-  font-family: "Comic Sans MS", "ComicRetro", "Pixelify Sans", sans-serif;
-  background: url("../public/assets/gnf-wallpaper.webp?v=2") no-repeat center center fixed;
-  background-size: cover;
-  image-rendering: auto;
-  color: #2d2d2d;
+  font-family: var(--font-content);
+  color: var(--mb-ink);
+  /* Background set by theme-tokens.css (animated gritty gradient). */
 }
 
 html, body, #root {
@@ -28,10 +26,22 @@ html, body, #root {
 
 /* Lofi Gradient Background */
 .lofi-bg {
-  background: linear-gradient(135deg, #fde9f0, #d0eaff);
+  background: linear-gradient(135deg, #fde9f0, var(--blue-mid));
   min-height: 100vh;
   padding: 20px;
   animation: fadeIn 0.5s ease-in;
+}
+
+/* Auth form input — adds a visible focus ring on top of the pastel
+   beveled border so keyboard users can see which field is focused. */
+.auth-input:focus,
+.auth-input:focus-visible {
+  outline: 2px solid var(--mb-magenta);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lofi-bg { animation: none; opacity: 1; }
 }
 
 /* 
@@ -45,48 +55,49 @@ html, body, #root {
   to { opacity: 1; }
 }
 
-/* Retro Container */
+/* Retro Container — Win95 Pastel */
 .retro-container {
   max-width: 900px;
   margin: 0 auto;
   padding: 20px;
   background: #ffffff;
-  border: 2px solid #f2c0de;
-  border-radius: 10px;
-  box-shadow: 4px 4px 0 #ffc8ec;
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: var(--shadow-outset), var(--window-shadow);
 }
 
-/* Skeuomorphic Title */
+/* Skeuomorphic Title — Win95 Pastel */
 .skeuo-title {
-  font-family: "Comic Sans MS", "Pixelify Sans", sans-serif;
+  font-family: var(--font-heading);
   font-size: 28px;
   padding: 12px 20px;
   background: #fff;
-  border: 2px solid #e0b4d2;
-  border-radius: 12px;
-  box-shadow: inset -3px -3px 5px #fff, inset 3px 3px 5px #d8a6c3;
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: var(--shadow-outset);
   display: inline-block;
   margin-bottom: 20px;
   color: #832c64;
   text-align: center;
 }
 
-/* Taskbar */
+/* Taskbar — Win95 Pastel */
 .taskbar {
   position: fixed;
   top: 0;
-  width: 100%;
-  background: #fcd6e2;
-  padding: 6px 12px;
+  left: 0;
+  right: 0;
+  background: var(--gnf-bg-silver);
+  padding: 4px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-family: "Courier New", Courier, monospace;
+  font-family: var(--font-body);
   font-weight: bold;
-  font-size: 14px;
-  border-bottom: 2px solid #ecacc5;
+  font-size: 13px;
+  border-bottom: 2px solid var(--pink-dark);
+  box-shadow: inset 0 -1px 0 rgba(180,100,160,0.2), inset 0 1px 0 rgba(255,255,255,0.7);
   z-index: 1000;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .taskbar-left {
@@ -96,8 +107,10 @@ html, body, #root {
 }
 
 .taskbar-icon {
-  width: 16px;
-  height: 16px;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  display: block;
 }
 
 .taskbar-right {
@@ -140,16 +153,28 @@ html, body, #root {
   gap: 24px;
 }
 
+/* Desktop surface with subtle crosshatch overlay */
+.desktop {
+  position: relative;
+}
+
+/* Crosshatch grid overlay removed — let the animated gradient breathe. */
+
 .desktop-icon {
   display: flex;
   flex-direction: column;
   align-items: center;
   cursor: pointer;
-  transition: transform 0.2s ease;
+  transition: transform 120ms ease-out;
 }
 
 .desktop-icon:hover {
-  transform: scale(1.1) rotate(-1deg);
+  transform: scale(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desktop-icon { transition: none; }
+  .desktop-icon:hover { transform: none; }
 }
 
 .desktop-icon img {
@@ -160,7 +185,7 @@ html, body, #root {
 
 .desktop-icon span {
   font-size: 12px;
-  color: #2d2d2d;
+  color: var(--gnf-text);
 }
 
 @keyframes jiggle {
@@ -175,7 +200,7 @@ html, body, #root {
 }
 
 
-/* Retro Windows */
+/* Retro Windows — Win95 Pastel */
 
 .retro-window {
   position: absolute;
@@ -183,28 +208,48 @@ html, body, #root {
   left: 100px;
   width: 400px;
   background-color: #fff;
-  border: 2px solid #d48fc7;
-  border-radius: 6px;
-  box-shadow: 4px 4px 0 #ffbde2;
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: var(--shadow-outset), var(--window-shadow);
   z-index: 1000;
   cursor: default;
 }
 
 .retro-title-bar {
-  background: #ffeaf5;
-  padding: 6px 12px;
-  border-bottom: 1px solid #d48fc7;
+  background: linear-gradient(90deg, var(--pink-dark), var(--pink-light));
+  padding: 4px 8px;
+  min-height: 28px;
+  border-bottom: 1px solid var(--pink-dark);
   display: flex;
   justify-content: space-between;
+  align-items: center;
   font-weight: bold;
-  font-size: 14px;
+  font-size: 13px;
+  font-family: var(--font-body);
+  user-select: none;
 }
 
 .retro-title-bar button {
-  background: #ffbde2;
-  border: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  background: var(--gnf-bg-silver);
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: var(--shadow-outset);
   cursor: pointer;
   font-weight: bold;
+  padding: 0;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.retro-title-bar button:active {
+  border-color: var(--bevel-inset);
+  box-shadow: var(--shadow-inset);
 }
 
 .retro-window-body {
@@ -220,116 +265,6 @@ html, body, #root {
      are handled by the inline style in RetroWindow.jsx */
 }
 
-/* Music Player */
-.music-window {
-  width: 280px;
-  height: auto;
-  background: #ffd6ec;
-  border: 2px solid #d48fc7;
-  border-radius: 6px;
-  box-shadow: 4px 4px 0 #ffbde2;
-  font-family: "ComicRetro", "Comic Sans MS", cursive, sans-serif;
-  position: absolute;
-  z-index: 999;
-}
-
-.music-title-bar {
-  background: #ffeaf5;
-  padding: 6px 12px;
-  border-bottom: 1px solid #d48fc7;
-  display: flex;
-  justify-content: space-between;
-  font-weight: bold;
-  font-size: 14px;
-}
-
-.music-title-bar button {
-  background: #ffbde2;
-  border: none;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.music-body {
-  padding: 8px 10px 12px 10px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
-
-.track-info {
-  font-size: 10px;
-  text-align: center;
-  color: #6c2c6c;
-  margin-top: 4px;
-}
-
-/* EQ Bar */
-.waveform-container {
-  height: 28px;
-  margin: 0 auto;
-  overflow: hidden;
-}
-
-.waveform {
-  display: flex;
-  justify-content: center;
-  gap: 2px;
-  height: 100%;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.waveform.active {
-  opacity: 1;
-}
-
-.bar {
-  width: 4px;
-  background-color: #b04fc6;
-  animation: bounce 1.2s infinite ease-in-out;
-  transform-origin: bottom;
-}
-
-.bar1 { animation-delay: 0s; }
-.bar2 { animation-delay: 0.1s; }
-.bar3 { animation-delay: 0.2s; }
-.bar4 { animation-delay: 0.3s; }
-
-@keyframes bounce {
-  0%, 100% { height: 10px; }
-  50% { height: 24px; }
-}
-
-/* Controls & Time */
-.controls {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 4px;
-}
-
-.controls button {
-  background: linear-gradient(to bottom, #fff, #e4b2d9);
-  border: 2px outset #d48fc7;
-  padding: 4px 8px;
-  font-size: 14px;
-  cursor: pointer;
-  box-shadow: 2px 2px #f3aee8;
-}
-
-.controls button:hover {
-  background: #ffd6ec;
-  transform: scale(1.05);
-}
-
-.time-display {
-  font-size: 10px;
-  color: #6c2c6c;
-  text-align: center;
-  margin-top: 4px;
-}
 .chunked-loader-container {
   margin-top: 16px;
   display: flex;
@@ -342,9 +277,8 @@ html, body, #root {
   width: 10px;
   height: 20px;
   background: #ffcdee;
-  border-radius: 3px;
   animation: chunkPulse 1.2s ease-in-out infinite;
-  box-shadow: 0 0 2px #ffbde2;
+  border: 1px solid var(--pink-dark);
 }
 
 .chunk:nth-child(2) {
@@ -399,66 +333,71 @@ html, body, #root {
   align-items: center;
   justify-content: center;
   z-index: 9999;
-  background-color: #f0f0f0; /* Solid background to prevent transparency */
+  /* Background inherited from body (animated gradient). */
 }
 
 .boot-box {
   background: #fff;
-  border: 2px solid #ccc;
-  border-radius: 12px;
-  box-shadow: 6px 6px 0 #b8b8b8;
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: inset 1px 1px 0 rgba(255,255,255,0.7), inset -1px -1px 0 rgba(180,100,160,0.3), 4px 4px 0 var(--gnf-pink-300);
   padding: 40px;
   text-align: center;
-  font-family: "Courier New", Courier, monospace;
-  /* animation: pulse 1.5s infinite; */ /* Removed flashing animation */
+  font-family: var(--font-mono);
   width: 400px;
 }
 
 /* Logo container for boot screen */
 .logo-container {
-  width: 160px;
-  height: 160px;
-  margin: 0 auto 20px;
+  margin: 0 auto 24px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
 .boot-logo {
-  width: 120px;
-  height: 120px;
+  max-width: 200px;
+  height: auto;
   object-fit: contain;
+  image-rendering: auto;
+}
+
+@keyframes bootShimmer {
+  0%   { background-position: -30% 0; }
+  100% { background-position: 130% 0; }
 }
 
 .boot-box h1 {
   margin: 0;
   color: #833f7b;
   font-size: 26px;
+  font-family: var(--font-heading);
 }
 
 .boot-loading-text {
   margin-top: 12px;
   margin-bottom: 20px;
   font-size: 14px;
-  color: #666;
+  color: var(--gnf-text-muted);
 }
 
-/* New progress bar styles */
+/* Progress bar — Win95 segmented style */
 .boot-progress-container {
   width: 100%;
   height: 20px;
-  background-color: #f0f0f0;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  background-color: var(--gnf-bg-gray);
+  border: 2px solid;
+  border-color: var(--bevel-inset);
+  box-shadow: var(--shadow-inset);
   overflow: hidden;
   margin-top: 15px;
 }
 
 .boot-progress-bar {
   height: 100%;
-  background: linear-gradient(to right, #b79ed3, #f5c1cf);
-  width: 0%; /* Will be controlled by JS */
-  transition: width 0.05s ease-out; /* Ultra-fast transition */
+  background: repeating-linear-gradient(90deg, var(--pink-dark) 0px, var(--pink-dark) 8px, var(--pink-light) 8px, var(--pink-light) 10px);
+  width: 0%;
+  transition: none;
 }
 
 /* Removed pulse animation to fix flashing issue
@@ -472,13 +411,11 @@ html, body, #root {
 /* Mobile styles applied only on smaller screens */
 @media (max-width: 768px) {
   body {
-    font-family: "ComicRetro", "Comic Sans MS", cursive, sans-serif;
+    font-family: var(--font-content) !important;
     margin: 0;
     padding: 0;
-    background: linear-gradient(135deg, #fff9c4, #ffe0f0, #d0f0fd);
-    background-size: 600% 600%;
-    animation: gradientShift 15s ease infinite;
     min-height: 100vh;
+    /* Background inherited (animated gradient). */
   }
 }
 
@@ -489,16 +426,18 @@ html, body, #root {
   100% { background-position: 0% 50%; }
 }
 
-/* --- Mini Taskbar --- */
+/* --- Mini Taskbar — Win95 Pastel --- */
 .mobile-taskbar {
-  background: #ffe0f0;
+  background: var(--gnf-bg-silver);
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 8px;
   font-size: 12px;
-  border-bottom: 2px solid #999;
+  font-family: var(--font-body);
+  border-bottom: 2px solid var(--pink-dark);
+  box-shadow: inset 0 -1px 0 rgba(180,100,160,0.2), inset 0 1px 0 rgba(255,255,255,0.7);
   font-weight: bold;
 }
 
@@ -518,35 +457,52 @@ html, body, #root {
   color: #333;
 }
 
-/* --- Faux Retro Window --- */
+/* --- Faux Retro Window — Win95 Pastel --- */
 .mobile-window {
   background: white;
-  border: 2px solid #aaa;
+  border: 2px solid;
+  border-color: var(--bevel-outset);
   margin: 16px;
-  border-radius: 8px;
   overflow: hidden;
-  box-shadow: 2px 2px 10px rgba(0,0,0,0.2);
+  box-shadow: var(--shadow-outset), var(--window-shadow);
 }
 
 .mobile-window-titlebar {
-  background: linear-gradient(to right, #ffe0f0, #ffccf2);
-  color: #333;
+  background: linear-gradient(90deg, var(--pink-dark), var(--pink-light));
+  color: var(--gnf-text);
   font-weight: bold;
-  padding: 6px 10px;
-  font-size: 14px;
+  padding: 4px 8px;
+  min-height: 28px;
+  font-size: 13px;
+  font-family: var(--font-body);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #aaa;
+  border-bottom: 1px solid var(--pink-dark);
+  user-select: none;
 }
 
 .titlebar-close {
-  background: #ffb6c1;
-  border: none;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  background: var(--gnf-bg-silver);
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: var(--shadow-outset);
   font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 0;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+}
+
+.titlebar-close:active {
+  border-color: var(--bevel-inset);
+  box-shadow: var(--shadow-inset);
 }
 
 /* --- Main Landing Content --- */
@@ -568,35 +524,37 @@ html, body, #root {
 
 .mobile-subtitle {
   font-size: 18px;
-  color: #666;
+  color: var(--gnf-text-muted);
   margin-bottom: 20px;
 }
 
 .mobile-intro {
   font-size: 16px;
-  color: #555;
+  color: var(--gnf-text-secondary);
   margin-bottom: 25px;
   line-height: 1.5;
 }
 
 .mobile-cta-button {
-  background-color: #ffd6ec;
-  border: 2px outset #aaa;
+  background-color: var(--pink-mid);
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: var(--shadow-outset);
   padding: 14px 26px;
   font-size: 18px;
   font-weight: bold;
-  border-radius: 8px;
   cursor: pointer;
-  font-family: inherit;
+  font-family: var(--font-body);
   color: #222;
-  box-shadow: 1px 1px 5px #aaa;
-  animation: buttonBounce 2s infinite;
   margin-bottom: 30px;
+  transition: none;
+  text-transform: uppercase;
 }
 
-@keyframes buttonBounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+.mobile-cta-button:active {
+  border-color: var(--bevel-inset);
+  box-shadow: var(--shadow-inset);
+  transform: translate(1px, 1px);
 }
 
 .mobile-links {
@@ -608,7 +566,7 @@ html, body, #root {
 
 .mobile-links a, .donate-link-button {
   text-decoration: none;
-  color: #0077cc;
+  color: var(--link-color);
   font-weight: bold;
   background: none;
   border: none;
@@ -631,22 +589,25 @@ html, body, #root {
   width: 100%;
   max-width: 400px;
   margin: 30px auto;
-  border-radius: 8px;
-  border: 2px solid #ccc;
+  border: 2px solid;
+  border-color: var(--bevel-inset);
+  box-shadow: var(--shadow-inset);
   display: block;
 }
 
-/* --- Sections: Mission / Impact / How It Works --- */
+/* --- Sections: Mission / Impact / How It Works — Win95 Pastel --- */
 .mobile-section {
   margin-top: 40px;
   text-align: left;
   padding: 20px;
-  border-radius: 8px;
   margin-bottom: 30px;
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: var(--shadow-outset);
 }
 
 .mission-section {
-  background: #fff0f6;
+  background: var(--pink-light);
 }
 
 .impact-section {
@@ -654,7 +615,7 @@ html, body, #root {
 }
 
 .howitworks-section {
-  background: #fffde7;
+  background: var(--yellow-light);
 }
 
 .mobile-section h2 {
@@ -667,7 +628,7 @@ html, body, #root {
 .mobile-section ul, 
 .mobile-section ol {
   font-size: 16px;
-  color: #555;
+  color: var(--gnf-text-secondary);
   margin-bottom: 20px;
   line-height: 1.5;
 }
@@ -687,11 +648,11 @@ html, body, #root {
 
 .impact-card {
   background: white;
-  border-radius: 8px;
   padding: 16px;
   text-align: center;
-  border: 1px solid #ccc;
-  box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: var(--shadow-outset);
 }
 
 .impact-card strong {
@@ -703,10 +664,10 @@ html, body, #root {
   display: block;
   margin-top: 8px;
   font-size: 14px;
-  color: #666;
+  color: var(--gnf-text-muted);
 }
 
-/* --- Modal Popup for Donate --- */
+/* --- Modal Popup — Win95 Pastel --- */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -719,13 +680,14 @@ html, body, #root {
 
 .modal-content {
   background: white;
-  border-radius: 8px;
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: var(--shadow-outset), var(--window-shadow);
   padding: 20px;
   width: 90%;
   max-width: 400px;
   max-height: 80vh;
   overflow-y: auto;
-  box-shadow: 0 0 10px rgba(0,0,0,0.3);
   position: relative;
 }
 
@@ -735,67 +697,99 @@ html, body, #root {
   align-items: center;
   font-weight: bold;
   font-size: 18px;
+  font-family: var(--font-body);
   margin-bottom: 10px;
 }
 
 .modal-header button {
-  background: #ffb6c1;
-  border: none;
-  padding: 4px 8px;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  background: var(--gnf-bg-silver);
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: var(--shadow-outset);
+  padding: 0;
   font-weight: bold;
-  border-radius: 4px;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+}
+
+.modal-header button:active {
+  border-color: var(--bevel-inset);
+  box-shadow: var(--shadow-inset);
 }
 
 .modal-body {
   font-size: 16px;
-  color: #555;
+  color: var(--gnf-text-secondary);
 }
 
 .modal-body a {
-  color: #0077cc;
+  color: var(--link-color);
   font-weight: bold;
 }
 
-/* --- Final CTA Section --- */
+/* --- Final CTA Section — Win95 Construction Stripes --- */
 .cta-section {
-  background: #ffe0f0;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--pink-mid),
+    var(--pink-mid) 20px,
+    #fff 20px,
+    #fff 40px
+  );
   text-align: center;
   padding: 30px 20px;
-  border-radius: 16px;
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: var(--shadow-outset);
 }
 
 .cta-section h2 {
   font-size: 22px;
+  font-family: var(--font-heading);
   color: #333;
   margin-bottom: 16px;
 }
 
 .cta-section p {
   font-size: 16px;
-  color: #555;
+  color: var(--gnf-text-secondary);
   margin-bottom: 24px;
   line-height: 1.5;
 }
 
 .cta-section .mobile-cta-button {
-  background-color: #ff69b4;
-  border: none;
+  background-color: var(--pink-mid);
+  border: 2px solid;
+  border-color: var(--bevel-outset);
+  box-shadow: var(--shadow-outset);
   padding: 14px 30px;
   font-size: 18px;
   font-weight: bold;
-  border-radius: 30px;
-  color: white;
+  color: var(--gnf-text);
   cursor: pointer;
-  box-shadow: 1px 1px 5px rgba(0,0,0,0.2);
+  text-transform: uppercase;
+  font-family: var(--font-body);
 }
 
 .cta-section .mobile-cta-button:hover {
-  background-color: #ff4ba8;
+  background-color: #ffe0f0;
+}
+
+.cta-section .mobile-cta-button:active {
+  border-color: var(--bevel-inset);
+  box-shadow: var(--shadow-inset);
+  transform: translate(1px, 1px);
 }
 
 @media (max-width: 768px) {
   body {
-    font-family: "Comic Sans MS", "Comic Sans", Arial, sans-serif !important;
+    font-family: var(--font-body) !important;
   }
 }

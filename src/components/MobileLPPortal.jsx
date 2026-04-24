@@ -5,57 +5,42 @@ import LimitedPartnerPortal from "./limited-partner/LimitedPartnerPortal/Limited
 // Mobile adaptation of the desktop LPPortal for full functionality
 export default function MobileLPPortal({ onClose }) {
   return (
-    <div 
+    <div
       style={{
         position: "fixed",
         top: 0,
         left: 0,
         width: "100%",
         height: "100%",
-        backgroundColor: "white",
+        backgroundColor: "var(--gnf-bg)",
         zIndex: 2000,
         overflowY: "auto",
-        fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif'
+        fontFamily: 'var(--font-body)'
       }}
     >
-      {/* Mobile-specific Title Bar */}
-      <div style={{
-        background: "#ffeaf5",
-        borderBottom: "1px solid #d48fc7",
-        padding: "10px 15px",
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        fontWeight: "bold",
+      {/* Mobile-specific Title Bar — Win95 style */}
+      <div className="win95-titlebar" style={{
+        padding: "6px 12px",
         position: "sticky",
         top: 0,
-        zIndex: 100
+        zIndex: 100,
+        cursor: "default"
       }}>
         <span>👨‍👩‍👧‍👦 LP Portal</span>
         <button
           onClick={onClose}
-          style={{
-            background: "#ffbde2",
-            border: "none",
-            fontWeight: "bold",
-            cursor: "pointer",
-            padding: "0 8px",
-            height: "24px",
-            lineHeight: "24px",
-            fontSize: "16px"
-          }}
+          className="win95-close-btn"
         >
           ✖
         </button>
       </div>
-      
+
       {/* Full Desktop LP Portal - no simplified mobile version */}
-      <div style={{ 
+      <div style={{
         padding: "10px",
-        paddingBottom: "80px" // Add padding at bottom for mobile scrolling
+        paddingBottom: "80px"
       }}>
-        <LimitedPartnerPortal 
-          /* Pass any necessary props */
+        <LimitedPartnerPortal
           onOpenGNFWebsite={() => window.open("https://goodneighbor.fund", "_blank")}
         />
       </div>

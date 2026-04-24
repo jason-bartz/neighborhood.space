@@ -181,86 +181,82 @@ const VideoUploader = ({ onVideoUploaded }) => {
       <label style={{ display: "block", fontWeight: "bold", marginBottom: '4px' }}>
         Upload a 60-second pitch video *
       </label>
-      <small style={{ display: "block", color: "#666", marginBottom: "4px" }}>
+      <small style={{ display: "block", color: "var(--mb-ink-60)", marginBottom: "4px" }}>
         Pitch Video is required to be considered for a micro-grant. Max 50MB. MP4, WebM, MOV recommended.
       </small>
-      
+
       {/* File input */}
-      <input 
-        type="file" 
+      <input
+        type="file"
         accept="video/*"
         onChange={handleFileSelect}
         disabled={isUploading || isLoading}
-        style={{ 
-          width: "100%", 
-          padding: "8px", 
-          boxSizing: 'border-box', 
-          border: '1px solid #ccc', 
-          borderRadius: '0px',
+        style={{
+          width: "100%",
+          padding: "8px",
+          boxSizing: 'border-box',
+          background: 'var(--mb-chalk)',
+          color: 'var(--mb-ink)',
+          border: '2px solid var(--mb-ink)',
           cursor: (isUploading || isLoading) ? 'not-allowed' : 'pointer'
         }}
       />
-      
+
       {/* Loading state */}
       {isLoading && !uploadError && (
-        <div style={{ fontSize: "12px", color: "#666", marginTop: "4px" }}>
+        <div style={{ fontSize: "12px", color: "var(--mb-ink-60)", marginTop: "4px" }}>
           Initializing uploader...
         </div>
       )}
       
       {/* Progress bar */}
       {isUploading && (
-        <div style={{ marginTop: "8px" }}>
-          <div style={{ height: "10px", width: "100%", backgroundColor: "#f0f0f0", borderRadius: "5px" }}>
-            <div 
-              style={{ 
-                height: "100%", 
-                width: `${uploadProgress}%`, 
-                backgroundColor: "#ec71b8", 
-                borderRadius: "5px", 
-                transition: "width 0.3s ease" 
-              }} 
+        <div style={{ marginTop: "10px" }}>
+          <div style={{ height: "12px", width: "100%", background: "var(--mb-paper)", border: "2px solid var(--mb-ink)", overflow: "hidden" }}>
+            <div
+              style={{
+                height: "100%",
+                width: `${uploadProgress}%`,
+                background: "repeating-linear-gradient(90deg, var(--mb-magenta) 0px, var(--mb-magenta) 8px, var(--mb-butter) 8px, var(--mb-butter) 16px)",
+                transition: "width 0.3s ease"
+              }}
             />
           </div>
-          <small style={{ color: "#666" }}>
+          <small style={{ color: "var(--mb-ink-60)", fontFamily: "var(--font-numeral)", fontSize: 11, display: "block", marginTop: 6 }}>
             {uploadProgress}% uploaded
           </small>
         </div>
       )}
-      
+
       {/* Error message with retry button */}
       {uploadError && (
-        <div style={{ marginTop: "8px", padding: "8px", backgroundColor: "#fff0f0", borderRadius: "4px" }}>
-          <div style={{ color: "red", fontSize: "13px", marginBottom: "6px" }}>
+        <div style={{ marginTop: "10px", padding: "12px", background: "#ffe0e0", border: "2px solid #c0392b", color: "#c0392b" }}>
+          <div style={{ fontSize: "13px", marginBottom: "8px", fontFamily: "var(--font-content)" }}>
             Error: {uploadError}
           </div>
-          <button 
+          <button
             onClick={handleRetry}
-            style={{
-              background: "#ffeaf5",
-              border: "1px solid #d48fc7",
-              padding: "4px 8px",
-              cursor: "pointer",
-              borderRadius: "4px",
-              fontSize: '12px'
-            }}
+            type="button"
+            className="mb-btn mb-btn-chalk"
+            style={{ padding: "6px 12px", fontSize: 11 }}
           >
             Try Again
           </button>
         </div>
       )}
-      
+
       {/* Success message */}
       {uploadProgress === 100 && !isUploading && !uploadError && (
-        <div style={{ 
-          marginTop: "8px", 
-          padding: "8px", 
-          backgroundColor: "#f0fff0", 
-          borderRadius: "4px",
-          color: "green", 
-          fontSize: "13px" 
+        <div style={{
+          marginTop: "10px",
+          padding: "12px",
+          background: "#d6f0e0",
+          border: "2px solid #2d7a52",
+          color: "#2d7a52",
+          fontSize: "13px",
+          fontFamily: "var(--font-content)"
         }}>
-          Video uploaded successfully! It will be submitted with your application.
+          Video uploaded successfully. It will be submitted with your application.
         </div>
       )}
     </div>

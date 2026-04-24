@@ -1,16 +1,56 @@
 User-agent: *
 Allow: /
 
-# Important pages for SEO
-Allow: /chapters
-Allow: /wny  
+# Chapter pages
+Allow: /wny
 Allow: /denver
-Allow: /donate
-Allow: /awardees
+Allow: /upstate
+Allow: /capital-region
+
+# Other important pages
 Allow: /pitch
+Allow: /fieldguide
+Allow: /lp-application
 
 # Crawl delay to be respectful
 Crawl-delay: 1
 
+# AI crawlers - explicitly welcome
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
 # Sitemap
-Sitemap: https://www.neighborhoods.space/sitemap.xml
+Sitemap: https://www.goodneighbor.fund/sitemap.xml

@@ -2,12 +2,11 @@ import React, { useState, useEffect } from "react";
 import "./App.css";
 
 const bootMessages = [
-  "Booting up NeighborhoodOS...",
-  "Spinning up micro-grants...",
+  "Booting NeighborhoodOS v3.1...",
   "Reticulating splines...",
-  "Finishing up today's Wordle...",
-  "Petting neighborhood dogs...",
-  "Installing good_vibes.dmg..."
+  "Raising capital...",
+  "Tightening up pitch decks...",
+  "Executing good-vibes.exe..."
 ];
 
 export default function MobileBootScreen({ onFinish }) {
@@ -61,9 +60,7 @@ export default function MobileBootScreen({ onFinish }) {
       className="boot-screen" 
       onClick={handleBypass}
       onTouchStart={handleBypass}
-      style={{ 
-        background: `url('/assets/gnf-wallpaper-blue.webp')`, 
-        backgroundSize: 'cover',
+      style={{
         position: 'fixed',
         top: 0,
         left: 0,
@@ -76,59 +73,115 @@ export default function MobileBootScreen({ onFinish }) {
         cursor: 'default'
       }}>
       <div className="boot-box" style={{
-        background: '#ffffff',
-        borderRadius: '12px',
-        padding: '20px',
+        background: 'var(--mb-chalk)',
+        border: '2px solid var(--mb-ink)',
+        boxShadow: 'var(--shadow-hard-lg)',
+        padding: '32px 24px 24px',
         width: '85%',
-        maxWidth: '350px',
-        boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+        maxWidth: '360px',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center'
+        alignItems: 'center',
+        textAlign: 'center'
       }}>
-        <div className="logo-container">
+        <div className="logo-container" style={{ margin: '0 auto 20px' }}>
           <img
-            src="/assets/gnf-logo.webp"
-            alt="NeighborhoodOS Logo"
+            src="/assets/gnf-logo.png"
+            alt="gnf"
             className="boot-logo"
             style={{
-              width: '120px',
+              width: '140px',
               height: 'auto',
-              marginBottom: '15px'
+              display: 'block'
             }}
           />
         </div>
+        <div style={{
+          fontFamily: 'var(--font-pixel)',
+          fontSize: '10px',
+          letterSpacing: '0.18em',
+          textTransform: 'uppercase',
+          color: 'var(--mb-magenta)',
+          marginBottom: '4px'
+        }}>NeighborhoodOS v3.1</div>
         <h1 style={{
-          fontSize: '20px',
-          margin: '0 0 10px 0',
-          fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif'
-        }}>NeighborhoodOS v2.0</h1>
-        <p className="boot-loading-text" style={{
-          fontSize: '14px',
-          margin: '0 0 15px 0',
-          textAlign: 'center',
-          fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif'
-        }}>{bootMessages[messageIndex]}</p>
+          fontSize: '28px',
+          margin: '0 0 20px 0',
+          fontFamily: 'var(--font-display)',
+          fontWeight: 400,
+          fontStyle: 'italic',
+          letterSpacing: '-0.02em',
+          color: 'var(--mb-ink)'
+        }}>Booting up&hellip;</h1>
+
+        <div style={{
+          display: 'flex',
+          alignItems: 'baseline',
+          justifyContent: 'space-between',
+          width: '100%',
+          marginBottom: '8px',
+          gap: '10px'
+        }}>
+          <p className="boot-loading-text" style={{
+            fontSize: '11px',
+            margin: 0,
+            fontFamily: 'var(--font-numeral)',
+            color: 'var(--mb-ink-60)',
+            textAlign: 'left',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            flex: 1
+          }}>{bootMessages[messageIndex]}</p>
+          <span style={{
+            fontFamily: 'var(--font-numeral)',
+            fontSize: '11px',
+            color: 'var(--mb-ink)',
+            fontWeight: 700,
+            fontVariantNumeric: 'tabular-nums'
+          }}>{Math.floor(progress)}%</span>
+        </div>
 
         <div className="boot-progress-container" style={{
+          position: 'relative',
           width: '100%',
-          height: '20px',
-          background: '#f0f0f0',
-          borderRadius: '10px',
-          overflow: 'hidden',
-          border: '1px solid #ccc'
+          height: '10px',
+          background: 'var(--mb-paper)',
+          border: '1.5px solid var(--mb-ink)',
+          overflow: 'hidden'
         }}>
           <div
             className="boot-progress-bar"
             style={{
               width: `${progress}%`,
               height: '100%',
-              background: 'linear-gradient(to right, #FFD6EC, #d48fc7)',
-              transition: 'width 0.11s ease-out'
+              background: 'linear-gradient(90deg, #f28c3b 0%, #e93a7d 25%, #6b4fbb 50%, #2bb3c4 75%, #f0c94b 100%)',
+              backgroundSize: '360px 100%',
+              transition: 'width 120ms linear'
             }}
-          ></div>
+          />
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%)',
+            backgroundSize: '30% 100%',
+            backgroundRepeat: 'no-repeat',
+            animation: 'bootShimmer 1.6s linear infinite',
+            pointerEvents: 'none'
+          }} />
         </div>
-        <p style={{ fontSize: '12px', color: '#888', marginTop: '14px', marginBottom: '0', fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif' }}>Tap anywhere to skip</p>
+        <p style={{
+          fontSize: '10px',
+          color: 'var(--mb-ink-60)',
+          marginTop: '18px',
+          marginBottom: '0',
+          fontFamily: 'var(--font-pixel)',
+          letterSpacing: '0.22em',
+          textTransform: 'uppercase'
+        }}>Tap anywhere to skip</p>
       </div>
     </div>
   );

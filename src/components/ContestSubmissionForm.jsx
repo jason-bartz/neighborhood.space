@@ -23,7 +23,7 @@ export default function ContestSubmissionForm({ onClose }) {
   const handleChange = (e) => {
     const { name, value, type, options, checked } = e.target;
 
-    if (type === "checkbox" && name === "consent") {
+    if (type === "checkbox") {
       setForm((prev) => ({ ...prev, [name]: checked }));
     } else if (type === "select-multiple") {
       const selectedValues = Array.from(options).filter((o) => o.selected).map((o) => o.value);
@@ -50,9 +50,9 @@ export default function ContestSubmissionForm({ onClose }) {
     }
     
     const requiredFields = [
-      'founder', 'email', 'business', 'about',
+      'founder', 'email', 'business', 'zip', 'about',
       'valueProp', 'problem', 'solution', 'revenueModel',
-      'fundUse', 'industry', 'consent'
+      'fundUse', 'industry', 'consent', 'meetupConsent'
     ];
 
     const missingFields = requiredFields.filter(field => !form[field]);
@@ -86,6 +86,7 @@ export default function ContestSubmissionForm({ onClose }) {
         selfIdentification: form.selfId || [],
         heardAbout: form.referral || "",
         consentToShare: form.consent || false,
+        consentToMeetup: form.meetupConsent || false,
         createdAt: Timestamp.now(),
         isWinner: false,
         
@@ -127,46 +128,52 @@ export default function ContestSubmissionForm({ onClose }) {
         width: "100%",
         height: "100%",
         minHeight: "100vh",
-        background: "linear-gradient(135deg, #FFE5F1, #E6E6FA, #B0E0E6, #FFE5CC)",
-        backgroundSize: "600% 600%",
-        animation: "gradientAnimation 10s ease infinite",
+        background: "var(--mb-paper)",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
         flexDirection: "column",
-        fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
+        fontFamily: "var(--font-content)",
         textAlign: "center",
         padding: "20px",
         boxSizing: "border-box",
         zIndex: 9999
       }}>
         <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={250} recycle={false} />
-        <h1>🎉 Your Idea Has Been Submitted!</h1>
-        <p style={{ fontSize: "20px", marginTop: "20px" }}>
-          Thank you for entering The $1,000 Business Idea Challenge!
-        </p>
-        <p style={{ marginTop: "10px" }}>
-          Your submission will be reviewed and posted to the showcase soon.
-          Share with your network to get votes!
-        </p>
-        <button 
-          onClick={onClose}
-          style={{
-            marginTop: "30px",
-            padding: "15px 30px",
-            background: "linear-gradient(145deg, #32CD32, #00FF00)",
-            border: "3px solid #228B22",
-            borderRadius: "25px",
-            color: "#006400",
-            textDecoration: "none",
-            fontWeight: "bold",
-            fontSize: "18px",
-            cursor: "pointer",
-            boxShadow: "0 5px 15px rgba(0, 255, 0, 0.3)"
-          }}
-        >
-          🏠 Return to Showcase
-        </button>
+        <div style={{
+          background: "var(--mb-chalk)",
+          padding: "48px 40px",
+          border: "2px solid var(--mb-ink)",
+          boxShadow: "var(--shadow-hard-lg)",
+          maxWidth: 560,
+          textAlign: "center"
+        }}>
+          <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Submission Received</span>
+          <h1 style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 400,
+            fontSize: 40,
+            letterSpacing: "-0.02em",
+            lineHeight: 1.05,
+            color: "var(--mb-ink)",
+            margin: "12px 0 16px"
+          }}>
+            Your idea has been submitted.
+          </h1>
+          <p style={{ fontSize: 16, marginTop: 0, color: "var(--mb-ink)" }}>
+            Thank you for entering The $1,000 Business Idea Challenge. Your submission will be
+            reviewed and posted to the showcase soon &mdash; share with your network to get votes.
+          </p>
+          <button
+            onClick={onClose}
+            type="button"
+            className="mb-btn"
+            style={{ marginTop: 24 }}
+          >
+            Return to Showcase
+            <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
+          </button>
+        </div>
       </div>
     );
   }
@@ -191,30 +198,53 @@ export default function ContestSubmissionForm({ onClose }) {
 
   return (
     <Draggable handle=".form-title-bar" nodeRef={nodeRef} enableUserSelectHack={false}>
-      <div ref={nodeRef} style={{
+      <div ref={nodeRef} className="mb-form-shell" style={{
         position: "fixed", top: "15%", left: "25%",
         transform: "translate(-50%, -50%)", zIndex: 99999, width: "600px",
-        maxHeight: "80vh", overflow: "auto", background: "white",
-        border: "2px solid #d48fc7", borderRadius: "6px", boxShadow: "4px 4px 0 #ffbde2"
+        maxHeight: "80vh", overflow: "auto",
+        background: "var(--mb-chalk)",
+        border: "2px solid var(--mb-ink)",
+        boxShadow: "var(--shadow-hard-lg)"
       }}>
         <div className="form-title-bar" style={{
-          padding: "6px 12px", background: "#ffeaf5", borderBottom: "1px solid #d48fc7",
-          display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "move"
+          padding: "10px 16px",
+          background: "var(--mb-ink)",
+          color: "var(--mb-chalk)",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          cursor: "move",
+          fontFamily: "var(--font-pixel)",
+          fontSize: 11,
+          letterSpacing: "0.14em",
+          textTransform: "uppercase",
+          fontWeight: 700
         }}>
-          <span style={{ fontWeight: "bold" }}>💰 $1,000 Business Idea Challenge Pitch Application</span>
-          <button onClick={onClose} style={{ background: "#ffbde2", border: "none", cursor: "pointer", fontWeight: "bold", padding: "4px 8px" }}>✖</button>
+          <span>$1,000 Business Idea Challenge</span>
+          <button onClick={onClose} style={{
+            background: "var(--mb-magenta)",
+            color: "var(--mb-chalk)",
+            border: "1px solid var(--mb-chalk)",
+            cursor: "pointer",
+            fontWeight: "bold",
+            padding: "2px 8px",
+            fontSize: 14,
+            fontFamily: "var(--font-content)"
+          }}>×</button>
         </div>
 
-        <div style={{ padding: "16px" }}>
+        <div style={{ padding: "24px" }}>
           <div style={{
-            background: "#fff4fa",
-            padding: "16px",
-            borderLeft: "4px solid #ec71b8",
+            background: "var(--mb-magenta-soft)",
+            padding: "18px 20px",
+            borderLeft: "4px solid var(--mb-magenta)",
+            border: "2px solid var(--mb-ink)",
             fontSize: "14px",
             lineHeight: "1.5",
-            marginBottom: "10px"
+            marginBottom: "20px"
           }}>
-            <h3 style={{ marginTop: 0 }}>$1,000 Business Idea Challenge 🏆</h3>
+            <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Challenge</span>
+            <h3 style={{ marginTop: 8, fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 22, letterSpacing: "-0.01em" }}>$1,000 Business Idea Challenge</h3>
             👋 Have an idea? Share it here to compete for $1,000 and get community support!<br /><br />
             ✅ <strong>What we love to see:</strong>
             <ul>
@@ -236,11 +266,11 @@ export default function ContestSubmissionForm({ onClose }) {
           <form onSubmit={handleSubmit}>
             {/* Inputs */}
             {[
-              { label: "Founder Name *", name: "founder", type: "text" },
-              { label: "Email *", name: "email", type: "email" },
-              { label: "Business Name *", name: "business", type: "text" },
-              { label: "Zip Code *", name: "zip", type: "text" },
-              { label: "Website (optional)", name: "website", type: "text" }
+              { label: "Founder Name *", name: "founder", type: "text", placeholder: "e.g., Jane Smith" },
+              { label: "Email *", name: "email", type: "email", placeholder: "e.g., jane.smith@gmail.com" },
+              { label: "Business Name *", name: "business", type: "text", placeholder: "e.g., Jane's Flower Shop" },
+              { label: "Zip Code *", name: "zip", type: "text", placeholder: "e.g., 14213" },
+              { label: "Website (optional)", name: "website", type: "text", placeholder: "e.g., https://janesflowers.com" }
             ].map(field => (
               <div key={field.name} style={{ display: "flex", flexDirection: "column", marginBottom: "12px" }}>
                 <label style={{ fontWeight: "bold", marginBottom: "4px" }}>{field.label}</label>
@@ -250,11 +280,11 @@ export default function ContestSubmissionForm({ onClose }) {
                   value={form[field.name] || ""}
                   onChange={handleChange}
                   required={field.label.includes("*")}
+                  placeholder={field.placeholder}
                   style={{
                     padding: "8px",
-                    fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
+                    fontFamily: '"MS Sans Serif", "Segoe UI", Tahoma, Verdana, sans-serif',
                     border: "1px solid #ccc",
-                    borderRadius: "4px",
                     fontSize: "14px",
                     height: "20px"
                   }}
@@ -273,9 +303,8 @@ export default function ContestSubmissionForm({ onClose }) {
                 required
                 style={{
                   padding: "8px",
-                  fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
+                  fontFamily: '"MS Sans Serif", "Segoe UI", Tahoma, Verdana, sans-serif',
                   border: "1px solid #ccc",
-                  borderRadius: "4px",
                   fontSize: "14px",
                   height: "40px"
                 }}
@@ -289,11 +318,31 @@ export default function ContestSubmissionForm({ onClose }) {
 
             {/* Textareas */}
             {[
-              { label: "Tell us a little about yourself (2-3 sentences) *", name: "about" },
-              { label: "Describe your company's value proposition *", name: "valueProp" },
-              { label: "Describe the problem you're solving *", name: "problem" },
-              { label: "How does your business solve it? *", name: "solution" },
-              { label: "How will your business make money? *", name: "revenueModel" }
+              {
+                label: "Tell us a little about yourself (2-3 sentences) *",
+                name: "about",
+                placeholder: "e.g., I'm a Buffalo-based baker with 5 years of pastry experience, launching a small neighborhood bakery focused on locally-sourced ingredients."
+              },
+              {
+                label: "Describe your company's value proposition *",
+                name: "valueProp",
+                placeholder: "e.g., Fresh, locally-sourced baked goods delivered weekly to your door."
+              },
+              {
+                label: "Describe the problem you're solving *",
+                name: "problem",
+                placeholder: "e.g., Busy families in my neighborhood lack access to affordable, high-quality baked goods made with local ingredients."
+              },
+              {
+                label: "How does your business solve it? *",
+                name: "solution",
+                placeholder: "e.g., A weekly subscription box of fresh pastries and breads delivered every Saturday morning."
+              },
+              {
+                label: "How will your business make money? *",
+                name: "revenueModel",
+                placeholder: "e.g., Weekly subscription boxes starting at $25/month, plus one-off orders and pop-up events."
+              }
             ].map(field => (
               <div key={field.name} style={{ display: "flex", flexDirection: "column", marginBottom: "12px" }}>
                 <label style={{ fontWeight: "bold", marginBottom: "4px" }}>{field.label}</label>
@@ -303,11 +352,11 @@ export default function ContestSubmissionForm({ onClose }) {
                   onChange={handleChange}
                   rows={3}
                   required
+                  placeholder={field.placeholder}
                   style={{
                     padding: "8px",
-                    fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
+                    fontFamily: '"MS Sans Serif", "Segoe UI", Tahoma, Verdana, sans-serif',
                     border: "1px solid #ccc",
-                    borderRadius: "4px",
                     fontSize: "14px"
                   }}
                 />
@@ -324,11 +373,11 @@ export default function ContestSubmissionForm({ onClose }) {
                 onChange={handleChange}
                 rows={3}
                 required
+                placeholder="e.g., $600 for a commercial-grade mixer, $300 for packaging supplies, $100 for launch marketing."
                 style={{
                   padding: "8px",
-                  fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
+                  fontFamily: '"MS Sans Serif", "Segoe UI", Tahoma, Verdana, sans-serif',
                   border: "1px solid #ccc",
-                  borderRadius: "4px",
                   fontSize: "14px"
                 }}
               />
@@ -355,9 +404,8 @@ export default function ContestSubmissionForm({ onClose }) {
                 placeholder="Paste hosted video URL here"
                 style={{
                   padding: "8px",
-                  fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
+                  fontFamily: '"MS Sans Serif", "Segoe UI", Tahoma, Verdana, sans-serif',
                   border: "1px solid #ccc",
-                  borderRadius: "4px",
                   fontSize: "14px",
                   height: "20px"
                 }}
@@ -377,17 +425,19 @@ export default function ContestSubmissionForm({ onClose }) {
                 onChange={handleChange}
                 style={{
                   padding: "8px",
-                  fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
+                  fontFamily: '"MS Sans Serif", "Segoe UI", Tahoma, Verdana, sans-serif',
                   border: "1px solid #ccc",
-                  borderRadius: "4px",
                   fontSize: "14px",
-                  height: "100px"
+                  height: "120px"
                 }}
               >
-                {["Veteran Owned/Led", "Women Owned/Led", "BIPOC Owned/Led", "Disabled Owned/Led", "Student Owned/Led", "Minority Owned/Led"].map(opt => (
+                {["Veteran Owned/Led", "Women Owned/Led", "BIPOC Owned/Led", "LGBTQ+ Owned/Led", "Disabled Owned/Led", "Student Owned/Led", "Minority Owned/Led"].map(opt => (
                   <option key={opt} value={opt}>{opt}</option>
                 ))}
               </select>
+              <small style={{ color: "#666", marginTop: "4px" }}>
+                This self-identifying information is used only for GNF reporting purposes and is never shared publicly without your consent.
+              </small>
             </div>
 
             {/* Referral */}
@@ -398,11 +448,11 @@ export default function ContestSubmissionForm({ onClose }) {
                 name="referral"
                 value={form.referral || ""}
                 onChange={handleChange}
+                placeholder="e.g., LinkedIn, Instagram, SBDC, LP Referral"
                 style={{
                   padding: "8px",
-                  fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", sans-serif',
+                  fontFamily: '"MS Sans Serif", "Segoe UI", Tahoma, Verdana, sans-serif',
                   border: "1px solid #ccc",
-                  borderRadius: "4px",
                   fontSize: "14px",
                   height: "20px"
                 }}
@@ -423,10 +473,35 @@ export default function ContestSubmissionForm({ onClose }) {
                   required
                   style={{ marginRight: "8px", marginTop: "3px" }}
                 />
-                <span>I consent to GNF's terms and data sharing</span>
+                <span>I agree to GNF's Terms of Use & Privacy Policy *</span>
               </label>
               <small style={{ color: "#666", marginTop: "4px" }}>
-                Good Neighbor Fund (GNF) has my consent to share certain details of my application with partner organizations and/or the public through social media, the Good Neighbor Fund website, and other platforms. Shared info may include: Name, Business Name, Value Proposition, Problem, and Solution. Pitch videos and self-identification are never shared without consent. If selected as a winner, I agree to participate in a public meeting and photo opportunity.
+                Good Neighbor Fund (GNF) has my consent to share certain details of my application with partner organizations and/or the public through social media, the Good Neighbor Fund website, and other platforms. Shared info may include: Name, Business Name, Value Proposition, Problem, and Solution. Pitch videos and self-identification are never shared without consent.
+                By submitting this application, I agree to the{" "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--mb-magenta)", fontWeight: "bold" }}>
+                  Good Neighbor Fund Terms of Use & Privacy Policy
+                </a>
+                .
+              </small>
+            </div>
+
+            {/* In-Person Meetup Consent */}
+            <div style={{ display: "flex", flexDirection: "column", marginBottom: "16px" }}>
+              <label style={{ fontWeight: "bold", display: "flex", alignItems: "flex-start", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  name="meetupConsent"
+                  checked={form.meetupConsent || false}
+                  onChange={handleChange}
+                  required
+                  style={{ marginRight: "8px", marginTop: "3px" }}
+                />
+                <span>I agree to complete an in-person meetup if awarded *</span>
+              </label>
+              <small style={{ color: "#666", marginTop: "4px" }}>
+                All grant awardees are required to complete an in-person meetup with their chapter.
+                We use this time to learn about your business and business plan, and to take photos
+                that may be shared on social media and the Good Neighbor Fund website.
               </small>
             </div>
 
@@ -434,22 +509,17 @@ export default function ContestSubmissionForm({ onClose }) {
             <button
               type="submit"
               disabled={isSubmitting}
+              className="mb-btn"
               style={{
-                background: "#ff69b4",
-                color: "#fff",
-                border: "none",
-                padding: "14px",
-                fontWeight: "bold",
-                borderRadius: "10px",
-                cursor: isSubmitting ? "not-allowed" : "pointer",
-                fontSize: "18px",
-                marginTop: "20px",
-                boxShadow: "0px 4px 6px rgba(0,0,0,0.2)",
                 width: "100%",
+                padding: "16px 20px",
+                fontSize: 14,
+                marginTop: "20px",
                 opacity: isSubmitting ? 0.7 : 1
               }}
             >
-              {isSubmitting ? "Submitting..." : "🏆 Submit Contest Entry"}
+              {isSubmitting ? "Submitting…" : "Submit Contest Entry"}
+              {!isSubmitting && <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>}
             </button>
           </form>
         </div>

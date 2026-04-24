@@ -1,7 +1,7 @@
 # GNF Community Showcase & Resources Platform - Requirements
 
 ## Project Overview
-A comprehensive web application for the Good Neighbors Fund (GNF) that combines a curated resource database, community-driven business showcase, and voting system. This will be a subpage of neighborhoods.space website.
+A comprehensive web application for the Good Neighbors Fund (GNF) that combines a curated resource database, community-driven business showcase, and voting system. This will be a subpage of goodneighbor.fund website.
 
 ## Core Features
 
@@ -176,7 +176,7 @@ A comprehensive web application for the Good Neighbors Fund (GNF) that combines 
 
 ### Existing Systems
 - Firebase pitch application infrastructure
-- neighborhoods.space main site
+- goodneighbor.fund main site
 - Email service provider
 - Analytics platform
 

@@ -1,15 +1,30 @@
 import React, { useState, useEffect } from "react";
 import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "./firebaseConfig"; 
+import { db } from "./firebaseConfig";
+import Marquee from "react-fast-marquee";
+import HitCounter from "./components/ui/HitCounter";
+import NeighborhoodResources from "./components/NeighborhoodResources";
 
-export default function BrowserWindow({ onClose, onPitchClick, windowId, zIndex, bringToFront }) {
+const AWARDEES_CACHE_KEY = "gnf:awardees:v1";
+
+const loadCachedAwardees = () => {
+  try {
+    const cached = sessionStorage.getItem(AWARDEES_CACHE_KEY);
+    return cached ? JSON.parse(cached) : [];
+  } catch {
+    return [];
+  }
+};
+
+export default function BrowserWindow({ onClose, onPitchClick, onLpApplicationClick, windowId, zIndex, bringToFront }) {
   const [history, setHistory] = useState(["home"]);
   const [historyIndex, setHistoryIndex] = useState(0);
-  const [awardees, setAwardees] = useState([]);
-  const [filteredAwardees, setFilteredAwardees] = useState([]);
+  const [awardees, setAwardees] = useState(loadCachedAwardees);
+  const [filteredAwardees, setFilteredAwardees] = useState(loadCachedAwardees);
   const [awardeesLoading, setAwardeesLoading] = useState(false);
   const [awardeeChapterFilter, setAwardeeChapterFilter] = useState("");
   const [awardeeSearchTerm, setAwardeeSearchTerm] = useState("");
+  const [awardeeSort, setAwardeeSort] = useState("alpha");
   const [currentMarqueeIndex, setCurrentMarqueeIndex] = useState(0);
 
   const currentPage = history[historyIndex];
@@ -83,18 +98,17 @@ export default function BrowserWindow({ onClose, onPitchClick, windowId, zIndex,
     }
   };
 
-  // Fetch grant awardees whenever the awardees page is visited
+  // Prefetch awardees on mount (stale-while-revalidate using sessionStorage cache)
   useEffect(() => {
-    if (currentPage === "awardees" && awardees.length === 0) {
-      fetchAwardees();
-    }
-  }, [currentPage, awardees.length]);
+    fetchAwardees();
+  }, []);
 
 
   // Load awardees from Firestore
   const fetchAwardees = async () => {
-    setAwardeesLoading(true);
-    
+    // Only show the spinner if we have nothing cached to render
+    if (awardees.length === 0) setAwardeesLoading(true);
+
     try {
       const q = query(
         collection(db, "pitches"),
@@ -114,19 +128,20 @@ export default function BrowserWindow({ onClose, onPitchClick, windowId, zIndex,
       
       snapshot.forEach(doc => {
         const data = doc.data();
-        
-        // Calculate quarter from timestamp
+
         let quarter = "Unknown Quarter";
+        let createdAtMs = 0;
         if (data.createdAt) {
           try {
             const date = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
             const q = Math.floor(date.getMonth() / 3) + 1;
             quarter = `Q${q} ${date.getFullYear()}`;
+            createdAtMs = date.getTime();
           } catch (e) {
             console.error("Error parsing date for doc " + doc.id, e);
           }
         }
-        
+
         awardeesData.push({
           id: doc.id,
           businessName: data.businessName || "Unnamed Business",
@@ -135,58 +150,68 @@ export default function BrowserWindow({ onClose, onPitchClick, windowId, zIndex,
           website: data.website || "",
           photoUrl: data["pitch-photo"] || data.founderPhotoUrl || "",
           chapter: data.chapter || "Unknown Chapter",
-          quarter: quarter
+          quarter: quarter,
+          createdAtMs: createdAtMs
         });
       });
-      
-      // Sort alphabetically by business name
-      awardeesData.sort((a, b) => 
-        a.businessName.localeCompare(b.businessName)
-      );
-      
+
       setAwardees(awardeesData);
-      setFilteredAwardees(awardeesData);
+      try {
+        sessionStorage.setItem(AWARDEES_CACHE_KEY, JSON.stringify(awardeesData));
+      } catch {
+        // quota/serialization failure is non-fatal
+      }
     } catch (error) {
       console.error("Error fetching awardees:", error);
     }
-    
+
     setAwardeesLoading(false);
   };
 
-  // Filter awardees based on search term and chapter
+  // Filter + sort awardees
   useEffect(() => {
     if (awardees.length > 0) {
       const filtered = awardees.filter(awardee => {
-        const matchesSearch = awardeeSearchTerm === "" || 
+        const matchesSearch = awardeeSearchTerm === "" ||
           awardee.businessName.toLowerCase().includes(awardeeSearchTerm.toLowerCase()) ||
           awardee.founderName.toLowerCase().includes(awardeeSearchTerm.toLowerCase());
-        
-        const matchesChapter = awardeeChapterFilter === "" || 
+
+        const matchesChapter = awardeeChapterFilter === "" ||
           awardee.chapter === awardeeChapterFilter;
-        
+
         return matchesSearch && matchesChapter;
       });
-      
-      setFilteredAwardees(filtered);
+
+      const sorted = [...filtered].sort((a, b) => {
+        if (awardeeSort === "newest") return b.createdAtMs - a.createdAtMs;
+        if (awardeeSort === "oldest") return a.createdAtMs - b.createdAtMs;
+        return a.businessName.localeCompare(b.businessName);
+      });
+
+      setFilteredAwardees(sorted);
     }
-  }, [awardeeSearchTerm, awardeeChapterFilter, awardees]);
+  }, [awardeeSearchTerm, awardeeChapterFilter, awardeeSort, awardees]);
 
   const renderPage = () => {
     switch (currentPage) {
       case "home":
         return <HomePage onPitchClick={onPitchClick} pressLinks={pressLinks} marqueeImages={marqueeImages} currentMarqueeIndex={currentMarqueeIndex} />;
       case "chapters":
-        return <ChaptersPage setPage={setPage} />;
+        return <ChaptersPage setPage={setPage} onLpApplicationClick={onLpApplicationClick} />;
       case "awardees":
-        return <AwardeesPage 
-                awardees={filteredAwardees} 
-                loading={awardeesLoading} 
-                chapters={[...new Set(awardees.map(a => a.chapter))].filter(Boolean).sort()}
+        return <AwardeesPage
+                awardees={filteredAwardees}
+                loading={awardeesLoading}
+                chapters={["Western New York", "Denver", "Upstate New York", "Capital Region"]}
                 searchTerm={awardeeSearchTerm}
                 setSearchTerm={setAwardeeSearchTerm}
                 chapterFilter={awardeeChapterFilter}
                 setChapterFilter={setAwardeeChapterFilter}
+                sort={awardeeSort}
+                setSort={setAwardeeSort}
                />;
+      case "resources":
+        return <NeighborhoodResources isEmbedded={true} />;
       case "donate":
         return <DonatePage />;
       default:
@@ -199,82 +224,92 @@ export default function BrowserWindow({ onClose, onPitchClick, windowId, zIndex,
       style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}
       onClick={handleWindowClick}
     >
-      {/* Menu Bar */}
-      <div style={{ display: "flex", gap: "16px", padding: "4px 12px", backgroundColor: "#e0e0e0", borderBottom: "1px solid #888", fontSize: "12px", fontFamily: "'ChicagoFLF', monospace", flexShrink: 0 }}>
-        <span>File</span><span>Edit</span><span>View</span><span>Go</span><span>Window</span><span>Help</span>
+      {/* Browser chrome — single ink bar: nav buttons + URL */}
+      <div className="mb-browser-bar">
+        <div className="mb-browser-nav">
+          <button
+            className="mb-nav-btn"
+            onClick={goBack}
+            disabled={historyIndex === 0}
+            aria-label="Go back"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <polygon points="10,2 10,14 3,8" fill="currentColor" />
+              <rect x="10" y="7" width="4" height="2" fill="currentColor" />
+            </svg>
+          </button>
+          <button
+            className="mb-nav-btn"
+            onClick={goForward}
+            disabled={historyIndex === history.length - 1}
+            aria-label="Go forward"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <polygon points="6,2 6,14 13,8" fill="currentColor" />
+              <rect x="2" y="7" width="4" height="2" fill="currentColor" />
+            </svg>
+          </button>
+          <button
+            className="mb-nav-btn"
+            onClick={() => window.location.reload()}
+            aria-label="Refresh page"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M 8 3 A 5 5 0 1 1 3.5 10.5" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="square" />
+              <polygon points="7,1 11,3.5 7,6" fill="currentColor" />
+            </svg>
+          </button>
+          <button
+            className="mb-nav-btn"
+            onClick={() => setPage("home")}
+            aria-label="Go to home page"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <polygon points="8,1 15,7 13,7 13,14 9,14 9,10 7,10 7,14 3,14 3,7 1,7" fill="currentColor" />
+            </svg>
+          </button>
+        </div>
+
+        <div className="mb-browser-url">
+          <span className="mb-browser-url-tag">HTTPS</span>
+          <span className="mb-browser-url-path">
+            www.goodneighbor.fund{currentPage === "home" ? "/" : `/${currentPage}`}
+          </span>
+        </div>
       </div>
-      {/* Browser Controls */}
-      <div style={{ background: "#c0c0c0", padding: "5px 10px", display: "flex", gap: "8px", alignItems: "center", borderBottom: "1px solid #888", flexShrink: 0 }}>
-        <button onClick={goBack} disabled={historyIndex === 0} aria-label="Go back">⬅️</button>
-        <button onClick={goForward} disabled={historyIndex === history.length - 1} aria-label="Go forward">➡️</button>
-        <button onClick={() => window.location.reload()} aria-label="Refresh page">🔄</button>
-        <button onClick={() => setPage("home")} aria-label="Go to home page">🏠</button>
-      </div>
-      {/* Address Bar */}
-      <div style={{ background: "#fff", padding: "4px 10px", borderBottom: "1px solid #ccc", fontSize: "12px", fontFamily: "'ChicagoFLF', monospace", flexShrink: 0 }}>
-        Url: http://www.neighborhoods.space/{currentPage === "home" ? "" : currentPage}
-      </div>
-      {/* Nav Buttons as Tabs */}
-      <nav role="navigation" aria-label="Main navigation" style={{ background: "#f8f8f8", padding: "6px 12px", display: "flex", borderBottom: "1px solid #ddd", flexShrink: 0 }}>
-        <button 
-          onClick={() => setPage("home")}
-          style={{
-            background: currentPage === "home" ? "#fff" : "#e0e0e0",
-            border: "1px solid #ccc",
-            borderBottom: currentPage === "home" ? "1px solid #fff" : "1px solid #ccc",
-            borderRadius: "4px 4px 0 0",
-            padding: "4px 12px",
-            marginRight: "4px",
-            position: "relative",
-            top: "1px",
-            fontWeight: currentPage === "home" ? "bold" : "normal"
-          }}
-        >Home</button>
-        <button 
-          onClick={() => setPage("chapters")}
-          style={{
-            background: currentPage === "chapters" || currentPage === "wny" || currentPage === "denver" ? "#fff" : "#e0e0e0",
-            border: "1px solid #ccc",
-            borderBottom: currentPage === "chapters" || currentPage === "wny" || currentPage === "denver" ? "1px solid #fff" : "1px solid #ccc",
-            borderRadius: "4px 4px 0 0",
-            padding: "4px 12px",
-            marginRight: "4px",
-            position: "relative",
-            top: "1px",
-            fontWeight: currentPage === "chapters" || currentPage === "wny" || currentPage === "denver" ? "bold" : "normal"
-          }}
-        >Chapters</button>
-        <button 
-          onClick={() => setPage("awardees")}
-          style={{
-            background: currentPage === "awardees" ? "#fff" : "#e0e0e0",
-            border: "1px solid #ccc",
-            borderBottom: currentPage === "awardees" ? "1px solid #fff" : "1px solid #ccc",
-            borderRadius: "4px 4px 0 0",
-            padding: "4px 12px",
-            marginRight: "4px",
-            position: "relative",
-            top: "1px",
-            fontWeight: currentPage === "awardees" ? "bold" : "normal"
-          }}
-        >Grant Awardees</button>
-        <button 
-          onClick={() => setPage("donate")}
-          style={{
-            background: currentPage === "donate" ? "#fff" : "#e0e0e0",
-            border: "1px solid #ccc",
-            borderBottom: currentPage === "donate" ? "1px solid #fff" : "1px solid #ccc",
-            borderRadius: "4px 4px 0 0",
-            padding: "4px 12px",
-            marginRight: "4px",
-            position: "relative",
-            top: "1px",
-            fontWeight: currentPage === "donate" ? "bold" : "normal"
-          }}
-        >Donate</button>
+
+      {/* Tab nav — flat ink-bordered tabs with magenta active state */}
+      <nav role="navigation" aria-label="Main navigation" className="mb-tabs">
+        {[
+          { id: "home", label: "Home", matches: (p) => p === "home" },
+          { id: "chapters", label: "Chapters", matches: (p) => p === "chapters" || p === "wny" || p === "denver" },
+          { id: "awardees", label: "Grant Awardees", matches: (p) => p === "awardees" },
+          { id: "resources", label: "Resources", matches: (p) => p === "resources" },
+          { id: "donate", label: "Donate", matches: (p) => p === "donate" }
+        ].map((tab) => {
+          const isActive = tab.matches(currentPage);
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setPage(tab.id)}
+              className={`mb-tab ${isActive ? "is-active" : ""}`}
+              aria-current={isActive ? "page" : undefined}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </nav>
-      {/* Main Content */}
-      <div className="force-comic-font" style={{ overflowY: "auto", padding: "16px", background: "#fff", minHeight: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      {/* Main Content — flush-edge; each page composes its own .mb-block sections */}
+      <div style={{
+        overflowY: currentPage === "resources" ? "hidden" : "auto",
+        padding: 0,
+        background: "var(--mb-paper)",
+        minHeight: 0,
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
         {renderPage()}
       </div>
     </div>
@@ -282,1320 +317,938 @@ export default function BrowserWindow({ onClose, onPitchClick, windowId, zIndex,
 }
 
 const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex }) => (
-  <main className="force-comic-font" style={{ fontFamily: "'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive", color: "#222" }}>
-    <h1 style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", overflow: "hidden" }}>Good Neighbor Fund - $1,000 Micro-Grants for Buffalo and Denver Startups</h1>
-    {/* Hero Section */}
-    <div style={{ 
-      background: "linear-gradient(135deg, #ffeaf9, #e6f2ff)", 
-      borderRadius: "12px",
-      padding: "0",
-      marginBottom: "30px",
-      boxShadow: "0 4px 15px rgba(0,0,0,0.1)",
-      position: "relative",
-      overflow: "hidden"
+  <main className="mb-content">
+    <h1 style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", overflow: "hidden" }}>Good Neighbor Fund - $1,000 Micro-Grants for Bold Founders | Chapters in Western New York, Denver, Upstate NY, and the Capital Region</h1>
+
+    {/* ===== ANNOUNCEMENT MARQUEE (ink bar) ===== */}
+    <div style={{
+      background: "var(--mb-ink)",
+      color: "var(--mb-chalk)",
+      padding: "10px 0",
+      borderBottom: "var(--border-ink-2)",
+      fontFamily: "var(--font-numeral)",
+      fontSize: "13px",
+      letterSpacing: "0.02em",
+      whiteSpace: "nowrap"
     }}>
+      <Marquee speed={40} gradient={false}>
+        <span style={{ color: "var(--mb-magenta)", margin: "0 32px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", fontFamily: "var(--font-pixel)" }}>Now Accepting Q2 2026 Applications</span>
+        <span style={{ color: "var(--mb-chalk)", margin: "0 32px" }}>$1,000 micro-grants · no pitch deck required</span>
+        <span style={{ color: "var(--mb-butter)", margin: "0 32px", fontWeight: 700 }}>34 businesses funded since 2023</span>
+        <span style={{ color: "var(--mb-chalk)", margin: "0 32px" }}>Western New York · Denver · Upstate NY · Capital Region</span>
+        <span style={{ color: "var(--mb-aqua)", margin: "0 32px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", fontFamily: "var(--font-pixel)" }}>Join the GNF Club — support local founders</span>
+      </Marquee>
+    </div>
+
+    {/* ===== HERO — Magenta ===== */}
+    <section className="mb-block mb-block-magenta" style={{ padding: 0 }}>
       <div style={{
-        display: "flex",
-        flexDirection: "row",
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1.1fr) minmax(0, 1fr)",
         alignItems: "stretch",
-        minHeight: "340px"
+        minHeight: "520px"
       }}>
-        {/* Left content */}
-        <div style={{ 
-          flex: "1",
-          padding: "30px",
+        {/* Left — copy */}
+        <div style={{
+          padding: "var(--s-block-pad-y) var(--s-block-pad-x)",
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center"
+          justifyContent: "center",
+          gap: "var(--s-stack)"
         }}>
-          <h1 style={{ 
-            fontSize: "38px", 
-            marginBottom: "20px",
-            background: "linear-gradient(to right, #ff00cc, #3333cc)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            textShadow: "1px 1px 0px rgba(255,255,255,0.5)"
-          }}>
-            $1,000 Micro-Grants for Bold Business Ideas 💫
-          </h1>
-          
-          <p style={{ 
-            fontSize: "18px", 
-            lineHeight: "1.5",
-            marginBottom: "25px"
-          }}>
-            <strong>We back brilliant ideas before they're "ready."</strong> No pitch deck required.
+          <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>
+            Est. 2023 · Belief Capital
+          </span>
+
+          <h2 className="mb-h1" style={{ color: "var(--mb-chalk)" }}>
+            $1,000 micro-grants for <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>bold</em> business ideas.
+          </h2>
+
+          <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.95, maxWidth: "48ch" }}>
+            We back brilliant ideas before they're "ready." No pitch deck.
             No equity taken. Just belief in your vision and potential.
           </p>
-          
-          <button 
-            onClick={onPitchClick}
-            aria-label="Submit your business pitch for a $1,000 Good Neighbor Fund grant"
-            style={{ 
-              background: "#FFD6EC", 
-              border: "none", 
-              borderRadius: "30px", 
-              padding: "14px 28px", 
-              fontSize: "18px", 
-              fontWeight: "bold", 
-              cursor: "pointer",
-              alignSelf: "flex-start",
-              fontFamily: "'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive",
-              color: "#222",
-              boxShadow: "0 4px 10px rgba(255,112,176,0.3)",
-              position: "relative",
-              transition: "transform 0.2s ease",
-            }}
-            onMouseOver={(e) => e.currentTarget.style.transform = "translateY(-3px)"}
-            onMouseOut={(e) => e.currentTarget.style.transform = "translateY(0)"}
-          >
-            🦄 Submit Your Pitch Today!
-          </button>
+
+          <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginTop: "8px" }}>
+            <button
+              type="button"
+              onClick={onPitchClick}
+              aria-label="Submit your business pitch for a $1,000 Good Neighbor Fund grant"
+              className="mb-btn mb-btn-butter"
+            >
+              Submit Your Pitch
+              <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
+            </button>
+          </div>
+
+          <div style={{
+            display: "flex",
+            gap: 24,
+            marginTop: 32,
+            paddingTop: 24,
+            borderTop: "1px solid rgba(255,255,255,0.3)",
+            flexWrap: "wrap"
+          }}>
+            <span className="mb-numeral" style={{ color: "var(--mb-chalk)", fontSize: 14 }}>
+              <span style={{ opacity: 0.6 }}>34 /</span> businesses funded
+            </span>
+            <span className="mb-numeral" style={{ color: "var(--mb-chalk)", fontSize: 14 }}>
+              <span style={{ opacity: 0.6 }}>80% /</span> women-owned
+            </span>
+            <span className="mb-numeral" style={{ color: "var(--mb-chalk)", fontSize: 14 }}>
+              <span style={{ opacity: 0.6 }}>52% /</span> BIPOC-owned
+            </span>
+          </div>
         </div>
-        
-        {/* Right hero image */}
-        <div style={{ 
-          flex: "1",
-          position: "relative",
-          overflow: "hidden",
-          borderRadius: "0 12px 12px 0",
-          background: "#FFD6EC",
-          minHeight: "340px"
-        }}>
-          <img 
-            src="/assets/gnf-fat-daddys.webp" 
-            alt="Fat Daddy's - Good Neighbor Fund $1,000 grant recipient in Buffalo, NY" 
-            style={{ 
-              width: "100%",
-              height: "100%",
-              objectFit: "cover",
-              position: "absolute"
-            }} 
+
+        {/* Right — photo */}
+        <div style={{ position: "relative", overflow: "hidden", minHeight: "360px", borderLeft: "var(--border-chalk-2)" }}>
+          <img
+            src="/assets/gnf-fat-daddys.webp"
+            alt="Fat Daddy's - Good Neighbor Fund $1,000 grant recipient in Buffalo, NY"
+            style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
           />
           <div style={{
             position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: "15px",
-            background: "rgba(0,0,0,0.6)",
-            color: "white",
-            fontSize: "14px"
+            left: 20,
+            bottom: 20,
+            padding: "8px 14px",
+            background: "var(--mb-ink)",
+            color: "var(--mb-chalk)",
+            fontFamily: "var(--font-pixel)",
+            fontSize: 11,
+            letterSpacing: "0.14em",
+            textTransform: "uppercase",
+            border: "1px solid var(--mb-chalk)"
           }}>
-            Fat Daddy's - Past Micro-Grant Awardee
+            Fat Daddy's · Grant Recipient
           </div>
         </div>
       </div>
-    </div>
-    
-    {/* Mission & Impact Section */}
-    <div style={{ 
-      display: "flex", 
-      gap: "30px", 
-      marginBottom: "30px",
-      flexWrap: "wrap"
-    }}>
-      {/* Mission Column */}
-      <div style={{ 
-        flex: "1",
-        minWidth: "300px", 
-        background: "#f9f9f9",
-        borderRadius: "10px",
-        padding: "25px",
-        border: "1px solid #eee"
-      }}>
-        <h2 style={{ 
-          color: "#990099", 
-          marginTop: 0,
-          borderBottom: "2px solid #f0d6ff",
-          paddingBottom: "10px"
-        }}>
-          Our Mission ✨
-        </h2>
-        
-        <p style={{ fontSize: "16px", lineHeight: "1.6" }}>
-          Good Neighbor Fund is a micro-grant program that gives $1,000 in belief capital 
-          to under-resourced founders with bold new business ideas.
-        </p>
-        
-        <p style={{ fontSize: "16px", lineHeight: "1.6" }}>
-          We don't expect a pitch deck. We don't want equity. 
-          We fund <em>you</em>: your idea, your energy, your potential.
-        </p>
-        
-        <p style={{ fontSize: "16px", fontStyle: "italic", borderLeft: "3px solid #FFD6EC", paddingLeft: "15px" }}>
-          Born in Buffalo, built for neighborhoods everywhere.
-        </p>
-      </div>
-      
-      {/* Impact Stats Column */}
-      <div style={{ 
-        flex: "1",
-        minWidth: "300px", 
-        background: "linear-gradient(to bottom right, #f0faff, #eaf5ff)",
-        borderRadius: "10px",
-        padding: "25px",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.05)"
-      }}>
-        <h2 style={{ 
-          color: "#0066aa", 
-          marginTop: 0,
-          textAlign: "center",
-          marginBottom: "20px"
-        }}>
-          Our Impact Since 2023
-        </h2>
-        
-        <div style={{ 
-          display: "grid", 
-          gridTemplateColumns: "repeat(2, 1fr)", 
-          gap: "20px",
-          textAlign: "center"
-        }}>
-          <div style={{ 
-            background: "#ffffff", 
-            padding: "15px", 
-            borderRadius: "8px",
-            boxShadow: "0 2px 5px rgba(0,0,0,0.05)"
-          }}>
-            <span style={{ fontSize: "36px", fontWeight: "bold", color: "#0082d4", display: "block" }}>25</span>
-            <span style={{ fontSize: "15px", color: "#555" }}>New Business Ideas Funded</span>
-          </div>
-          
-          <div style={{ 
-            background: "#ffffff", 
-            padding: "15px", 
-            borderRadius: "8px",
-            boxShadow: "0 2px 5px rgba(0,0,0,0.05)"
-          }}>
-            <span style={{ fontSize: "36px", fontWeight: "bold", color: "#d400aa", display: "block" }}>80%</span>
-            <span style={{ fontSize: "15px", color: "#555" }}>Women-Owned Businesses</span>
-          </div>
-          
-          <div style={{ 
-            background: "#ffffff", 
-            padding: "15px", 
-            borderRadius: "8px",
-            boxShadow: "0 2px 5px rgba(0,0,0,0.05)"
-          }}>
-            <span style={{ fontSize: "36px", fontWeight: "bold", color: "#ff6d00", display: "block" }}>52%</span>
-            <span style={{ fontSize: "15px", color: "#555" }}>BIPOC-Owned Businesses</span>
-          </div>
-          
-          <div style={{ 
-            background: "#ffffff", 
-            padding: "15px", 
-            borderRadius: "8px",
-            boxShadow: "0 2px 5px rgba(0,0,0,0.05)"
-          }}>
-            <span style={{ fontSize: "36px", fontWeight: "bold", color: "#6200ea", display: "block" }}>$25,000+</span>
-            <span style={{ fontSize: "15px", color: "#555" }}>In Micro-Grants Awarded</span>
-          </div>
-        </div>
-      </div>
-    </div>
+    </section>
 
-    <div style={{ 
-      background: "#fff0f5", 
-      padding: "25px", 
-      borderRadius: "10px", 
-      marginBottom: "30px",
-      border: "2px dashed #ffb6d9"
-    }}>
-      <h2 style={{ 
-        textAlign: "center", 
-        color: "#cc3366", 
-        marginBottom: "15px"
-      }}>
-        Powered by People, Not Institutions 🤝
-      </h2>
-      <p style={{ fontSize: "16px", lineHeight: "1.6", textAlign: "center", maxWidth: "800px", margin: "0 auto" }}>
-        Good Neighbor Fund is a collective giving organization. That means our funding doesn’t come from banks, VCs, or foundations—it comes from neighbors. 
-        Our LPs (Limited Partners) chip in their own funds, meet quarterly to review applications, and help award $1,000 micro-grants to the ideas they believe in most.
-      </p>
-      <p style={{ fontSize: "15px", fontStyle: "italic", textAlign: "center", maxWidth: "700px", margin: "15px auto 0 auto" }}>
-        No staff. No overhead. Just good people pooling belief capital to support the next wave of neighborhood builders.
-      </p>
-    </div>
+    {/* ===== MISSION — Paper ===== */}
+    <section className="mb-block mb-block-paper">
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.4fr)", gap: 64, alignItems: "start" }} className="mb-mission-grid">
+        <div className="mb-section-head" style={{ margin: 0 }}>
+          <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Our Mission</span>
+          <h2 className="mb-h2">
+            Belief capital for the founders banks won't fund.
+          </h2>
+        </div>
 
-    
-    {/* Process Section */}
-    <div style={{ 
-      background: "#fff8e6", 
-      padding: "25px", 
-      borderRadius: "10px", 
-      marginBottom: "30px",
-      border: "1px dashed #ffe0b2"
-    }}>
-      <h2 style={{ 
-        marginTop: 0, 
-        textAlign: "center",
-        color: "#874A00"
-      }}>
-        How It Works 💡
-      </h2>
-      
-      <div style={{ 
-        display: "flex", 
-        justifyContent: "space-between", 
-        textAlign: "center",
-        gap: "20px",
-        flexWrap: "wrap"
-      }}>
-        <div style={{ 
-          flex: "1", 
-          minWidth: "200px",
-          background: "white",
-          padding: "20px 15px",
-          borderRadius: "8px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
-        }}>
-          <div style={{ fontSize: "32px", marginBottom: "10px" }}>📝</div>
-          <h3 style={{ margin: "0 0 10px 0", color: "#874A00" }}>1.Submit</h3>
-          <p style={{ fontSize: "14px", margin: 0 }}>Complete our simple online form and upload a 60-second pitch video</p>
-        </div>
-        
-        <div style={{ 
-          flex: "1", 
-          minWidth: "200px",
-          background: "white",
-          padding: "20px 15px",
-          borderRadius: "8px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
-        }}>
-          <div style={{ fontSize: "32px", marginBottom: "10px" }}>👀</div>
-          <h3 style={{ margin: "0 0 10px 0", color: "#874A00" }}>2.Review</h3>
-          <p style={{ fontSize: "14px", margin: 0 }}>Our LP teams review all submissions at the end of each quarter</p>
-        </div>
-        
-        <div style={{ 
-          flex: "1", 
-          minWidth: "200px",
-          background: "white",
-          padding: "20px 15px",
-          borderRadius: "8px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
-        }}>
-          <div style={{ fontSize: "32px", marginBottom: "10px" }}>💸</div>
-          <h3 style={{ margin: "0 0 10px 0", color: "#874A00" }}>3.Award</h3>
-          <p style={{ fontSize: "14px", margin: 0 }}>Selected founders receive a $1,000 micro-grant with no strings attached</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-stack)" }}>
+          <p className="mb-lede" style={{ maxWidth: "58ch" }}>
+            Good Neighbor Fund is a micro-grant program that gives <strong style={{ fontWeight: 600 }}>$1,000 in belief capital</strong>
+            {" "}to under-resourced founders with bold new business ideas.
+          </p>
+          <p className="mb-body" style={{ maxWidth: "60ch" }}>
+            We don't expect a pitch deck. We don't want equity. We fund <em>you</em>&nbsp;— your idea,
+            your energy, your potential. Our funding doesn't come from banks, VCs, or foundations;
+            it comes from neighbors who chip in their own funds, meet quarterly to review applications,
+            and award the micro-grants together.
+          </p>
+          <p className="mb-italic" style={{ fontSize: "var(--tc-lede)", color: "var(--mb-magenta)", margin: "8px 0 0" }}>
+            Born in Buffalo, built for neighborhoods everywhere.
+          </p>
+          <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            <span className="mb-tag" style={{ color: "var(--mb-ink)" }}>No Staff</span>
+            <span className="mb-tag" style={{ color: "var(--mb-ink)" }}>No Overhead</span>
+            <span className="mb-tag" style={{ color: "var(--mb-ink)" }}>100% Volunteer-Led</span>
+            <span className="mb-tag" style={{ color: "var(--mb-ink)" }}>501(c)3 Fiscal Sponsor</span>
+          </div>
         </div>
       </div>
-      
-      <p style={{ 
-        fontStyle: "italic", 
-        textAlign: "center", 
-        margin: "25px 0 0 0"
-      }}>
-        This is not venture capital—we expect no return on investment. 
-        This is <strong>belief capital</strong>: an endorsement of your potential.
+    </section>
+
+    {/* ===== IMPACT — Grape ===== */}
+    <section className="mb-block mb-block-grape">
+      <div className="mb-section-head" style={{ textAlign: "center", alignItems: "center", marginBottom: 48 }}>
+        <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Impact · Since 2023</span>
+        <h2 className="mb-h2" style={{ color: "var(--mb-chalk)" }}>
+          Small bets. <em style={{ fontStyle: "italic", color: "var(--mb-aqua)" }}>Real</em> neighborhoods.
+        </h2>
+      </div>
+
+      <div className="mb-grid mb-grid-4" style={{ gap: 32 }}>
+        {[
+          { n: "34",      label: "Business ideas funded" },
+          { n: "80%",     label: "Women-owned businesses" },
+          { n: "52%",     label: "BIPOC-owned businesses" },
+          { n: "$34K+",   label: "In micro-grants awarded" },
+        ].map((s) => (
+          <div key={s.label} className="mb-stat">
+            <span className="mb-stat-num" style={{ color: "var(--mb-butter)" }}>{s.n}</span>
+            <span className="mb-stat-label" style={{ color: "var(--mb-chalk)", opacity: 0.85 }}>{s.label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    {/* ===== HOW IT WORKS — Aqua ===== */}
+    <section className="mb-block mb-block-aqua">
+      <div className="mb-section-head" style={{ marginBottom: 48 }}>
+        <span className="mb-eyebrow" style={{ color: "var(--mb-ink)" }}>How It Works</span>
+        <h2 className="mb-h2" style={{ maxWidth: "22ch" }}>
+          Three steps. No decks, no red tape.
+        </h2>
+      </div>
+
+      <div className="mb-grid mb-grid-3">
+        {[
+          { n: "01", title: "Submit",  copy: "Complete our simple online form and upload a 60-second pitch video. That's it — no business plan required." },
+          { n: "02", title: "Review",  copy: "Our LP teams review every submission at the end of each quarter, together, over dinner. Every applicant is considered." },
+          { n: "03", title: "Award",   copy: "Selected founders receive a $1,000 micro-grant with no strings attached. We don't take equity; we take belief." }
+        ].map(step => (
+          <article key={step.n} className="mb-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <span className="mb-badge">Step / {step.n}</span>
+            <h3 className="mb-h3" style={{ marginTop: 4 }}>{step.title}</h3>
+            <p className="mb-body" style={{ margin: 0 }}>{step.copy}</p>
+          </article>
+        ))}
+      </div>
+
+      <p className="mb-italic" style={{ marginTop: 48, fontSize: "var(--tc-lede)", textAlign: "center" }}>
+        This is not venture capital &mdash; we expect no return on investment.<br/>
+        This is <strong style={{ fontFamily: "var(--font-content)", fontStyle: "normal", fontWeight: 700 }}>belief capital</strong>: an endorsement of your potential.
       </p>
-    </div>
-    
-    {/* Community Images */}
-    <div style={{ 
-      marginBottom: "30px", 
-      background: "#f9f9f9", 
-      borderRadius: "10px",
-      padding: "25px",
-      overflow: "hidden"
-    }}>
-      <h2 style={{ 
-        textAlign: "center", 
-        marginTop: 0,
-        marginBottom: "20px",
-        color: "#333"
-      }}>
-        Building Community 🏘️
-      </h2>
-      
-      <div style={{ 
+    </section>
+
+    {/* ===== COMMUNITY — Tangerine ===== */}
+    <section className="mb-block mb-block-tangerine">
+      <div className="mb-section-head" style={{ marginBottom: 40 }}>
+        <span className="mb-eyebrow" style={{ color: "var(--mb-ink)" }}>Community · IRL</span>
+        <h2 className="mb-h2" style={{ maxWidth: "20ch" }}>
+          Dinner, pitches, and giant checks.
+        </h2>
+        <p className="mb-body" style={{ maxWidth: "62ch", marginTop: 4 }}>
+          Every grant starts with people in a room. LPs meet quarterly, share a meal, and vote on the
+          ideas they believe in most. Then we hand over the biggest check we can carry.
+        </p>
+      </div>
+
+      <div style={{
         display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gridTemplateRows: "repeat(2, 180px)",
-        gap: "15px",
-        margin: "0 auto"
+        gridTemplateColumns: "repeat(6, 1fr)",
+        gridAutoRows: "180px",
+        gap: 12
       }}>
-        {/* First row */}
-        <div style={{
-          background: "#f0f0f0",
-          borderRadius: "8px",
-          overflow: "hidden"
-        }}>
-          <img
-            src="/assets/tp-sansi.webp"
-            alt="Sansi Bansal at Twin Petrels startup event in Buffalo - Good Neighbor Fund community gathering"
-            style={{
-              height: "100%",
-              width: "100%",
-              objectFit: "cover"
-            }}
-          />
-        </div>
-        <div style={{
-          background: "#f0f0f0",
-          borderRadius: "8px",
-          overflow: "hidden"
-        }}>
-          <img
-            src="/assets/tm-group.webp"
-            alt="Good Neighbor Fund Buffalo chapter kickoff event at Thin Man Brewery - startup community gathering"
-            style={{
-              height: "100%",
-              width: "100%",
-              objectFit: "cover"
-            }}
-          />
-        </div>
-        <div style={{
-          background: "#f0f0f0",
-          borderRadius: "8px",
-          overflow: "hidden"
-        }}>
-          <img
-            src="/assets/tp-group.webp"
-            alt="Entrepreneurs networking at Twin Petrels in Buffalo - Good Neighbor Fund grant program event"
-            style={{
-              height: "100%",
-              width: "100%",
-              objectFit: "cover"
-            }}
-          />
-        </div>
-        
-        {/* Second row */}
-        <div style={{
-          background: "#f0f0f0",
-          borderRadius: "8px",
-          overflow: "hidden"
-        }}>
-          <img
-            src="/assets/lp-dinner.webp"
-            alt="Western New York Good Neighbor Fund Limited Partners dinner - Buffalo Chapter Grant Selection meeting"
-            style={{
-              height: "100%",
-              width: "100%",
-              objectFit: "cover"
-            }}
-          />
-        </div>
-        <div style={{
-          background: "#f0f0f0",
-          borderRadius: "8px",
-          overflow: "hidden"
-        }}>
-          <img
-            src="/assets/kiln-panel.webp"
-            alt="Startup pitch presentations at Kiln Denver - Good Neighbor Fund grant selection event"
-            style={{
-              height: "100%",
-              width: "100%",
-              objectFit: "cover"
-            }}
-          />
-        </div>
-        <div style={{
-          background: "#f0f0f0",
-          borderRadius: "8px",
-          overflow: "hidden"
-        }}>
-          <img
-            src="/assets/tp-panel.webp"
-            alt="Buffalo entrepreneur panel discussion at Twin Petrels - Good Neighbor Fund founder stories"
-            style={{
-              height: "100%",
-              width: "100%",
-              objectFit: "cover"
-            }}
-          />
-        </div>
+        {[
+          { src: "/assets/tp-sansi.webp",  alt: "Sansi Bansal at Twin Petrels startup event in Buffalo - Good Neighbor Fund community gathering", span: 2 },
+          { src: "/assets/tm-group.webp",  alt: "Good Neighbor Fund Buffalo chapter kickoff event at Thin Man Brewery - startup community gathering", span: 3 },
+          { src: "/assets/tp-group.webp",  alt: "Entrepreneurs networking at Twin Petrels in Buffalo - Good Neighbor Fund grant program event", span: 1 },
+          { src: "/assets/lp-dinner.webp", alt: "Western New York Good Neighbor Fund Limited Partners dinner - Buffalo Chapter Grant Selection meeting", span: 3 },
+          { src: "/assets/kiln-panel.webp",alt: "Startup pitch presentations at Kiln Denver - Good Neighbor Fund grant selection event", span: 2 },
+          { src: "/assets/tp-panel.webp",  alt: "Buffalo entrepreneur panel discussion at Twin Petrels - Good Neighbor Fund founder stories", span: 1 },
+        ].map((img, i) => (
+          <div key={i} style={{
+            gridColumn: `span ${img.span}`,
+            overflow: "hidden",
+            border: "var(--border-ink-2)",
+            boxShadow: "var(--shadow-hard-sm)",
+            background: "var(--mb-ink)"
+          }}>
+            <img src={img.src} alt={img.alt} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          </div>
+        ))}
       </div>
-    </div>
-    
-    
-    {/* Press Mentions */}
-    <div style={{ 
-      marginBottom: "30px", 
-      background: "linear-gradient(to right, #f8f8f8, #fff)",
-      borderRadius: "10px",
-      padding: "25px"
-    }}>
-      <h2 style={{ 
-        textAlign: "center", 
-        marginTop: 0,
-        marginBottom: "20px",
-        color: "#333"
-      }}>
-        As Featured In 
-      </h2>
-      
-      <div style={{ 
-        display: "flex", 
+    </section>
+
+    {/* ===== PRESS — Paper ===== */}
+    <section className="mb-block mb-block-paper">
+      <div className="mb-section-head" style={{ marginBottom: 32, alignItems: "center", textAlign: "center" }}>
+        <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>As Featured In</span>
+        <h2 className="mb-h3" style={{ fontStyle: "italic" }}>
+          The good word travels.
+        </h2>
+      </div>
+
+      <div style={{
+        display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        gap: "25px",
+        gap: 48,
         flexWrap: "wrap"
       }}>
         {pressLinks.map((press, index) => (
-          <a 
+          <a
             key={index}
             href={press.url}
             target="_blank"
             rel="noopener noreferrer"
+            className="mb-press-logo"
             style={{
-              opacity: 0.8,
-              transition: "opacity 0.2s ease, transform 0.2s ease",
+              opacity: 0.7,
+              transition: "opacity 120ms ease-out, filter 120ms ease-out",
               filter: "grayscale(100%)",
-              height: "60px", 
+              height: "56px",
               display: "flex",
               alignItems: "center"
             }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.opacity = "1";
-              e.currentTarget.style.filter = "grayscale(0%)";
-              e.currentTarget.style.transform = "translateY(-2px)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.opacity = "0.8";
-              e.currentTarget.style.filter = "grayscale(100%)";
-              e.currentTarget.style.transform = "translateY(0)";
-            }}
+            onMouseOver={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.filter = "grayscale(0%)"; }}
+            onMouseOut={(e) => { e.currentTarget.style.opacity = "0.7"; e.currentTarget.style.filter = "grayscale(100%)"; }}
           >
             {press.logo ? (
-              <img 
-                src={press.logo} 
-                alt={`${press.title} logo - Good Neighbor Fund press coverage`} 
-                style={{ 
-                  height: "100%",
-                  maxWidth: "240px", // Doubled from 120px
-                  objectFit: "contain"
-                }} 
+              <img
+                src={press.logo}
+                alt={`${press.title} logo - Good Neighbor Fund press coverage`}
+                style={{ height: "100%", maxWidth: "220px", objectFit: "contain" }}
               />
             ) : (
-              <span style={{ fontSize: "14px", color: "#555" }}>{press.title}</span>
+              <span className="mb-numeral" style={{ fontSize: 14, color: "var(--mb-ink)" }}>{press.title}</span>
             )}
           </a>
         ))}
       </div>
-    </div>
+    </section>
 
-    {/* Featured Awardees with auto-scroll - Using CSS animation instead of JS */}
-    <div style={{ 
-      marginBottom: "30px", 
-      borderRadius: "10px",
-      border: "1px solid #eee",
-      padding: "25px"
-    }}>
-      <h2 style={{ 
-        textAlign: "center", 
-        marginTop: 0,
-        marginBottom: "20px",
-        color: "#333"
-      }}>
-        Neighborhood Dreams at Work 🌈
-      </h2>
-      
-      {/* Auto-scrolling awardees marquee using CSS animation */}
-      <div style={{ 
-        overflow: "hidden",
-        whiteSpace: "nowrap",
-        padding: "5px 0",
-        position: "relative"
-      }}>
-        <div style={{ 
-          display: "inline-block",
+    {/* ===== AWARDEES MARQUEE — Butter ===== */}
+    <section className="mb-block mb-block-butter">
+      <div className="mb-section-head" style={{ marginBottom: 32 }}>
+        <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Portfolio · 34 Strong</span>
+        <h2 className="mb-h2" style={{ maxWidth: "22ch" }}>
+          Neighborhood dreams, at work.
+        </h2>
+      </div>
+
+      <div style={{ overflow: "hidden", whiteSpace: "nowrap", padding: "8px 0", marginLeft: "calc(var(--s-block-pad-x) * -1)", marginRight: "calc(var(--s-block-pad-x) * -1)" }}>
+        <div style={{
+          display: "inline-flex",
+          gap: 20,
           whiteSpace: "nowrap",
-          animation: "marquee 30s linear infinite",
-          animationFillMode: "forwards"
+          animation: "mb-marquee 32s linear infinite",
+          paddingLeft: 20
         }}>
-          <img 
-            src="/assets/Ernies2.webp" 
-            alt="Ernie's Pop Shop - Buffalo small business $1,000 grant winner from Good Neighbor Fund" 
-            style={{ 
-              height: "180px", 
-              width: "auto",
-              borderRadius: "8px", 
-              boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
-              objectFit: "cover",
-              display: "inline-block",
-              margin: "0 20px"
-            }} 
-          />
-          <img 
-            src="/assets/BFR2.webp" 
-            alt="Buffalo Fashion Runway - Western New York fashion startup funded by Good Neighbor Fund micro-grant" 
-            style={{ 
-              height: "180px", 
-              width: "auto",
-              borderRadius: "8px", 
-              boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
-              objectFit: "cover",
-              display: "inline-block",
-              margin: "0 20px"
-            }} 
-          />
-          <img 
-            src="/assets/Trinas2.webp" 
-            alt="Trina's Speedy Cleaning - Buffalo cleaning service business funded by Good Neighbor Fund $1,000 grant" 
-            style={{ 
-              height: "180px", 
-              width: "auto",
-              borderRadius: "8px", 
-              boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
-              objectFit: "cover",
-              display: "inline-block",
-              margin: "0 20px"
-            }} 
-          />
-          <img 
-            src="/assets/gnf-kamil.webp" 
-            alt="Signing is Art - Buffalo-based small business funded by Good Neighbor Fund micro-grant program" 
-            style={{ 
-              height: "180px", 
-              width: "auto",
-              borderRadius: "8px", 
-              boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
-              objectFit: "cover",
-              display: "inline-block",
-              margin: "0 20px"
-            }} 
-          />
-          <img 
-            src="/assets/muuvya.webp" 
-            alt="Muuvya - Small business funded by Good Neighbor Fund $1,000 small business grant" 
-            style={{ 
-              height: "180px", 
-              width: "auto",
-              borderRadius: "8px", 
-              boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
-              objectFit: "cover",
-              display: "inline-block",
-              margin: "0 20px"
-            }} 
-          />
-          {/* Duplicate for seamless scrolling */}
-          <img 
-            src="/assets/Ernies2.webp" 
-            alt="Ernie's Pop Shop - Buffalo small business $1,000 grant winner from Good Neighbor Fund" 
-            style={{ 
-              height: "180px", 
-              width: "auto",
-              borderRadius: "8px", 
-              boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
-              objectFit: "cover",
-              display: "inline-block",
-              margin: "0 20px"
-            }} 
-          />
-          <img 
-            src="/assets/BFR2.webp" 
-            alt="Buffalo Fashion Runway - Western New York fashion startup funded by Good Neighbor Fund micro-grant" 
-            style={{ 
-              height: "180px", 
-              width: "auto",
-              borderRadius: "8px", 
-              boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
-              objectFit: "cover",
-              display: "inline-block",
-              margin: "0 20px"
-            }} 
-          />
-          <img 
-            src="/assets/Trinas2.webp" 
-            alt="Trina's Speedy Cleaning - Buffalo cleaning service business funded by Good Neighbor Fund $1,000 grant" 
-            style={{ 
-              height: "180px", 
-              width: "auto",
-              borderRadius: "8px", 
-              boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
-              objectFit: "cover",
-              display: "inline-block",
-              margin: "0 20px"
-            }} 
-          />
-          <img 
-            src="/assets/gnf-kamil.webp" 
-            alt="Signing is Art - DenBuffalo small business funded by Good Neighbor Fund micro-grant program" 
-            style={{ 
-              height: "180px", 
-              width: "auto",
-              borderRadius: "8px", 
-              boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
-              objectFit: "cover",
-              display: "inline-block",
-              margin: "0 20px"
-            }} 
-          />
-          <img 
-            src="/assets/muuvya.webp" 
-            alt="Muuvya - Small business funded by Good Neighbor Fund $1,000 small business grant" 
-            style={{ 
-              height: "180px", 
-              width: "auto",
-              borderRadius: "8px", 
-              boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
-              objectFit: "cover",
-              display: "inline-block",
-              margin: "0 20px"
-            }} 
-          />
+          {[
+            { src: "/assets/Ernies2.webp",   alt: "Ernie's Pop Shop - Buffalo small business $1,000 grant winner from Good Neighbor Fund" },
+            { src: "/assets/BFR2.webp",      alt: "Buffalo Fashion Runway - Western New York fashion startup funded by Good Neighbor Fund micro-grant" },
+            { src: "/assets/Trinas2.webp",   alt: "Trina's Speedy Cleaning - Buffalo cleaning service business funded by Good Neighbor Fund $1,000 grant" },
+            { src: "/assets/gnf-kamil.webp", alt: "Signing is Art - Buffalo-based small business funded by Good Neighbor Fund micro-grant program" },
+            { src: "/assets/muuvya.webp",    alt: "Muuvya - Small business funded by Good Neighbor Fund $1,000 small business grant" },
+            // duplicated for seamless loop
+            { src: "/assets/Ernies2.webp",   alt: "Ernie's Pop Shop - Buffalo small business $1,000 grant winner from Good Neighbor Fund" },
+            { src: "/assets/BFR2.webp",      alt: "Buffalo Fashion Runway - Western New York fashion startup funded by Good Neighbor Fund micro-grant" },
+            { src: "/assets/Trinas2.webp",   alt: "Trina's Speedy Cleaning - Buffalo cleaning service business funded by Good Neighbor Fund $1,000 grant" },
+            { src: "/assets/gnf-kamil.webp", alt: "Signing is Art - Buffalo-based small business funded by Good Neighbor Fund micro-grant program" },
+            { src: "/assets/muuvya.webp",    alt: "Muuvya - Small business funded by Good Neighbor Fund $1,000 small business grant" },
+          ].map((img, i) => (
+            <img
+              key={i}
+              src={img.src}
+              alt={img.alt}
+              style={{
+                height: 220,
+                width: "auto",
+                border: "var(--border-ink-2)",
+                boxShadow: "var(--shadow-hard-sm)",
+                objectFit: "cover",
+                display: "inline-block"
+              }}
+            />
+          ))}
         </div>
-        
-        {/* Add CSS animation keyframes */}
-        <style>
-          {`
-            @keyframes marquee {
-              0% { transform: translate3d(0, 0, 0); }
-              100% { transform: translate3d(-50%, 0, 0); }
-            }
-          `}
-        </style>
+
+        <style>{`
+          @keyframes mb-marquee {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-50%, 0, 0); }
+          }
+        `}</style>
       </div>
-    </div>
-    
-    {/* Testimonial */}
-    <div style={{ 
-      background: "#eef9ee", 
-      padding: "30px", 
-      borderRadius: "10px",
-      border: "1px solid #c8e6c9",
-      position: "relative",
-      marginBottom: "20px"
-    }}>
-      <div style={{ 
-        fontSize: "48px", 
-        color: "rgba(0,150,50,0.1)", 
-        position: "absolute", 
-        top: "15px", 
-        left: "20px" 
-      }}>❝</div>
-      
-      <blockquote style={{ 
-        fontStyle: "italic", 
-        fontSize: "16px", 
-        lineHeight: "1.6", 
-        maxWidth: "800px", 
-        margin: "0 auto 20px auto",
-        paddingLeft: "30px",
-        position: "relative",
-        zIndex: "1"
-      }}>
-        "The Good Neighbor Fund grant that I received was far more than a financial contribution to jump starting my business. It provided validation for an idea & passion that I have had for some time and support and encouragement to realize a dream of entrepreneurship after a 22 year teaching career. The grant money, resources and connections have been invaluable to help the seeds of my business grow and I feel blessed to be a part of this community of Good Neighbors."
-      </blockquote>
-      
-      <div style={{ 
-        display: "flex", 
-        alignItems: "center",
-        justifyContent: "center", 
-        gap: "15px",
-        marginTop: "20px"
-      }}>
-        <div style={{ 
-          width: "50px", 
-          height: "50px", 
-          borderRadius: "50%", 
-          background: "#c8e6c9",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "24px"
-        }}>
-          🌱
-        </div>
-        <div>
-          <strong style={{ display: "block", fontSize: "16px" }}>Tracy Csavina</strong>
-          <span style={{ fontSize: "14px", color: "#555" }}>Founder @ Sustainably Rooted LLC</span>
-        </div>
-      </div>
-    </div>
-    
-    {/* Call to Action - Final Section */}
-    <div style={{ 
-      background: "linear-gradient(135deg, #FFD6EC, #ffeaf0)",
-      borderRadius: "10px",
-      padding: "30px",
-      textAlign: "center",
-      boxShadow: "0 3px 15px rgba(0,0,0,0.05)"
-    }}>
-      <h2 style={{ 
-        fontSize: "28px", 
-        marginTop: 0,
-        marginBottom: "15px",
-        color: "#333"
-      }}>
-        Ready to Bring Your Business Idea to Life?
-      </h2>
-      
-      <p style={{ 
-        fontSize: "16px",
-        maxWidth: "600px",
-        margin: "0 auto 25px auto",
-        lineHeight: "1.6"
-      }}>
-        We're looking for passionate founders with bold ideas that create positive impact
-        in their communities. No business plan required—just a 60-second pitch video
-        and your authentic vision.
-      </p>
-      
-      <div style={{ 
-        display: "flex",
-        justifyContent: "center",
-        gap: "20px",
-        flexWrap: "wrap"
-      }}>
-        <button 
-          onClick={onPitchClick} 
-          style={{ 
-            background: "#FF69B4", 
-            color: "white",
-            border: "none", 
-            borderRadius: "30px", 
-            padding: "14px 28px", 
-            fontSize: "18px", 
-            fontWeight: "bold", 
-            cursor: "pointer",
-            fontFamily: "'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive",
-            boxShadow: "0 4px 15px rgba(255,105,180,0.3)",
-            transition: "all 0.2s ease"
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.transform = "translateY(-3px)";
-            e.currentTarget.style.boxShadow = "0 6px 18px rgba(255,105,180,0.4)";
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "0 4px 15px rgba(255,105,180,0.3)";
+    </section>
+
+    {/* ===== TESTIMONIAL — Paper ===== */}
+    <section className="mb-block mb-block-paper">
+      <div style={{ maxWidth: "820px", margin: "0 auto", position: "relative" }}>
+        <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)", display: "block", marginBottom: 32, textAlign: "center" }}>
+          In Their Words
+        </span>
+
+        <blockquote
+          className="mb-display"
+          style={{
+            fontSize: "clamp(24px, 3vw, 34px)",
+            lineHeight: 1.3,
+            margin: 0,
+            textAlign: "center"
           }}
         >
-          🦄 Submit Your Pitch Today!
+          <span style={{ fontFamily: "var(--font-display)", fontStyle: "italic", color: "var(--mb-magenta)", fontSize: "1.6em", lineHeight: 0, position: "relative", top: "0.4em", marginRight: "0.1em" }}>"</span>
+          The grant was far more than a financial contribution to jump-starting my business. It provided
+          validation for an idea & passion I've had for some time — support and encouragement to realize
+          a dream of entrepreneurship after a 22-year teaching career.
+          <span style={{ fontFamily: "var(--font-display)", fontStyle: "italic", color: "var(--mb-magenta)", fontSize: "1.6em", lineHeight: 0, position: "relative", top: "0.4em", marginLeft: "0.05em" }}>"</span>
+        </blockquote>
+
+        <div style={{
+          marginTop: 36,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: 12
+        }}>
+          <span style={{ width: 36, height: 2, background: "var(--mb-ink)", display: "inline-block" }} />
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontFamily: "var(--font-content)", fontWeight: 700, fontSize: 16, color: "var(--mb-ink)" }}>
+              Tracy Csavina
+            </div>
+            <div className="mb-numeral" style={{ fontSize: 12, color: "var(--mb-ink-60)", marginTop: 2 }}>
+              Founder · Sustainably Rooted LLC
+            </div>
+          </div>
+          <span style={{ width: 36, height: 2, background: "var(--mb-ink)", display: "inline-block" }} />
+        </div>
+      </div>
+    </section>
+
+    {/* ===== FINAL CTA — Ink ===== */}
+    <section className="mb-block mb-block-ink" style={{ textAlign: "center" }}>
+      <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)", display: "block", marginBottom: 20 }}>
+        Apply Now · Q2 2026
+      </span>
+
+      <h2 className="mb-h1" style={{ color: "var(--mb-chalk)", maxWidth: "24ch", margin: "0 auto 24px" }}>
+        Ready to bring your business idea <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>to life?</em>
+      </h2>
+
+      <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.85, maxWidth: "56ch", margin: "0 auto 36px" }}>
+        We're looking for passionate founders with bold ideas that create positive impact
+        in their communities. No business plan required &mdash; just a 60-second pitch video and your authentic vision.
+      </p>
+
+      <div style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
+        <button type="button" onClick={onPitchClick} className="mb-btn">
+          Submit Your Pitch
+          <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
         </button>
       </div>
-    </div>
+    </section>
+
+    {/* ===== FOOTER — Ink (continuation) ===== */}
+    <footer className="mb-block mb-block-ink" style={{ paddingTop: 24, paddingBottom: 24, textAlign: "center", borderTop: "1px solid rgba(255,255,255,0.15)" }}>
+      <HitCounter />
+
+      <div className="mb-numeral" style={{ marginTop: 16, fontSize: 11, color: "rgba(255,255,255,0.7)" }}>
+        &copy; {new Date().getFullYear()} GOOD NEIGHBOR FUND · ALL RIGHTS RESERVED ·{" "}
+        <a href="/terms" target="_blank" rel="noopener noreferrer" className="mb-link-underline" style={{ color: "var(--mb-chalk)" }}>
+          TERMS
+        </a>
+        {" · "}
+        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="mb-link-underline" style={{ color: "var(--mb-chalk)" }}>
+          PRIVACY
+        </a>
+      </div>
+    </footer>
   </main>
 );
 
 // -- AwardeesPage
-const AwardeesPage = ({ awardees, loading, chapters, searchTerm, setSearchTerm, chapterFilter, setChapterFilter }) => (
-  <div className="force-comic-font" style={{ fontFamily: "'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive", color: "#222", flex: 1, display: 'flex', flexDirection: 'column', height: '100%' }}>
-    <h1>Meet Our Grant Awardees 🏆</h1>
-    
-    <div style={{ background: "#fff8e1", padding: "20px", borderRadius: "8px", border: "2px solid #ffd54f", marginBottom: "25px" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-        <div style={{ flex: "1" }}>
-          <p>
-            We're proud to showcase our incredible Good Neighbor Fund grant recipients! Each of these remarkable entrepreneurs 
-            received $1,000 in belief capital to pursue their dreams and bring their business ideas to life. 
-            We invite you to learn more about their journeys, visit their websites, and support their businesses.
-          </p>
-          <p>
-            These founders represent the vibrant, diverse entrepreneurial spirit we aim to nurture in our communities. 
-            From innovative products to essential services, our awardees are creating positive impact and economic opportunity.
+const AwardeesPage = ({ awardees, loading, chapters, searchTerm, setSearchTerm, chapterFilter, setChapterFilter, sort, setSort }) => (
+  <main className="mb-content">
+    {/* ===== HERO — Butter ===== */}
+    <section className="mb-block mb-block-butter">
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)", gap: 48, alignItems: "center" }}>
+        <div className="mb-section-head" style={{ margin: 0 }}>
+          <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Portfolio</span>
+          <h2 className="mb-h1">Meet our grant awardees.</h2>
+          <p className="mb-lede" style={{ maxWidth: "58ch", marginTop: 8 }}>
+            Each of these remarkable entrepreneurs received <strong style={{ fontWeight: 600 }}>$1,000 in belief capital</strong> to bring their
+            business idea to life. From innovative products to essential services, they're creating
+            positive impact and economic opportunity in their neighborhoods.
           </p>
         </div>
-        <img 
-          src="/assets/afterglow.webp" 
-          alt="Afterglow - Good Neighbor Fund small business, independent bookstore, grant recipient in Buffalo" 
-          style={{ 
-            width: "180px", 
-            height: "180px", 
-            objectFit: "cover", 
-            border: "2px solid #ffd54f", 
-            borderRadius: "8px" 
-          }} 
-        />
-      </div>
-    </div>
-    
-    {/* Filters */}
-    <div style={{ display: "flex", gap: "15px", marginBottom: "25px", background: "#f5f5f5", padding: "15px", borderRadius: "6px", border: "1px solid #ddd" }}>
-      <input 
-        type="text" 
-        placeholder="Search by founder or business name" 
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        style={{ 
-          padding: "8px", 
-          flexGrow: 1, 
-          border: "1px solid #ccc", 
-          borderRadius: "4px",
-          fontFamily: "inherit"
-        }}
-      />
-      
-      <select
-        value={chapterFilter}
-        onChange={(e) => setChapterFilter(e.target.value)}
-        style={{ 
-          padding: "8px", 
-          border: "1px solid #ccc", 
-          borderRadius: "4px",
-          fontFamily: "inherit",
-          minWidth: "150px"
-        }}
-      >
-        <option value="">All Chapters</option>
-        {chapters.map(chapter => (
-          <option key={chapter} value={chapter}>{chapter}</option>
-        ))}
-      </select>
-    </div>
-    
-    {/* Loading State */}
-    {loading && (
-      <div style={{ textAlign: "center", padding: "40px 0" }}>
-        <p>Loading grant awardees...</p>
-      </div>
-    )}
-    
-    {/* No Results */}
-    {!loading && awardees.length === 0 && (
-      <div style={{ textAlign: "center", padding: "40px 0", background: "#f9f9f9", border: "1px dashed #ccc", borderRadius: "8px" }}>
-        <p>No awardees match your search criteria. Try adjusting your filters.</p>
-      </div>
-    )}
-    
-    {/* Awardees Grid */}
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "25px", flex: 1, overflow: 'auto', paddingBottom: '20px' }}>
-      {awardees.map(awardee => (
-        <div key={awardee.id} style={{ 
-          background: "#fff", 
-          border: "1px solid #ddd", 
-          borderRadius: "8px",
-          padding: "20px",
-          boxShadow: "0 3px 10px rgba(0,0,0,0.1)",
-          display: "flex",
-          flexDirection: "column"
+        <div style={{
+          border: "var(--border-ink-2)",
+          boxShadow: "var(--shadow-hard-lg)",
+          overflow: "hidden",
+          aspectRatio: "1 / 1",
+          background: "var(--mb-ink)"
         }}>
-          {/* Photo */}
-          {awardee.photoUrl && (
-            <div style={{ marginBottom: "15px", textAlign: "center" }}>
-              <img 
-                src={awardee.photoUrl} 
-                alt={`${awardee.businessName} - ${awardee.chapter} Good Neighbor Fund $1,000 grant recipient`}
-                style={{ 
-                  width: "180px", 
-                  height: "180px", 
-                  objectFit: "cover",
-                  borderRadius: "6px",
-                  border: "1px solid #eee",
-                  margin: "0 auto" // Center the image
-                }}
-              />
-            </div>
-          )}
-          
-          {/* Business Name */}
-          <h2 style={{ margin: "0 0 5px 0", color: "#00468b", fontSize: "1.3em" }}>
-            {awardee.businessName}
-          </h2>
-          
-          {/* Founder Name */}
-          <h3 style={{ margin: "0 0 15px 0", color: "#777", fontWeight: "normal", fontSize: "1.1em" }}>
-            by {awardee.founderName}
-          </h3>
-          
-          {/* Chapter & Quarter */}
-          <div style={{ margin: "0 0 15px 0", fontSize: "0.9em", color: "#666", display: "flex", justifyContent: "space-between" }}>
-            <span>{awardee.chapter}</span>
-            <span>{awardee.quarter}</span>
-          </div>
-          
-          {/* About */}
-          {awardee.about && (
-            <div style={{ 
-              margin: "0 0 15px 0", 
-              padding: "12px", 
-              background: "#f9f9f9", 
-              borderRadius: "6px",
-              fontSize: "0.9em",
-              flex: "1" 
-            }}>
-              <p style={{ margin: "0" }}>
-                {awardee.about}
-              </p>
-            </div>
-          )}
-          
-          {/* Website */}
-          {awardee.website && (
-            <div style={{ marginTop: "auto", paddingTop: "15px" }}>
-              <a 
-                href={awardee.website.startsWith('http') ? awardee.website : `http://${awardee.website}`}
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-block",
-                  padding: "8px 16px",
-                  background: "#E6F7FF",
-                  color: "#0070f3",
-                  textDecoration: "none",
-                  borderRadius: "4px",
-                  border: "1px solid #0070f3",
-                  fontWeight: "bold",
-                  fontSize: "0.9em",
-                  textAlign: "center",
-                  width: "100%",
-                  boxSizing: "border-box"
-                }}
-              >
-                Visit Website →
-              </a>
-            </div>
-          )}
+          <img
+            src="/assets/afterglow.webp"
+            alt="Afterglow - Good Neighbor Fund small business, independent bookstore, grant recipient in Buffalo"
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          />
         </div>
-      ))}
-    </div>
-  </div>
+      </div>
+    </section>
+
+    {/* ===== FILTER TOOLBAR — Paper ===== */}
+    <section className="mb-block mb-block-paper" style={{ paddingTop: 32, paddingBottom: 32 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)", gap: 12, alignItems: "stretch" }} className="mb-awardee-filters">
+        <input
+          type="text"
+          placeholder="Search by founder or business name"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{
+            padding: "12px 14px",
+            fontFamily: "var(--font-content)",
+            fontSize: 14,
+            background: "var(--mb-chalk)",
+            color: "var(--mb-ink)",
+            border: "var(--border-ink-2)",
+            boxShadow: "var(--shadow-hard-sm)"
+          }}
+        />
+        <select
+          value={chapterFilter}
+          onChange={(e) => setChapterFilter(e.target.value)}
+          style={{
+            padding: "12px 14px",
+            fontFamily: "var(--font-content)",
+            fontSize: 14,
+            background: "var(--mb-chalk)",
+            color: "var(--mb-ink)",
+            border: "var(--border-ink-2)",
+            boxShadow: "var(--shadow-hard-sm)"
+          }}
+        >
+          <option value="">All Chapters</option>
+          {chapters.map(chapter => (
+            <option key={chapter} value={chapter}>{chapter}</option>
+          ))}
+        </select>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
+          style={{
+            padding: "12px 14px",
+            fontFamily: "var(--font-content)",
+            fontSize: 14,
+            background: "var(--mb-chalk)",
+            color: "var(--mb-ink)",
+            border: "var(--border-ink-2)",
+            boxShadow: "var(--shadow-hard-sm)"
+          }}
+        >
+          <option value="alpha">Sort · Alphabetical</option>
+          <option value="newest">Sort · Newest first</option>
+          <option value="oldest">Sort · Oldest first</option>
+        </select>
+      </div>
+
+      {loading && (
+        <div style={{ textAlign: "center", padding: "40px 0" }}>
+          <span className="mb-numeral" style={{ fontSize: 14, color: "var(--mb-ink-60)" }}>LOADING AWARDEES&hellip;</span>
+        </div>
+      )}
+
+      {!loading && awardees.length === 0 && (
+        <div style={{ textAlign: "center", padding: "40px 20px", marginTop: 20, border: "1px dashed var(--mb-ink)" }}>
+          <p className="mb-body">No awardees match your search criteria. Try adjusting your filters.</p>
+        </div>
+      )}
+    </section>
+
+    {/* ===== AWARDEE GRID — Paper ===== */}
+    {!loading && awardees.length > 0 && (
+      <section className="mb-block mb-block-paper" style={{ paddingTop: 16 }}>
+        <div className="mb-grid mb-grid-4" style={{ gap: 28 }}>
+          {awardees.map((awardee, i) => (
+            <article key={awardee.id} className="mb-card" style={{ padding: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {awardee.photoUrl && (
+                <div style={{ borderBottom: "var(--border-ink-2)", background: "var(--mb-ink)" }}>
+                  <img
+                    src={awardee.photoUrl}
+                    alt={`${awardee.businessName} - ${awardee.chapter} Good Neighbor Fund $1,000 grant recipient`}
+                    width="400"
+                    height="400"
+                    loading={i < 4 ? "eager" : "lazy"}
+                    fetchPriority={i < 4 ? "high" : "auto"}
+                    decoding="async"
+                    style={{ width: "100%", height: "auto", aspectRatio: "1 / 1", objectFit: "cover", display: "block" }}
+                  />
+                </div>
+              )}
+
+              <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+                <div className="mb-numeral" style={{ fontSize: 11, color: "var(--mb-ink-60)", display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <span>{awardee.chapter}</span>
+                  <span>{awardee.quarter}</span>
+                </div>
+
+                <h3 className="mb-h4" style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 24, lineHeight: 1.1, letterSpacing: "-0.01em" }}>
+                  {awardee.businessName}
+                </h3>
+
+                <div className="mb-italic" style={{ fontSize: 14, color: "var(--mb-ink-60)" }}>
+                  by {awardee.founderName}
+                </div>
+
+                {awardee.about && (
+                  <p className="mb-body" style={{ fontSize: 13, lineHeight: 1.5, marginTop: 6, flex: 1 }}>
+                    {awardee.about}
+                  </p>
+                )}
+
+                {awardee.website && (
+                  <a
+                    href={awardee.website.startsWith('http') ? awardee.website : `http://${awardee.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mb-btn mb-btn-chalk"
+                    style={{ marginTop: 12, width: "100%", padding: "10px 14px", fontSize: 12 }}
+                  >
+                    Visit Website
+                    <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
+                  </a>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+    )}
+  </main>
 );
+
+// Hardcoded chapter list preserved as fallback copy for the 4 legacy chapters.
+// Used when the /chapters Firestore collection hasn't loaded yet (or is empty).
+// Once the collection is populated, the dynamic list wins.
+const LEGACY_CHAPTER_CARDS = [
+  { name: 'Western New York', foundedYear: 2023, tagline: 'Where it all started, serving Buffalo and the surrounding 8 counties.',                                                         pageSlug: 'wny' },
+  { name: 'Denver',           foundedYear: 2023, tagline: 'Serving the greater Denver metropolitan area.',                                                                                 pageSlug: 'denver' },
+  { name: 'Upstate New York', foundedYear: 2026, tagline: 'Bringing belief capital to founders across Central and Upstate New York — Syracuse, Ithaca, Binghamton, Utica and beyond.',     pageSlug: 'upstate' },
+  { name: 'Capital Region',   foundedYear: 2026, tagline: "Supporting bold ideas across New York's Capital Region — Albany, Schenectady, Troy and the surrounding area.",                  pageSlug: 'capital-region' },
+];
 
 // -- ChaptersPage --
-const ChaptersPage = ({ setPage }) => (
-  <div className="force-comic-font" style={{ fontFamily: "'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive", color: "#222" }}>
-    <h1>GNF Chapters</h1>
-    <p>Good Neighbor Fund operates through local chapters, each with their own community of Limited Partners who review applications and select quarterly awardees.</p>
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-      <div style={{ background: "#fff", padding: "15px", borderRadius: "8px", border: "1px solid #ddd" }}>
-        <h2>Western New York</h2>
-        <p><strong>Founded:</strong> 2023</p>
-        <p>Where it all started, serving Buffalo and the surrounding 8 counties.</p>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button onClick={() => window.open('/wny', '_blank')} style={chapterBtnStyle}>Visit Chapter Page</button>
-          <button onClick={() => window.open('https://airtable.com/app38xfYxu9HY6yT3/pagy7R4p6BCdXBpzF/form', '_blank')} style={chapterBtnStyle}>Join Chapter</button>
+// Renders the list dynamically from the /chapters Firestore collection.
+// Falls back to LEGACY_CHAPTER_CARDS if the collection is empty or the load fails.
+const ChaptersPage = ({ setPage, onLpApplicationClick }) => {
+  const [dynamicChapters, setDynamicChapters] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDocs(collection(db, 'chapters'));
+        const list = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(c => c.active !== false)
+          .sort((a, b) => {
+            const ao = typeof a.order === 'number' ? a.order : 999;
+            const bo = typeof b.order === 'number' ? b.order : 999;
+            if (ao !== bo) return ao - bo;
+            return (a.name || '').localeCompare(b.name || '');
+          });
+        if (!cancelled) {
+          setDynamicChapters(list);
+          setLoaded(true);
+        }
+      } catch (e) {
+        console.error('ChaptersPage: failed to load /chapters, using fallback', e);
+        if (!cancelled) setLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const chapterCards = (loaded && dynamicChapters.length > 0)
+    ? dynamicChapters.map(c => ({
+        name: c.name,
+        foundedYear: c.foundedYear,
+        tagline: c.tagline,
+        pageSlug: c.pageSlug || c.id,
+      }))
+    : LEGACY_CHAPTER_CARDS;
+
+  return (
+  <main className="mb-content">
+    {/* ===== HERO — Grape ===== */}
+    <section className="mb-block mb-block-grape">
+      <div className="mb-section-head" style={{ marginBottom: 16, maxWidth: "60ch" }}>
+        <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Network · Four Chapters Strong</span>
+        <h2 className="mb-h1" style={{ color: "var(--mb-chalk)" }}>
+          GNF <em style={{ fontStyle: "italic", color: "var(--mb-aqua)" }}>Chapters.</em>
+        </h2>
+        <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.9, marginTop: 8 }}>
+          We operate through local chapters &mdash; each with their own community of Limited Partners
+          who review applications and select quarterly awardees.
+        </p>
+      </div>
+    </section>
+
+    {/* ===== CHAPTER CARDS — Paper ===== */}
+    <section className="mb-block mb-block-paper">
+      <div className="mb-grid mb-grid-2" style={{ gap: 28 }}>
+        {chapterCards.map(c => (
+          <article key={c.name} className="mb-card" style={{ padding: 28, display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+              <h3 className="mb-h3" style={{ margin: 0 }}>{c.name}</h3>
+              {c.foundedYear && (
+                <span className="mb-numeral" style={{ fontSize: 13, color: "var(--mb-ink-60)", whiteSpace: "nowrap" }}>
+                  EST. {c.foundedYear}
+                </span>
+              )}
+            </div>
+
+            {c.tagline && (
+              <p className="mb-body" style={{ margin: 0, maxWidth: "48ch" }}>{c.tagline}</p>
+            )}
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 6 }}>
+              <button
+                type="button"
+                onClick={() => window.open(`/${c.pageSlug}`, '_blank')}
+                className="mb-btn mb-btn-ink"
+                style={{ padding: "10px 16px", fontSize: 12 }}
+              >
+                Visit Chapter
+                <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onLpApplicationClick && onLpApplicationClick(c.name)}
+                className="mb-btn mb-btn-chalk"
+                style={{ padding: "10px 16px", fontSize: 12 }}
+              >
+                Join as LP
+              </button>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    {/* ===== HOW IT WORKS — Aqua ===== */}
+    <section className="mb-block mb-block-aqua">
+      <div className="mb-section-head" style={{ marginBottom: 24, maxWidth: "56ch" }}>
+        <span className="mb-eyebrow" style={{ color: "var(--mb-ink)" }}>How Chapters Work</span>
+        <h2 className="mb-h2" style={{ maxWidth: "22ch" }}>
+          A collective giving organization, at the neighborhood scale.
+        </h2>
+      </div>
+      <p className="mb-lede" style={{ maxWidth: "64ch" }}>
+        GNF is a diverse group of founders, operators, and creators who share a passion for entrepreneurship
+        and community. LPs pool their own resources, knowledge, and networks. We meet quarterly to review
+        applications and select new micro-grant award winners.
+      </p>
+    </section>
+
+    {/* ===== COLLECTIVE GIVING — Paper ===== */}
+    <section className="mb-block mb-block-paper">
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.4fr)", gap: 64, alignItems: "start" }}>
+        <div className="mb-section-head" style={{ margin: 0 }}>
+          <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Model</span>
+          <h2 className="mb-h2">What is collective giving?</h2>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-stack)" }}>
+          <p className="mb-lede" style={{ maxWidth: "58ch" }}>
+            Good Neighbor Fund is more than a grant program &mdash; it's a neighborhood of builders and
+            believers. LPs are a diverse collective of founders, operators, and community members who pool
+            their own capital each quarter to fund the boldest new ideas in their chapter.
+          </p>
+          <p className="mb-body" style={{ maxWidth: "60ch" }}>
+            There's no overhead. No bureaucracy. We operate on a <strong style={{ fontWeight: 600 }}>money in, money out</strong> model:
+            100% of LP dues go directly to fund the next wave of local founders.
+          </p>
+          <p className="mb-body" style={{ maxWidth: "60ch" }}>
+            Each quarter, LPs come together to review applications, share dinner, and vote on who receives
+            new micro-grants. The process is human, and deeply rooted in community. We follow up with founders
+            over coffee, hand off giant checks, and help make their first steps a little more possible.
+          </p>
         </div>
       </div>
-      <div style={{ background: "#fff", padding: "15px", borderRadius: "8px", border: "1px solid #ddd" }}>
-        <h2>Denver</h2>
-        <p><strong>Founded:</strong> 2023</p>
-        <p>Serving the greater Denver metropolitan area.</p>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button onClick={() => window.open('/denver', '_blank')} style={chapterBtnStyle}>Visit Chapter Page</button>
-          <button onClick={() => window.open('https://airtable.com/app38xfYxu9HY6yT3/pagy7R4p6BCdXBpzF/form', '_blank')} style={chapterBtnStyle}>Join Chapter</button>
-        </div>
-      </div>
-    </div>
-    <div style={{ background: "#e6f7ff", padding: "20px", border: "2px dashed #88ccff", borderRadius: "10px", marginTop: "30px" }}>
-      <h2 style={{ color: "#004488" }}>How It Works</h2>
-      <p>GNF is a collective giving organization: a diverse group of founders, business executives, and creators that share a passion for entrepreneurship and community. Our LPs pool their own resources, knowledge, and networks. We meet quarterly to select new micro-grant award winners.</p>
-    </div>
-    <div style={{ background: "#fff0f5", padding: "20px", border: "2px groove #cc88aa", borderRadius: "10px", marginTop: "30px", textAlign: "center" }}>
-      <h2 style={{ color: "#cc3366" }}>Start a Chapter in Your City</h2>
-      <p>Interested in launching a GNF chapter in your own community? We're always looking for passionate good neighbors to help spread the belief capital.</p>
-      <div style={{ display: "flex", gap: "10px", justifyContent: "center", marginTop: "10px", flexWrap: "wrap" }}>
-        <button onClick={() => window.location.href = "https://airtable.com/app38xfYxu9HY6yT3/pagYPQAHYvAUxPfuX/form"} style={{ background: "#ffccee", border: "2px outset #ff99cc", borderRadius: "6px", padding: "10px 20px", fontWeight: "bold", fontSize: "14px", cursor: "pointer" }}>✉️ Contact Us to Start a Chapter</button>
-        <button onClick={() => window.open("https://jasonbartz.notion.site/Good-Neighbor-Fund-Chapter-Handbook-1fc6fdd6d4c680e2a523eb2cbd5cf365", "_blank")} style={{ background: "#ffccee", border: "2px outset #ff99cc", borderRadius: "6px", padding: "10px 20px", fontWeight: "bold", fontSize: "14px", cursor: "pointer" }}>📖 View our New Chapter Handbook</button>
-      </div>
-    </div>
-    <div style={{ background: "#fff8f0", padding: "24px", borderRadius: "10px", border: "2px solid #ffccaa", marginTop: "30px" }}>
-  <h2 style={{ color: "#cc5500" }}>What is Collective Giving?</h2>
-  <p>
-    Good Neighbor Fund is more than a grant program—it’s a neighborhood of builders and believers. 
-    Our LPs are a diverse collective of founders, operators, and community members who pool their own 
-    capital each quarter to fund the boldest new ideas in their chapter.
-  </p>
-  <p>
-    There’s no overhead. No bureaucracy. We operate on a <strong>money in, money out</strong> model: 
-    100% of LP dues go directly to fund the next wave of local founders.
-  </p>
-  <p>
-    Each quarter, LPs come together to review applications, share dinner, and vote on who receives new micro-grants. 
-    The process is human, and deeply rooted in community. We follow up with founders over coffee, 
-    hand off giant checks, and help make their first steps a little more possible.
-  </p>
-</div>
+    </section>
 
-  </div>
-);
-
-const chapterBtnStyle = {
-  background: "#dceeff",
-  border: "2px outset #88bbdd",
-  borderRadius: "6px",
-  padding: "8px 12px",
-  fontWeight: "bold",
-  fontSize: "14px",
-  cursor: "pointer",
-  fontFamily: "'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive"
+    {/* ===== START A CHAPTER — Magenta ===== */}
+    <section className="mb-block mb-block-magenta" style={{ textAlign: "center" }}>
+      <span className="mb-eyebrow" style={{ color: "var(--mb-butter)", display: "block", marginBottom: 20 }}>
+        Expansion · Cities Welcome
+      </span>
+      <h2 className="mb-h1" style={{ color: "var(--mb-chalk)", maxWidth: "20ch", margin: "0 auto 24px" }}>
+        Start a chapter in your <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>city.</em>
+      </h2>
+      <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.9, maxWidth: "56ch", margin: "0 auto 36px" }}>
+        Interested in launching a GNF chapter in your own community? We're always looking for passionate
+        good neighbors to help spread the belief capital.
+      </p>
+      <div style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => window.location.href = "https://airtable.com/app38xfYxu9HY6yT3/pagYPQAHYvAUxPfuX/form"}
+          className="mb-btn mb-btn-butter"
+        >
+          Contact Us
+          <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => window.open("https://jasonbartz.notion.site/Good-Neighbor-Fund-Chapter-Handbook-1fc6fdd6d4c680e2a523eb2cbd5cf365", "_blank")}
+          className="mb-btn mb-btn-chalk"
+        >
+          Chapter Handbook
+        </button>
+      </div>
+    </section>
+  </main>
+  );
 };
 
 
 
 // -- DonatePage --
 const DonatePage = () => (
-  <div className="force-comic-font" style={{ fontFamily: "'Comic Sans MS', 'ComicRetro', 'Pixelify Sans', cursive", color: "#222" }}>
-    <h1>Support Our Mission 💖</h1>
-    
-    <div style={{ 
-      background: "linear-gradient(135deg, #f5fcf5, #e8f5e8)",
-      padding: "25px", 
-      borderRadius: "10px", 
-      marginBottom: "25px",
-      border: "1px solid #c8e6c9"
-    }}>
-      <div style={{ 
-        display: "flex", 
-        flexDirection: "column", 
-        alignItems: "center",
-        textAlign: "center" 
-      }}>
-        <div style={{ 
-          width: "80px", 
-          height: "80px", 
-          borderRadius: "50%",
-          overflow: "hidden",
-          marginBottom: "15px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "#e8f5e9",
-          border: "1px solid #c8e6c9"
-        }}>
-          <img 
-            src="/assets/donate.webp" 
-            alt="Donate to Good Neighbor Fund - Support Buffalo and Denver entrepreneurs" 
-            style={{ width: "60px", height: "60px", objectFit: "contain" }}
-          />
-        </div>
+  <main className="mb-content">
+    {/* ===== HERO — Magenta ===== */}
+    <section className="mb-block mb-block-magenta">
+      <div className="mb-section-head" style={{ marginBottom: 16, maxWidth: "64ch" }}>
+        <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Support the Fund</span>
+        <h2 className="mb-h1" style={{ color: "var(--mb-chalk)" }}>
+          Grow communities through <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>belief capital.</em>
+        </h2>
+        <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.92, marginTop: 8 }}>
+          We're a 100% volunteer-led organization. Your donation directly funds our micro-grant program &mdash;
+          every dollar empowers founders to turn ideas into reality.
+        </p>
+      </div>
+    </section>
 
-        
-        <h2 style={{ 
-          color: "#2E7D32", 
-          marginTop: "0",
-          marginBottom: "15px" 
-        }}>
-          Growing Communities Through Belief Capital
-        </h2>
-        
-        <p style={{ 
-          maxWidth: "700px", 
-          lineHeight: "1.6", 
-          fontSize: "16px",
-          margin: "0 auto 20px auto"
-        }}>
-          We are a 100% volunteer-led organization. Your donation directly supports our Micro-Grant program 
-          and helps us nurture entrepreneurship and develop communities. Every dollar you contribute 
-          goes toward empowering founders to turn their business dreams into reality.
-        </p>
+    {/* ===== DONATION OPTIONS — Paper ===== */}
+    <section className="mb-block mb-block-paper">
+      <div className="mb-grid mb-grid-2" style={{ gap: 28 }}>
+        {/* One-Time */}
+        <article className="mb-card" style={{ padding: 32, display: "flex", flexDirection: "column", gap: 18 }}>
+          <span className="mb-eyebrow" style={{ color: "var(--mb-aqua-deep)" }}>Option 01 · One Time</span>
+          <h3 className="mb-h3" style={{ margin: 0 }}>Make a one-time donation</h3>
+          <p className="mb-body" style={{ margin: 0 }}>
+            Your one-time contribution helps us award micro-grants to aspiring entrepreneurs. Every dollar
+            makes a difference.
+          </p>
+          <a
+            href="https://buy.stripe.com/8wMaEW0mqaYB1jOaEH"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mb-btn mb-btn-ink"
+            style={{ alignSelf: "flex-start" }}
+          >
+            Donate via Stripe
+            <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
+          </a>
+          <p className="mb-micro" style={{ marginTop: 8 }}>
+            All transactions processed through our fiscal sponsor, BootSector,
+            a registered 501(c)3 non-profit <span className="mb-numeral">(EIN 85-4082950)</span>.
+          </p>
+        </article>
+
+        {/* Club Membership */}
+        <article className="mb-card" style={{ padding: 32, display: "flex", flexDirection: "column", gap: 18 }}>
+          <span className="mb-eyebrow" style={{ color: "var(--mb-grape-deep)" }}>Option 02 · Recurring</span>
+          <h3 className="mb-h3" style={{ margin: 0 }}>Become a GNF Club Member</h3>
+          <p className="mb-body" style={{ margin: 0 }}>
+            Join a community of neighbors passionate about entrepreneurship and giving back.
+            Recurring support fuels the next generation of founders.
+          </p>
+
+          <div style={{ background: "var(--mb-grape-soft)", border: "var(--border-ink)", padding: 16, marginTop: 4 }}>
+            <span className="mb-eyebrow" style={{ color: "var(--mb-grape-deep)" }}>Membership Benefits</span>
+            <ul style={{ margin: "12px 0 0", paddingLeft: 20, listStyleType: "none" }}>
+              {["Free access to all GNF-hosted events",
+                "Private GNF Slack community",
+                "GNF Club stickers",
+                "Social media shoutout"].map(benefit => (
+                <li key={benefit} className="mb-body" style={{ position: "relative", paddingLeft: 20, marginBottom: 6 }}>
+                  <span className="mb-numeral" style={{ position: "absolute", left: 0, top: 0, fontSize: 13, color: "var(--mb-grape-deep)", fontWeight: 700 }}>&rarr;</span>
+                  {benefit}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <a
+            href="https://buy.stripe.com/dR68wO3yCgiVaUo6oq"
+            target="_blank"
+            rel="noreferrer"
+            className="mb-btn mb-btn-grape"
+            style={{ alignSelf: "flex-start" }}
+          >
+            Join the Club
+            <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
+          </a>
+        </article>
       </div>
-    </div>
-    
-    {/* Donation Options */}
-    <div style={{ 
-      display: "grid", 
-      gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", 
-      gap: "25px",
-      marginBottom: "30px"
-    }}>
-      {/* One-Time Donation */}
-      <div style={{ 
-        background: "#fff", 
-        borderRadius: "10px", 
-        padding: "25px",
-        border: "1px solid #ddd",
-        boxShadow: "0 3px 10px rgba(0,0,0,0.05)"
+    </section>
+
+    {/* ===== TAX INFO — Paper (sunken card) ===== */}
+    <section className="mb-block mb-block-paper" style={{ paddingTop: 16, paddingBottom: 32 }}>
+      <div style={{
+        background: "var(--mb-paper-deep)",
+        border: "var(--border-ink)",
+        padding: "20px 24px",
+        display: "flex",
+        alignItems: "center",
+        gap: 24,
+        flexWrap: "wrap"
       }}>
-        <h2 style={{ 
-          color: "#0277BD", 
-          marginTop: "0",
-          borderBottom: "2px solid #E1F5FE",
-          paddingBottom: "10px"
-        }}>
-          Make a One-Time Donation
-        </h2>
-        
-        <p style={{ marginBottom: "20px", lineHeight: "1.5" }}>
-          Your one-time contribution helps us award micro-grants to aspiring entrepreneurs in our communities.
-          Every dollar makes a difference!
-        </p>
-        
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: "15px" }}>
-                <a 
-                  href="https://buy.stripe.com/8wMaEW0mqaYB1jOaEH"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    padding: "14px 20px",
-                    background: "linear-gradient(135deg, #635BFF, #8A84FF)",
-                    border: "none",
-                    borderRadius: "8px",
-                    color: "white",
-                    fontWeight: "bold",
-                    fontSize: "14px",
-                    textDecoration: "none",
-                    boxShadow: "0 4px 12px rgba(99, 91, 255, 0.3)",
-                    width: "100%",
-                    maxWidth: "260px"
-                  }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 0C5.376 0 0 5.376 0 12C0 18.624 5.376 24 12 24C18.624 24 24 18.624 24 12C24 5.376 18.624 0 12 0ZM5.04 14.832C4.464 14.832 3.96 14.328 3.96 13.728C3.96 13.128 4.464 12.624 5.04 12.624H9.72C10.32 12.624 10.8 13.128 10.8 13.728C10.8 14.328 10.32 14.832 9.72 14.832H5.04ZM19.2 10.08C19.2 10.68 18.72 11.16 18.12 11.16H4.08C3.48 11.16 3 10.68 3 10.08C3 9.48 3.48 9 4.08 9H18.12C18.72 9 19.2 9.48 19.2 10.08ZM19.68 7.44C19.68 8.04 19.2 8.52 18.6 8.52H7.92C7.32 8.52 6.84 8.04 6.84 7.44C6.84 6.84 7.32 6.36 7.92 6.36H18.6C19.2 6.36 19.68 6.84 19.68 7.44Z" fill="white"/>
-                  </svg>
-                  Donate via Stripe
-                </a>
-              </div>
-        
-        <p style={{ fontSize: "12px", color: "#666", marginTop: "20px", textAlign: "center" }}>
-          All transactions are processed through our fiscal sponsor, BootSector, a registered 501(c)3 non-profit (EIN: 85-4082950)
-        </p>
-      </div>
-      
-      {/* GNF Club Membership */}
-      <div style={{ 
-        background: "#fff", 
-        borderRadius: "10px", 
-        padding: "25px",
-        border: "1px solid #ddd",
-        boxShadow: "0 3px 10px rgba(0,0,0,0.05)"
-      }}>
-        <h2 style={{ 
-          color: "#9C27B0", 
-          marginTop: "0",
-          borderBottom: "2px solid #F3E5F5",
-          paddingBottom: "10px"
-        }}>
-          Become a GNF Club Member
-        </h2>
-        
-        <p style={{ marginBottom: "20px", lineHeight: "1.5" }}>
-          Join a community of like-minded individuals who are passionate about entrepreneurship and giving back.
-          Your recurring donation funds our micro-grant program and supports the next generation of founders.
-        </p>
-        
-        <div style={{ 
-          background: "#F9F4FC", 
-          borderRadius: "8px", 
-          padding: "20px", 
-          marginBottom: "20px",
-          border: "1px solid #E1BEE7"
-        }}>
-          <h3 style={{ marginTop: "0", color: "#6A1B9A" }}>Membership Benefits:</h3>
-          <ul style={{ 
-            paddingLeft: "25px", 
-            margin: "15px 0",
-            lineHeight: "1.6"
-          }}>
-            <li>Free access to all GNF-hosted events</li>
-            <li>Private GNF Slack community</li>
-            <li>GNF Club stickers</li>
-            <li>Social media shoutout</li>
-          </ul>
+        <div style={{ flex: "0 0 auto" }}>
+          <span className="mb-badge">Tax-Deductible</span>
         </div>
-        
-        <a 
-          href="https://buy.stripe.com/dR68wO3yCgiVaUo6oq" 
-          target="_blank" 
-          rel="noreferrer"
-          style={{
-            display: "inline-block",
-            padding: "12px 25px",
-            background: "#9C27B0",
-            color: "white",
-            textDecoration: "none",
-            borderRadius: "6px",
-            fontWeight: "bold",
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-            boxShadow: "0 3px 10px rgba(156,39,176,0.2)"
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.background = "#7B1FA2";
-            e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 5px 15px rgba(156,39,176,0.3)";
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.background = "#9C27B0";
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "0 3px 10px rgba(156,39,176,0.2)";
-          }}
-        >
-          Join the Club Today
-        </a>
+        <p className="mb-body" style={{ margin: 0, flex: 1, minWidth: "280px", fontSize: 13 }}>
+          Donations are tax-deductible to the extent allowed by law. Good Neighbor Fund operates through
+          its fiscal sponsor, BootSector, a registered 501(c)3 non-profit
+          <span className="mb-numeral"> (EIN 85-4082950)</span>. You'll receive a donation receipt where applicable.
+        </p>
       </div>
-    </div>
-    
-    {/* Nonprofit Status & Tax Info */}
-    <div style={{ 
-      background: "#F5F5F5", 
-      padding: "20px", 
-      borderRadius: "8px",
-      border: "1px solid #E0E0E0",
-      marginBottom: "30px"
-    }}>
-      <h3 style={{ marginTop: "0", color: "#424242" }}>Tax-Deductible Donations</h3>
-      <p style={{ marginBottom: "0", lineHeight: "1.5" }}>
-        Donations are tax-deductible to the extent allowed by law. Good Neighbor Fund operates through its fiscal 
-        sponsor, BootSector, a registered 501(c)3 non-profit organization (EIN: 85-4082950). You'll receive a donation 
-        receipt where applicable, for your records after contributing.
+    </section>
+
+    {/* ===== CORPORATE SPONSORSHIP — Aqua ===== */}
+    <section className="mb-block mb-block-aqua" style={{ textAlign: "center" }}>
+      <span className="mb-eyebrow" style={{ color: "var(--mb-ink)", display: "block", marginBottom: 16 }}>
+        Corporate Sponsorship
+      </span>
+      <h2 className="mb-h2" style={{ maxWidth: "22ch", margin: "0 auto 16px" }}>
+        Partner with us at the community level.
+      </h2>
+      <p className="mb-lede" style={{ maxWidth: "56ch", margin: "0 auto 28px" }}>
+        Looking to make a larger impact? Our corporate sponsorship program offers various levels
+        of involvement and recognition &mdash; support entrepreneurship while showcasing your
+        commitment to local economic development.
       </p>
-    </div>
-    
-    {/* Corporate Sponsorship */}
-    <div style={{ 
-      background: "linear-gradient(135deg, #E3F2FD, #BBDEFB)", 
-      padding: "25px", 
-      borderRadius: "10px",
-      marginBottom: "30px",
-      textAlign: "center"
-    }}>
-      <h2 style={{ color: "#0D47A1", marginTop: "0" }}>Corporate Sponsorship</h2>
-      <p style={{ 
-        maxWidth: "700px",
-        margin: "0 auto 20px auto",
-        lineHeight: "1.6"
-      }}>
-        Looking to make a larger impact? Our corporate sponsorship program offers various 
-        levels of involvement and recognition. Partner with us to support entrepreneurship
-        in your community while showcasing your commitment to local economic development.
-      </p>
-      <button 
-        onClick={() => window.location.href = "mailto:jason@goodneighbor.fund?subject=Corporate%20Sponsorship%20Inquiry"} 
-        style={{
-          padding: "12px 25px",
-          background: "#1976D2",
-          color: "white",
-          border: "none",
-          borderRadius: "6px",
-          fontWeight: "bold",
-          cursor: "pointer",
-          transition: "all 0.2s ease",
-          boxShadow: "0 3px 10px rgba(25,118,210,0.2)"
-        }}
-        onMouseOver={(e) => {
-          e.currentTarget.style.background = "#1565C0";
-          e.currentTarget.style.transform = "translateY(-2px)";
-          e.currentTarget.style.boxShadow = "0 5px 15px rgba(25,118,210,0.3)";
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.background = "#1976D2";
-          e.currentTarget.style.transform = "translateY(0)";
-          e.currentTarget.style.boxShadow = "0 3px 10px rgba(25,118,210,0.2)";
-        }}
+      <button
+        type="button"
+        onClick={() => window.location.href = "mailto:jason@goodneighbor.fund?subject=Corporate%20Sponsorship%20Inquiry"}
+        className="mb-btn mb-btn-ink"
       >
         Contact Us About Sponsorship
+        <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
       </button>
-    </div>
-    
-    {/* Impact Stories */}
-    <div style={{ 
-      background: "#FFF8E1", 
-      padding: "25px", 
-      borderRadius: "10px",
-      border: "1px solid #FFE082"
-    }}>
-      <h2 style={{ color: "#FF8F00", marginTop: "0", textAlign: "center" }}>You can help turn ideas into reality</h2>
-      <div style={{ 
-        borderLeft: "3px solid #FFCA28", 
-        paddingLeft: "20px", 
-        margin: "20px 0"
-      }}>
-        <p style={{ fontStyle: "italic" }}>
-        "Your support fuels $1,000 micro-grants that help early-stage founders launch their first product, buy initial inventory, or spread the word about their business. With your support, these small bets can grow into job-creating, community-serving ventures.""
-        </p>
-        <p style={{ marginBottom: "0", fontWeight: "bold" }}>— Jason Bartz, Co-Founder, Good Neighbor Fund</p>
+    </section>
+
+    {/* ===== CO-FOUNDER NOTE — Butter ===== */}
+    <section className="mb-block mb-block-butter">
+      <div style={{ maxWidth: "820px", margin: "0 auto" }}>
+        <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)", display: "block", marginBottom: 20 }}>
+          A note from the co-founder
+        </span>
+        <blockquote
+          className="mb-display"
+          style={{
+            fontSize: "clamp(22px, 2.6vw, 32px)",
+            lineHeight: 1.35,
+            margin: 0,
+            borderLeft: "4px solid var(--mb-magenta)",
+            paddingLeft: 24
+          }}
+        >
+          Your support fuels $1,000 micro-grants that help early-stage founders launch their first product,
+          buy initial inventory, or spread the word about their business. These small bets grow into
+          job-creating, community-serving ventures.
+        </blockquote>
+        <div style={{ marginTop: 24, paddingLeft: 28, display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ width: 20, height: 2, background: "var(--mb-ink)", display: "inline-block" }} />
+          <div>
+            <div style={{ fontFamily: "var(--font-content)", fontWeight: 700, fontSize: 15, color: "var(--mb-ink)" }}>
+              Jason Bartz
+            </div>
+            <div className="mb-numeral" style={{ fontSize: 11, color: "var(--mb-ink-60)" }}>
+              CO-FOUNDER · GOOD NEIGHBOR FUND
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
+    </section>
+  </main>
 );

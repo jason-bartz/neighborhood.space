@@ -3,11 +3,18 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DesktopEnvironment from "./pages/desktop/DesktopEnvironment/DesktopEnvironment";
-import StandalonePitchPage from "./StandalonePitchPage"; 
-import NotFoundPage from "./NotFoundPage"; 
+import StandalonePitchPage from "./StandalonePitchPage";
+import StandaloneLPApplication from "./StandaloneLPApplication";
+import StandaloneTermsPage from "./StandaloneTermsPage";
+import StandalonePrivacyPage from "./StandalonePrivacyPage";
+import NotFoundPage from "./NotFoundPage";
 import MobileFieldGuide from "./MobileFieldGuide";
 import StandaloneLPPortal from "./StandaloneLPPortal";
+import ChapterPage from "./ChapterPage";
 import "./mock-fs"; // Import mock filesystem
+import "./win95-tokens.css"; // Design tokens (CSS custom properties) — must load first
+import "./win95-base.css";   // Global resets + utility classes — must load before App.css
+import "./theme-tokens.css"; // "Millennium Bug" retro-modern content theme (overrides/extends)
 import "./App.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
@@ -16,9 +23,16 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <Routes>
         <Route path="/" element={<DesktopEnvironment />} />
         <Route path="/pitch" element={<StandalonePitchPage />} />
+        <Route path="/lp-application" element={<StandaloneLPApplication />} />
+        <Route path="/terms" element={<StandaloneTermsPage />} />
+        <Route path="/privacy" element={<StandalonePrivacyPage />} />
         <Route path="/fieldguide" element={<MobileFieldGuide />} />
         <Route path="/portal" element={<StandaloneLPPortal />} />
-        <Route path="*" element={<NotFoundPage />} /> 
+        {/* Dynamic chapter page. For slugs matching a /chapters doc with no
+            hand-built static HTML file at public/<slug>.html. The static file
+            wins in Firebase Hosting before the SPA fallback routes here. */}
+        <Route path="/:chapterSlug" element={<ChapterPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>

@@ -11,9 +11,9 @@ import React, { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useParams, useNavigate } from "react-router-dom";
-import { db, auth } from "./firebaseConfig";
+import { db, auth } from "../firebaseConfig";
 import NotFoundPage from "./NotFoundPage";
-import PageTaskbar from "./components/ui/Taskbar/PageTaskbar";
+import PageTaskbar from "../components/ui/Taskbar/PageTaskbar";
 
 export const PENDING_PITCH_URL_KEY = "pendingPitchUrl";
 const VALID_ROLES = ["lp", "chapter_director", "superAdmin"];

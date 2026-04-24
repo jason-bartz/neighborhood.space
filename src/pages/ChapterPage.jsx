@@ -11,7 +11,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { useParams, useNavigate } from "react-router-dom";
-import { db } from "./firebaseConfig";
+import { db } from "../firebaseConfig";
 import NotFoundPage from "./NotFoundPage";
 
 // Gallery tile count at which we switch from a static grid to a scrolling

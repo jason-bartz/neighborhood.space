@@ -4,13 +4,13 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import DesktopEnvironment from "./pages/DesktopEnvironment";
 import StandalonePitchPage from "./StandalonePitchPage";
-import PitchDetailPage from "./PitchDetailPage";
+import PitchDetailPage from "./pages/PitchDetailPage";
 import StandaloneLPApplication from "./StandaloneLPApplication";
 import StandaloneTermsPage from "./StandaloneTermsPage";
 import StandalonePrivacyPage from "./StandalonePrivacyPage";
-import NotFoundPage from "./NotFoundPage";
+import NotFoundPage from "./pages/NotFoundPage";
 import StandaloneLPPortal from "./StandaloneLPPortal";
-import ChapterPage from "./ChapterPage";
+import ChapterPage from "./pages/ChapterPage";
 import "./mock-fs"; // Import mock filesystem
 import "./styles/win95-tokens.css"; // Design tokens (CSS custom properties) — must load first
 import "./styles/win95-base.css";   // Global resets + utility classes — must load before App.css

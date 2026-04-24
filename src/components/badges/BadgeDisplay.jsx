@@ -1,8 +1,8 @@
 // BadgeDisplay.jsx - Trophy Case and Badge Notification System (Windows 95 styled)
 import React, { useState, useEffect } from 'react';
 import Confetti from 'react-confetti';
-import { BADGES, BADGE_CATEGORIES, getBadgesByCategory } from '../data/badgeDefinitions';
-import BadgeIcon from './icons/BadgeIcon';
+import { BADGES, BADGE_CATEGORIES, getBadgesByCategory } from '../../data/badgeDefinitions';
+import BadgeIcon from '../icons/BadgeIcon';
 
 // Strip the leading emoji glyph from a stored badge.name like "👼 First Review".
 // Falls back to the full string if no leading emoji is present.

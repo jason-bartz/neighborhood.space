@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import PitchPage from "../../pages/standalone/PitchPage";
 import LPApplication from "../../pages/standalone/LPApplication";
-import MobileNeighborhoodResources from "../MobileNeighborhoodResources";
-import MobileBuddyMessenger from "../MobileBuddyMessenger";
+import MobileNeighborhoodResources from "../resources/MobileNeighborhoodResources";
+import MobileBuddyMessenger from "../community/MobileBuddyMessenger";
 import MobileLPPortal from "../lp/MobileLPPortal";
 import MobileBootScreen from "./MobileBootScreen";
 import HitCounter from "../ui/HitCounter";

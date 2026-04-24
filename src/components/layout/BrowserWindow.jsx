@@ -3,7 +3,7 @@ import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import Marquee from "react-fast-marquee";
 import HitCounter from "../ui/HitCounter";
-import NeighborhoodResources from "../NeighborhoodResources";
+import NeighborhoodResources from "../resources/NeighborhoodResources";
 
 const AWARDEES_CACHE_KEY = "gnf:awardees:v1";
 

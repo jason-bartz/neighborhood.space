@@ -1,7 +1,8 @@
-// MobileBuddyMessenger.jsx
+// BuddyMessenger.jsx
 import React, { useState, useEffect, useRef } from "react";
 import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebaseConfig";
+import { db } from "../../firebaseConfig";
+import "./BuddyMessenger.css";
 
 // Profanity filter
 const PROFANITY_LIST = [
@@ -28,7 +29,7 @@ const generateUsername = () => {
   return `${rand(base)}${rand(suffixes)}`;
 };
 
-const MobileBuddyMessenger = ({ onClose }) => {
+const BuddyMessenger = ({ onClose, windowId, zIndex, bringToFront }) => {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [username, setUsername] = useState("");
@@ -40,8 +41,6 @@ const MobileBuddyMessenger = ({ onClose }) => {
   const CHARACTER_LIMIT = 140;
 
   useEffect(() => {
-    // No sound effects on mobile
-    
     let sessionUsername = sessionStorage.getItem("username");
     if (!sessionUsername) {
       sessionUsername = generateUsername();
@@ -100,6 +99,12 @@ const MobileBuddyMessenger = ({ onClose }) => {
     return PROFANITY_LIST.some(word => lowerText.includes(word));
   };
 
+  const handleWindowClick = () => {
+    if (windowId && bringToFront) {
+      bringToFront(windowId);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -139,7 +144,12 @@ const MobileBuddyMessenger = ({ onClose }) => {
         color: messageColor
       }]);
 
-      // No sound effects on mobile
+      const imSound = document.getElementById("im-sound");
+      if (imSound) {
+        imSound.volume = 0.5;
+        imSound.currentTime = 0;
+        imSound.play().catch((e) => console.error("Error playing IM send sound:", e));
+      }
 
       setMessage("");
       setCharCount(0);
@@ -159,178 +169,61 @@ const MobileBuddyMessenger = ({ onClose }) => {
   };
 
   return (
-    <div 
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        width: "100%",
-        height: "100%",
-        backgroundColor: "rgba(0, 0, 0, 0.5)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        zIndex: 2000
-      }}
-      onClick={onClose}
-    >
-      {/* No audio elements on mobile */}
-
-      <div
-        style={{
-          width: "90%",
-          maxWidth: "400px",
-          background: "var(--mb-chalk)",
-          overflow: "hidden",
-          border: "2px solid var(--mb-ink)",
-          boxShadow: "var(--shadow-hard-lg)",
-          display: "flex",
-          flexDirection: "column",
-          fontFamily: "var(--font-content)"
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Chat title bar — ink + pixel font to match Navigator theme */}
-        <div
-          style={{
-            background: "var(--mb-ink)",
-            color: "var(--mb-chalk)",
-            padding: "6px 10px",
-            minHeight: "28px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            fontFamily: "var(--font-pixel)",
-            fontSize: "11px",
-            letterSpacing: "0.04em",
-            userSelect: "none",
-            borderBottom: "1px solid rgba(255,255,255,0.1)"
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <img
-              src="/assets/BuddyMessenger-icon.webp"
-              alt=""
-              aria-hidden="true"
-              style={{ height: "14px", width: "14px" }}
-            />
-            <span>Buddy Messenger</span>
+    <div onClick={handleWindowClick}>
+      <div className="message-window">
+        {messages.map((msg, index) => (
+          <div key={index} className="message-item">
+            <span className="message-username" style={{ color: msg.color || "var(--mb-ink)" }}>
+              {msg.username}:
+            </span>
+            <span className="message-text">{" " + msg.text}</span>
+            <span className="message-timestamp">
+              [{formatTimestamp(msg.timestamp)}]
+            </span>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close window"
-            style={{
-              background: "var(--mb-magenta)",
-              border: "1px solid var(--mb-chalk)",
-              color: "var(--mb-chalk)",
-              cursor: "pointer",
-              padding: "0",
-              fontSize: "12px",
-              width: "20px",
-              height: "20px",
-              lineHeight: "1",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "var(--font-content)"
-            }}
-          >
-            ✕
-          </button>
-        </div>
+        ))}
+        <div ref={messageEndRef} />
+      </div>
 
-        {/* Message window */}
-        <div
-          style={{
-            background: "var(--mb-paper)",
-            border: "2px solid var(--mb-ink)",
-            height: "250px",
-            overflowY: "auto",
-            overscrollBehavior: "contain",
-            padding: "8px",
-            fontSize: "12px",
-            margin: "8px",
-            color: "var(--mb-ink)"
+      <audio id="im-sound" src="/sounds/im.mp3" preload="auto" />
+
+
+      <div className="message-input-area">
+        <textarea
+          value={message}
+          onChange={handleMessageChange}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSubmit(e);
+            }
           }}
-        >
-          {messages.map((msg, index) => (
-            <div key={index} style={{ marginBottom: "6px", display: "flex", flexWrap: "wrap" }}>
-              <span style={{ color: msg.color || "var(--mb-ink)", fontWeight: "bold" }}>
-                {msg.username}:
-              </span>
-              <span style={{ marginLeft: "4px", wordBreak: "break-word", flex: "1" }}>
-                {msg.text}
-              </span>
-              <span style={{ marginLeft: "8px", color: "var(--mb-ink-60)", fontSize: "10px" }}>
-                [{formatTimestamp(msg.timestamp)}]
-              </span>
-            </div>
-          ))}
-          <div ref={messageEndRef} />
-        </div>
+          placeholder="Leave us a message, (PS These are public.)"
+          maxLength={CHARACTER_LIMIT}
+          aria-label="Chat message"
+          className={`message-textarea ${charCount >= CHARACTER_LIMIT ? "char-limit" : charCount >= CHARACTER_LIMIT - 20 ? "char-warn" : ""}`}
+        />
+      </div>
 
-        {/* Message input area */}
-        <div style={{ padding: "0 8px 5px 8px" }}>
-          <textarea
-            value={message}
-            onChange={handleMessageChange}
-            placeholder="Leave us a message, (PS These are public.)"
-            maxLength={CHARACTER_LIMIT}
-            style={{
-              width: "100%",
-              height: "60px",
-              border: "2px solid var(--mb-ink)",
-              padding: "6px",
-              fontSize: "12px",
-              fontFamily: "var(--font-content)",
-              resize: "none",
-              boxSizing: "border-box",
-              marginBottom: "5px",
-              background: "var(--mb-chalk)",
-              color: "var(--mb-ink)"
-            }}
-          />
-        </div>
-
-        {/* Message footer */}
+      <div className="message-footer">
         <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "0 8px 10px 8px",
-            fontSize: "12px"
-          }}
+          className={`char-counter ${charCount >= CHARACTER_LIMIT ? "char-limit" : charCount >= CHARACTER_LIMIT - 20 ? "char-warn" : ""}`}
+          aria-live="polite"
         >
-          <div style={{ color: "var(--mb-ink-60)" }}>
-            {CHARACTER_LIMIT - charCount} characters left
-          </div>
-          {error && (
-            <div style={{ color: "var(--mb-magenta-deep)", textAlign: "center", flexGrow: 1, padding: "0 10px", fontWeight: "bold" }}>
-              {error}
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={handleSubmit}
-            style={{
-              background: "var(--mb-magenta)",
-              border: "2px solid var(--mb-ink)",
-              boxShadow: "var(--shadow-hard-sm)",
-              color: "var(--mb-chalk)",
-              padding: "6px 16px",
-              fontSize: "13px",
-              fontWeight: "bold",
-              cursor: "pointer",
-              fontFamily: "var(--font-content)"
-            }}
-          >
-            Send
-          </button>
+          {CHARACTER_LIMIT - charCount} characters left
         </div>
+        {error && <div className="error-message" role="alert">{error}</div>}
+        <button
+          type="button"
+          onClick={handleSubmit}
+          className="send-button win95-btn win95-btn-primary"
+          disabled={!message.trim() || charCount > CHARACTER_LIMIT}
+        >
+          Send
+        </button>
       </div>
     </div>
   );
 };
 
-export default MobileBuddyMessenger;
+export default BuddyMessenger;

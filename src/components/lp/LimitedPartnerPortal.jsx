@@ -15,13 +15,13 @@ import Papa from "papaparse";
 import { saveAs } from "file-saver";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import Confetti from "react-confetti";
-import StatsBar from "../StatsBar";
-import { BadgeNotification, TrophyCase } from "../BadgeDisplay";
+import StatsBar from "../pitch/StatsBar";
+import { BadgeNotification, TrophyCase } from "../badges/BadgeDisplay";
 import { BADGES } from "../../data/badgeDefinitions";
 import { getChapterMembershipLinks } from "../../data/chapterConfig";
 import BadgeIcon from "../icons/BadgeIcon";
 import ReviewRatingIcon from "../icons/ReviewRatingIcon";
-import PitchMap from "../PitchMap";
+import PitchMap from "../pitch/PitchMap";
 import {
   trackReviewSubmission,
   initializeUserStats,

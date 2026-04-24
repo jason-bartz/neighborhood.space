@@ -73,23 +73,21 @@ export default function BrandGuidelinesPDF() {
 
         <Text style={pdfStyles.h1}>Logos</Text>
         <Paragraph>
-          Three logo treatments — color, black, white — across a wordmark and
-          a mark. Use the wordmark when GNF stands alone; use the mark when
-          you're already in a GNF context (avatar, favicon, footer icon).
-          Always use the SVG when possible.
+          Three wordmark treatments — color, black, and white — available as
+          SVG and PNG. Reach for the SVG whenever the surface supports it;
+          fall back to PNG for tools that don't (older slide decks, some
+          email clients, social uploads).
         </Paragraph>
         <Text style={pdfStyles.h3}>Files — download from the portal</Text>
-        <Bullet>logo-primary.svg — color wordmark</Bullet>
-        <Bullet>logo-primary-black.svg — monochrome black wordmark</Bullet>
-        <Bullet>logo-primary-white.svg — monochrome white wordmark (dark backgrounds)</Bullet>
-        <Bullet>logo-mark.svg — icon-only mark, color</Bullet>
-        <Bullet>logo-mark-black.svg — icon-only mark, black</Bullet>
-        <Bullet>logo-mark-white.svg — icon-only mark, white</Bullet>
+        <Bullet>logo-primary.svg / .png — color wordmark</Bullet>
+        <Bullet>logo-primary-black.svg / .png — monochrome black wordmark</Bullet>
+        <Bullet>logo-primary-white.svg / .png — monochrome white wordmark (dark backgrounds)</Bullet>
+        <Bullet>og-card.png — default social / link-preview image (1200×630)</Bullet>
 
         <Callout label="Clearspace">
           Give the logo at least the height of the "G" as breathing room on
           all sides. Don't crowd it with other logos, text, or stickers.
-          Minimum display size: 80px wide for the wordmark, 32px for the mark.
+          Minimum display size: 80px wide for the wordmark.
         </Callout>
 
         <PageFooter docTitle={DOC_TITLE} />

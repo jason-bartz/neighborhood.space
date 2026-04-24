@@ -505,6 +505,11 @@
   font-weight: 700;
 }
 
+.bg-logo__downloads {
+  display: inline-flex;
+  gap: 6px;
+}
+
 .bg-logo__download {
   font-family: var(--font-pixel);
   font-size: 11px;
@@ -521,6 +526,22 @@
 
 .bg-logo__download:hover {
   background: var(--mb-magenta);
+}
+
+.bg-logo-grid--wide {
+  grid-template-columns: minmax(0, 560px);
+}
+
+.bg-logo__preview--social {
+  background: var(--mb-paper);
+  padding: 0;
+  min-height: 0;
+}
+
+.bg-logo__preview--social img {
+  max-height: none;
+  width: 100%;
+  height: auto;
 }
 
 .bg-type-sample {

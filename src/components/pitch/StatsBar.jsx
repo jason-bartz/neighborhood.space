@@ -1,8 +1,8 @@
 // StatsBar.jsx - Persistent stats display for LP Portal (Windows 95 styled)
 import React from 'react';
-import { getCurrentQuarter } from '../services/statsTracking';
-import { BADGES } from '../data/badgeDefinitions';
-import BadgeIcon from './icons/BadgeIcon';
+import { getCurrentQuarter } from '../../services/statsTracking';
+import { BADGES } from '../../data/badgeDefinitions';
+import BadgeIcon from '../icons/BadgeIcon';
 
 // Strip a leading emoji "word" from a stored badge name (legacy format).
 const stripBadgeEmoji = (name) => {

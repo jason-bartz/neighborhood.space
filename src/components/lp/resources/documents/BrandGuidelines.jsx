@@ -18,12 +18,9 @@ const COLORS = [
 ];
 
 const LOGOS = [
-  { name: 'Wordmark — Color', file: 'logo-primary.svg', variant: 'paper' },
-  { name: 'Wordmark — Black', file: 'logo-primary-black.svg', variant: 'paper' },
-  { name: 'Wordmark — White', file: 'logo-primary-white.svg', variant: 'dark' },
-  { name: 'Mark — Color', file: 'logo-mark.svg', variant: 'paper' },
-  { name: 'Mark — Black', file: 'logo-mark-black.svg', variant: 'paper' },
-  { name: 'Mark — White', file: 'logo-mark-white.svg', variant: 'dark' },
+  { name: 'Wordmark — Color', base: 'logo-primary', formats: ['svg', 'png'], variant: 'paper' },
+  { name: 'Wordmark — Black', base: 'logo-primary-black', formats: ['svg', 'png'], variant: 'paper' },
+  { name: 'Wordmark — White', base: 'logo-primary-white', formats: ['svg', 'png'], variant: 'dark' },
 ];
 
 function ColorSwatch({ color }) {
@@ -56,7 +53,8 @@ function ColorSwatch({ color }) {
 
 function Logo({ logo }) {
   const [errored, setErrored] = useState(false);
-  const src = `/assets/brand/${logo.file}`;
+  const previewFormat = logo.formats.includes('svg') ? 'svg' : logo.formats[0];
+  const previewSrc = `/assets/brand/${logo.base}.${previewFormat}`;
   const variantClass =
     logo.variant === 'dark'
       ? 'bg-logo__preview--dark'
@@ -66,10 +64,10 @@ function Logo({ logo }) {
     <div className="bg-logo">
       <div className={`bg-logo__preview ${errored ? 'bg-logo__preview--placeholder' : variantClass}`}>
         {errored ? (
-          <span>Upload {logo.file}</span>
+          <span>Upload {logo.base}</span>
         ) : (
           <img
-            src={src}
+            src={previewSrc}
             alt={logo.name}
             onError={() => setErrored(true)}
           />
@@ -80,9 +78,18 @@ function Logo({ logo }) {
         {errored ? (
           <span className="bg-swatch__hex">pending</span>
         ) : (
-          <a className="bg-logo__download" href={src} download>
-            SVG
-          </a>
+          <span className="bg-logo__downloads">
+            {logo.formats.map((fmt) => (
+              <a
+                key={fmt}
+                className="bg-logo__download"
+                href={`/assets/brand/${logo.base}.${fmt}`}
+                download
+              >
+                {fmt.toUpperCase()}
+              </a>
+            ))}
+          </span>
         )}
       </div>
     </div>
@@ -120,16 +127,39 @@ export default function BrandGuidelines() {
 
       <h2>Logos</h2>
       <p>
-        Three logo treatments — color, black, white — across a wordmark and a
-        mark. Use the wordmark when GNF stands alone; use the mark when
-        you're already in a GNF context (avatar, favicon, footer icon).
-        Always download the SVG when possible.
+        Three wordmark treatments — color, black, and white — available as
+        SVG and PNG. Reach for the SVG whenever the surface supports it;
+        fall back to PNG for tools that don't (older slide decks, some email
+        clients, social uploads).
       </p>
 
       <div className="bg-logo-grid">
         {LOGOS.map((logo) => (
-          <Logo key={logo.file} logo={logo} />
+          <Logo key={logo.base} logo={logo} />
         ))}
+      </div>
+
+      <h3>Social card</h3>
+      <p>
+        Our default Open Graph / link-preview image (1200×630). Use it when
+        sharing GNF links or as a fallback social image for chapter posts
+        that don't have a bespoke card.
+      </p>
+
+      <div className="bg-logo-grid bg-logo-grid--wide">
+        <div className="bg-logo">
+          <div className="bg-logo__preview bg-logo__preview--social">
+            <img src="/assets/brand/og-card.png" alt="GNF social card" />
+          </div>
+          <div className="bg-logo__meta">
+            <span className="bg-logo__name">Social Card — 1200×630</span>
+            <span className="bg-logo__downloads">
+              <a className="bg-logo__download" href="/assets/brand/og-card.png" download>
+                PNG
+              </a>
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="resource-callout">
@@ -137,7 +167,7 @@ export default function BrandGuidelines() {
         <p style={{ margin: 0 }}>
           Give the logo at least the height of the "G" as breathing room on
           all sides. Don't crowd it with other logos, text, or stickers.
-          Minimum display size: 80px wide for the wordmark, 32px for the mark.
+          Minimum display size: 80px wide for the wordmark.
         </p>
       </div>
 

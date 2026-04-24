@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../firebaseConfig";
+import { db } from "../../firebaseConfig";
 import "./FounderMap.css";
 
 const chapterCenters = {

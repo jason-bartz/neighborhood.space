@@ -1,13 +1,20 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import "./NeighborhoodResources.css";
+// Make sure papaparse is imported correctly
 import Papa from "papaparse";
-import "../mock-fs.js"; // Import mock filesystem
-import { db } from '../firebaseConfig';
+import { db } from '../../firebaseConfig';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
-import ResourceIcon from "./icons/ResourceIcon";
-import { Tree, Vehicle } from "./icons/MapDecorations";
 
-// Stage -> Win95 palette accent (keyed color by business stage)
+// Verify Papa is available and show a warning if not
+if (!Papa || !Papa.parse) {
+  console.warn('PapaParse library not available - CSV parsing may not work correctly');
+}
+import WindowFrame from "../ui/WindowFrame/WindowFrame";
+import ResourceIcon from "../icons/ResourceIcon";
+import { Tree, Vehicle } from "../icons/MapDecorations";
+
+// Stage accent — indexes into the Win95 palette for consistent tile colors
+// across the list, map tiles, and modal tags.
 const STAGE_ACCENT = {
   "Ideation": "pink",
   "Early Stage": "yellow",
@@ -17,13 +24,26 @@ const STAGE_ACCENT = {
   "All": "purple",
 };
 
-// Neighborhood colors — Millennium Bug soft palette, matches desktop map
+// Neighborhood colors — Millennium Bug soft palette, sunrise → evening
 const neighborhoodColors = {
   "Ideation":    "#fde0ec", // magenta-soft
   "Early Stage": "#fde7d0", // tangerine-soft
   "Growth":      "#d5f1f4", // aqua-soft
   "Established": "#e7dffa", // grape-soft
 };
+
+// Park / greenspace blobs — organic ellipses placed between streets so
+// they sit on empty lots, not on buildings or roads.
+const FIXED_PARKS = [
+  { key: "p1", cx: 210,  cy: 240, rx: 78,  ry: 42, tone: "light" },
+  { key: "p2", cx: 1120, cy: 240, rx: 96,  ry: 52, tone: "dark"  },
+  { key: "p3", cx: 880,  cy: 420, rx: 74,  ry: 44, tone: "light" },
+  { key: "p4", cx: 160,  cy: 600, rx: 72,  ry: 40, tone: "dark"  },
+  { key: "p5", cx: 1360, cy: 600, rx: 80,  ry: 46, tone: "light" },
+  { key: "p6", cx: 520,  cy: 780, rx: 90,  ry: 50, tone: "dark"  },
+  { key: "p7", cx: 1240, cy: 960, rx: 70,  ry: 40, tone: "light" },
+  { key: "p8", cx: 380,  cy: 960, rx: 66,  ry: 38, tone: "light" },
+];
 
 // District definitions
 const districts = {
@@ -53,12 +73,13 @@ const verticalStreets = [
   "Pivot Lane"
 ];
 
-export default function MobileNeighborhoodResources({ onClose }) {
+export default function NeighborhoodResources({ onClose, windowId, zIndex, bringToFront, isEmbedded = false }) {
   const [resources, setResources] = useState([]);
   const [filteredResources, setFilteredResources] = useState([]);
   const [selectedResource, setSelectedResource] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [filter, setFilter] = useState({
+    chapter: "",
     stage: "",
     type: ""
   });
@@ -67,70 +88,7 @@ export default function MobileNeighborhoodResources({ onClose }) {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const mapRef = useRef(null);
   const animationRef = useRef(null);
-  const contentRef = useRef(null); // Reference to the inner content area
-  const [currentTime, setCurrentTime] = useState("");
-  const containerRef = useRef(null); // Reference to the main container div
-  
-  // Add state for map zooming and panning
-  const [mapTransform, setMapTransform] = useState({
-    scale: 0.5,  // More zoomed out to see all neighborhoods
-    translateX: -200,  // Adjusted to center horizontally
-    translateY: -50,  // Adjusted to show more of the content area
-    initialDistance: 0,
-    isDragging: false,
-    lastX: 0,
-    lastY: 0
-  });
-  
-  // Scroll to top when component mounts
-  useEffect(() => {
-    // Function to ensure we scroll to the top
-    const scrollToTop = () => {
-      // Scroll the main container
-      if (containerRef.current) {
-        containerRef.current.scrollTop = 0;
-      }
-      
-      // Scroll the content div
-      if (contentRef.current) {
-        contentRef.current.scrollTop = 0;
-      }
-      
-      // Scroll the window
-      window.scrollTo(0, 0);
-    };
-    
-    // Execute scroll immediately
-    scrollToTop();
-    
-    // Also execute after a short delay to ensure DOM is fully rendered
-    const timer = setTimeout(() => {
-      scrollToTop();
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Clock functionality
-  useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      const dateStr = now.toLocaleDateString("en-US", {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      });
-      const timeStr = now.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-      setCurrentTime(`${dateStr} ${timeStr} ${now.getFullYear()}`);
-    };
-    
-    updateClock(); // Call once immediately
-    const interval = setInterval(updateClock, 60000); // Then every minute
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, []);
+  const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   
   useEffect(() => {
     async function loadCSV() {
@@ -157,11 +115,14 @@ export default function MobileNeighborhoodResources({ onClose }) {
             "Focus Area": item.FocusArea || item["Focus Area"] || item.focusArea || '',
             "Business Stage": item.Stage || item["Business Stage"] || item.businessStage || "Ideation",
             "Counties Served": item.CountiesServed || item["Counties Served"] || item.countiesServed || '',
+            Chapter: item.Chapter || item.chapter || "Western New York",
             URL: item.Website || item.URL || item.url || '',
             "Expanded Details": item.About || item["Expanded Details"] || item.expandedDetails || '',
             "Average Check Size": item.AverageCheckSize || item["Average Check Size"] || item.averageCheckSize || '',
             "Relocation Required?": item.RelocationRequired || item["Relocation Required?"] || item.relocationRequired || ''
           }));
+          console.log("Firestore data loaded:", fixedData.length, "resources");
+          console.log("Sample resource:", fixedData[0]);
           const processedResources = processResources(fixedData);
           setResources(processedResources);
           setFilteredResources(processedResources);
@@ -173,47 +134,37 @@ export default function MobileNeighborhoodResources({ onClose }) {
       
       // If Firestore fails or is empty, try CSV
       try {
-        // Use the same mock filesystem as the desktop version
-        if (window.fs && window.fs.readFile) {
-          const response = await window.fs.readFile('Western_New_York_Entrepreneurial_Resources_with_Business_Stage.csv', { encoding: 'utf8' });
-          
-          Papa.parse(response, {
-            header: true,
-            skipEmptyLines: true,
-            dynamicTyping: true,
-            complete: (results) => {
-              if (results.data && results.data.length > 0) {
-                // Make sure all rows have a business stage, defaulting to "Ideation" if missing
-                const fixedData = results.data.map(item => ({
-                  ...item,
-                  "Business Stage": item["Business Stage"] || "Ideation"
-                }));
-                const processedResources = processResources(fixedData);
-                setResources(processedResources);
-                setFilteredResources(processedResources);
-              } else {
-                console.error("No data found in CSV results");
-                setFallbackData();
-              }
-            },
-            error: (error) => {
-              console.error("Error parsing CSV:", error);
+        const response = await window.fs.readFile('Western_New_York_Entrepreneurial_Resources_with_Business_Stage.csv', { encoding: 'utf8' });
+        
+        Papa.parse(response, {
+          header: true,
+          skipEmptyLines: true,
+          dynamicTyping: true,
+          complete: (results) => {
+            if (results.data.length > 0) {
+              // Make sure all rows have a business stage, defaulting to "Ideation" if missing
+              const fixedData = results.data.map(item => ({
+                ...item,
+                "Business Stage": item["Business Stage"] || "Ideation"
+              }));
+              const processedResources = processResources(fixedData);
+              setResources(processedResources);
+              setFilteredResources(processedResources);
+            } else {
               setFallbackData();
             }
-          });
-        } else {
-          console.error("Mock filesystem not available");
-          setFallbackData();
-        }
+          },
+          error: (error) => {
+            setFallbackData();
+          }
+        });
       } catch (error) {
-        console.error("Error loading CSV:", error);
+        // Fallback to sample data if file can't be loaded
         setFallbackData();
       }
     }
     
     function setFallbackData() {
-      console.warn("Using fallback data");
-      // This is a much smaller fallback dataset in case the main one fails
       const sampleData = [
         {
           Resource: "43North Accelerator",
@@ -222,19 +173,19 @@ export default function MobileNeighborhoodResources({ onClose }) {
           "Relocation Required?": "Yes (1 year in Buffalo)",
           "Counties Served": "Global",
           URL: "https://43north.org/",
-          "Expanded Details": "A globally recognized startup competition investing $1M each in 5 companies annually.",
+          "Expanded Details": "A globally recognized startup competition investing $1M each in 5 companies annually with relocation to Buffalo required. Past winners include ACV Auctions, Squire, Top Seedz.",
           "Average Check Size": "NA",
           "Business Stage": "Growth"
         },
         {
-          Resource: "Launch NY",
+          Resource: "Armory Square Ventures",
           Type: "Venture Capital",
-          "Focus Area": "High-growth startups",
+          "Focus Area": "Tech Startups",
           "Relocation Required?": "No",
-          "Counties Served": "All 8 counties",
-          URL: "https://launchny.org/",
-          "Expanded Details": "Seed fund and mentorship for scalable startups.",
-          "Average Check Size": "Up to $100K",
+          "Counties Served": "Upstate NY, Erie",
+          URL: "https://armorysv.com/",
+          "Expanded Details": "Seed-to-Series A venture capital firm investing in scalable tech startups across Upstate NY, emphasizing Buffalo opportunities.",
+          "Average Check Size": "$1M–$5M rounds",
           "Business Stage": "Early"
         },
         {
@@ -753,7 +704,8 @@ export default function MobileNeighborhoodResources({ onClose }) {
           "Expanded Details": "Supports UB students creating ventures that contribute to WNY's economy with scholarship, professional development, and internships.",
           "Average Check Size": "NA",
           "Business Stage": "Ideation"
-        }
+        },
+        
       ];
       
       const processedResources = processResources(sampleData);
@@ -761,10 +713,11 @@ export default function MobileNeighborhoodResources({ onClose }) {
       setFilteredResources(processedResources);
     }
     
-    // Call loadCSV to fetch data
     loadCSV();
   }, []);
 
+  // Near the top of your component, add this constant for tree positions.
+  // `variant` picks between the two tree glyphs in MapDecorations.
   const FIXED_TREES = [
     { key: "tree-1", x: 250, y: 120, variant: "pine" },
     { key: "tree-2", x: 450, y: 220, variant: "round" },
@@ -821,6 +774,7 @@ export default function MobileNeighborhoodResources({ onClose }) {
     rawResources.forEach(resource => {
       const businessStage = resource["Business Stage"] || "Ideation";
       const resourceType = resource["Type"] || "Other";
+      const chapter = resource.Chapter || resource.chapter || "Western New York";
       
       // Special case for specific resources that should be in Town Square
       if (resource.Resource === "BootSector" || 
@@ -842,6 +796,7 @@ export default function MobileNeighborhoodResources({ onClose }) {
           ...resource,
           businessStage,
           resourceType,
+          chapter,
           district,
           accent: STAGE_ACCENT[businessStage] || "pink"
         });
@@ -870,6 +825,7 @@ export default function MobileNeighborhoodResources({ onClose }) {
         ...resource,
         businessStage,
         resourceType,
+        chapter,
         district,
         accent: STAGE_ACCENT[businessStage] || "pink"
       });
@@ -997,6 +953,13 @@ export default function MobileNeighborhoodResources({ onClose }) {
       );
     }
     
+    // Apply chapter filter
+    if (filter.chapter) {
+      filtered = filtered.filter(resource =>
+        resource.chapter === filter.chapter
+      );
+    }
+    
     // Apply stage filter
     if (filter.stage) {
       filtered = filtered.filter(resource => 
@@ -1011,7 +974,65 @@ export default function MobileNeighborhoodResources({ onClose }) {
       );
     }
     
-    setFilteredResources(filtered);
+    // Position resources on the map
+    const mapWidth = 1600;
+    const mapHeight = 1200;
+    
+    // Define neighborhood boundaries (y-coordinates)
+    const neighborhoodHeights = {
+      "Ideation": { top: mapHeight * 0.75, bottom: mapHeight },
+      "Early Stage": { top: mapHeight * 0.5, bottom: mapHeight * 0.75 },
+      "Growth": { top: mapHeight * 0.25, bottom: mapHeight * 0.5 },
+      "Established": { top: 0, bottom: mapHeight * 0.25 }
+    };
+    
+    // Define district boundaries (x-coordinates)
+    const districtCount = Object.keys(districts).length;
+    const districtWidth = mapWidth / districtCount;
+    
+    const districtBoundaries = {};
+    Object.keys(districts).forEach((district, index) => {
+      districtBoundaries[district] = {
+        left: index * districtWidth,
+        right: (index + 1) * districtWidth
+      };
+    });
+    
+    // Position resources along streets in their respective neighborhoods and districts
+    const positioned = filtered.map(resource => {
+      // Skip if already positioned
+      if (resource.positioned) return resource;
+      
+      // Get neighborhood boundaries
+      const neighborhood = neighborhoodHeights[resource.businessStage] || neighborhoodHeights["Ideation"];
+      
+      // Get district boundaries
+      const district = districtBoundaries[resource.district] || {
+        left: 0,
+        right: mapWidth
+      };
+      
+      // Find a horizontal street in the neighborhood
+      const neighborhoodHeight = neighborhood.bottom - neighborhood.top;
+      const streetY = neighborhood.top + neighborhoodHeight / 2;
+      
+      // Find a vertical street in the district
+      const districtWidth = district.right - district.left;
+      const streetX = district.left + districtWidth / 2;
+      
+      // Add some randomness to prevent exact overlaps
+      const randX = (Math.random() - 0.5) * 100;
+      const randY = (Math.random() - 0.5) * 50;
+      
+      return {
+        ...resource,
+        x: streetX + randX,
+        y: streetY + randY,
+        positioned: true
+      };
+    });
+    
+    setFilteredResources(positioned);
   }, [resources, searchTerm, filter]);
 
   // Animation for cars
@@ -1024,6 +1045,7 @@ export default function MobileNeighborhoodResources({ onClose }) {
         special: ["police", "bus"]
       };
 
+      // Create 7 cars (two specials + five regulars)
       for (let i = 0; i < 7; i++) {
         const isHorizontal = Math.random() > 0.5;
         const variant = i < 2
@@ -1108,13 +1130,17 @@ export default function MobileNeighborhoodResources({ onClose }) {
     };
   }, [carPositions.length, horizontalStreets.length, verticalStreets.length]);
 
-  // Generate unique stages and types for filters
+  // Generate unique counties, stages, and types for filters
   const getUniqueValues = (field) => {
     if (!resources.length) return [];
     
     const values = new Set();
     
-    if (field === "stage") {
+    if (field === "chapter") {
+      resources.forEach(resource => {
+        if (resource.chapter) values.add(resource.chapter);
+      });
+    } else if (field === "stage") {
       resources.forEach(resource => {
         if (resource.businessStage) values.add(resource.businessStage);
       });
@@ -1136,810 +1162,632 @@ export default function MobileNeighborhoodResources({ onClose }) {
     setSelectedResource(null);
   };
 
+  // Close modal on Escape
+  useEffect(() => {
+    if (!selectedResource) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") setSelectedResource(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [selectedResource]);
+
   const handleFilterChange = (field, value) => {
     setFilter(prev => ({ ...prev, [field]: value }));
   };
-  
-  // Handle touch events for map zooming and panning
-  const handleTouchStart = (e) => {
-    if (e.touches.length === 1) {
-      // Single touch - prepare for panning
-      setMapTransform(prev => ({
-        ...prev,
-        isDragging: true,
-        lastX: e.touches[0].clientX, 
-        lastY: e.touches[0].clientY
-      }));
-    } else if (e.touches.length === 2) {
-      // Two fingers - prepare for pinch zoom
-      const distance = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      setMapTransform(prev => ({
-        ...prev,
-        initialDistance: distance
-      }));
+
+  // Define handleWindowClick function
+  const handleWindowClick = () => {
+    if (windowId && bringToFront) {
+      bringToFront(windowId);
     }
-  };
-  
-  const handleTouchMove = (e) => {
-    if (e.touches.length === 1 && mapTransform.isDragging) {
-      // Handle panning
-      const deltaX = e.touches[0].clientX - mapTransform.lastX;
-      const deltaY = e.touches[0].clientY - mapTransform.lastY;
-      
-      setMapTransform(prev => ({
-        ...prev,
-        translateX: prev.translateX + deltaX,
-        translateY: prev.translateY + deltaY,
-        lastX: e.touches[0].clientX,
-        lastY: e.touches[0].clientY
-      }));
-    } else if (e.touches.length === 2 && mapTransform.initialDistance > 0) {
-      // Handle pinch zoom
-      const distance = Math.hypot(
-        e.touches[0].clientX - e.touches[1].clientX,
-        e.touches[0].clientY - e.touches[1].clientY
-      );
-      
-      const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-      const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-      
-      const newScale = Math.max(0.5, Math.min(3, mapTransform.scale * (distance / mapTransform.initialDistance)));
-      
-      setMapTransform(prev => ({
-        ...prev,
-        scale: newScale,
-        initialDistance: distance
-      }));
-    }
-    
-    // Prevent default behavior to avoid scrolling the page
-    e.preventDefault();
-  };
-  
-  const handleTouchEnd = () => {
-    setMapTransform(prev => ({
-      ...prev,
-      isDragging: false,
-      initialDistance: 0
-    }));
-  };
-  
-  const resetZoom = () => {
-    setMapTransform({
-      scale: 0.5,  // Reset to initial zoomed out view
-      translateX: 200,  // Adjusted to center horizontally
-      translateY: 50,  // Adjusted to show more of the content area
-      initialDistance: 0,
-      isDragging: false,
-      lastX: 0,
-      lastY: 0
-    });
   };
 
-  return (
-    <div
-      ref={containerRef}
-      style={{
-        minHeight: "100vh",
-        fontFamily: "var(--font-content)",
-        overflowY: "auto",
-        display: "flex",
-        flexDirection: "column",
-        padding: "10px"
-      }}
-    >
-      {/* Main app container with integrated title bar */}
-      <div style={{
-        background: "var(--mb-chalk)",
-        border: "2px solid var(--mb-ink)",
-        boxShadow: "var(--shadow-hard-lg)",
-        flex: "1",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden"
-      }}>
-        {/* Window Title Bar — ink + pixel font to match Navigator theme */}
-        <div style={{
-          background: "var(--mb-ink)",
-          color: "var(--mb-chalk)",
-          padding: "6px 10px",
-          minHeight: "28px",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          fontFamily: "var(--font-pixel)",
-          fontSize: "11px",
-          letterSpacing: "0.04em",
-          userSelect: "none",
-          borderBottom: "1px solid rgba(255,255,255,0.1)"
-        }}>
-          <span>Neighborhood Navigator</span>
-          <button
-            onClick={onClose}
-            aria-label="Close window"
-            style={{
-              background: "var(--mb-magenta)",
-              border: "1px solid var(--mb-chalk)",
-              color: "var(--mb-chalk)",
-              cursor: "pointer",
-              padding: "0",
-              fontSize: "12px",
-              width: "20px",
-              height: "20px",
-              lineHeight: "1",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "var(--font-content)"
-            }}
+  // Content for the component
+  const content = (
+    <div className="neighborhood-resources" onClick={handleWindowClick}>
+      {/* Integrated toolbar with search and filters in a single row */}
+      <div className="resources-toolbar">
+        <input
+          type="text"
+          placeholder="Search resources..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{ maxWidth: "300px" }}
+        />
+        
+        <div style={{ display: "flex", flexWrap: "nowrap", gap: "10px", flexGrow: 1 }}>
+          <select
+            value={filter.chapter}
+            onChange={(e) => handleFilterChange("chapter", e.target.value)}
           >
-            ✕
-          </button>
+            <option value="">All Chapters</option>
+            {getUniqueValues("chapter").map(chapter => (
+              <option key={chapter} value={chapter}>{chapter}</option>
+            ))}
+          </select>
+          
+          <select 
+            value={filter.stage}
+            onChange={(e) => handleFilterChange("stage", e.target.value)}
+          >
+            <option value="">All Business Stages</option>
+            {getUniqueValues("stage").map(stage => (
+              <option key={stage} value={stage}>{stage}</option>
+            ))}
+          </select>
+          
+          <select
+            value={filter.type}
+            onChange={(e) => handleFilterChange("type", e.target.value)}
+          >
+            <option value="">All Resource Types</option>
+            {getUniqueValues("type").map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      
+      {/* Main content area */}
+      <div className="resources-content">
+        {/* Resource List */}
+        <div className="resources-list">
+          <h3>Resources ({filteredResources.length})</h3>
+          <div className="resources-items">
+            {[...filteredResources]
+              .sort((a, b) => a.Resource?.localeCompare(b.Resource || ""))
+              .map(resource => (
+                <div
+                  key={resource.id}
+                  className={`resource-item resource-item--${resource.accent || "pink"}`}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleResourceClick(resource)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleResourceClick(resource);
+                    }
+                  }}
+                >
+                  <span className="resource-icon-tile" aria-hidden="true">
+                    <ResourceIcon type={resource.resourceType} size={28} />
+                  </span>
+                  <div className="resource-text">
+                    <div className="resource-name">{resource.Resource}</div>
+                    <div className="resource-type">{resource.resourceType}</div>
+                  </div>
+                </div>
+              ))}
+          </div>
         </div>
         
-        {/* Mobile-optimized toolbar */}
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "10px",
-          padding: "10px",
-          background: "var(--mb-paper)",
-          borderBottom: "2px solid var(--mb-ink)"
-        }}>
-          {/* Resource dropdown */}
-          <div style={{ width: "100%" }}>
-            <select
-              onChange={(e) => {
-                if (e.target.value) {
-                  const resource = filteredResources.find(r => r.id === parseInt(e.target.value));
-                  if (resource) {
-                    handleResourceClick(resource);
-                  }
-                }
-              }}
-              style={{
-                padding: "8px",
-                border: "2px solid var(--mb-ink)",
-                background: "var(--mb-chalk)",
-                color: "var(--mb-ink)",
-                fontFamily: "inherit",
-                fontSize: "14px",
-                width: "100%"
-              }}
-              value=""
-            >
-              <option value="">Select a resource...</option>
-              {[...filteredResources]
-                .sort((a, b) => a.Resource?.localeCompare(b.Resource || ""))
-                .map(resource => (
-                  <option key={resource.id} value={resource.id}>
-                    {resource.Resource}
-                  </option>
-                ))}
-            </select>
-          </div>
-
-          {/* Filters */}
-          <div style={{ display: "flex", gap: "5px" }}>
-            <select
-              value={filter.stage}
-              onChange={(e) => handleFilterChange("stage", e.target.value)}
-              style={{
-                padding: "8px",
-                border: "2px solid var(--mb-ink)",
-                background: "var(--mb-chalk)",
-                color: "var(--mb-ink)",
-                fontFamily: "inherit",
-                fontSize: "14px",
-                flex: 1
-              }}
-            >
-              <option value="">All Stages</option>
-              {getUniqueValues("stage").map(stage => (
-                <option key={stage} value={stage}>{stage}</option>
-              ))}
-            </select>
-
-            <select
-              value={filter.type}
-              onChange={(e) => handleFilterChange("type", e.target.value)}
-              style={{
-                padding: "8px",
-                border: "2px solid var(--mb-ink)",
-                background: "var(--mb-chalk)",
-                color: "var(--mb-ink)",
-                fontFamily: "inherit",
-                fontSize: "14px",
-                flex: 1
-              }}
-            >
-              <option value="">All Types</option>
-              {getUniqueValues("type").map(type => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div 
-          ref={contentRef}
-          style={{ 
-            display: "flex", 
-            flexDirection: "column", 
-            overflow: "auto",
-            flex: 1
-          }}>
-          {/* Map Instructions */}
-          <div style={{ padding: "10px" }}>
-            <div style={{
-              margin: "0 0 10px 0",
-              background: "var(--mb-butter-soft)",
-              border: "2px solid var(--mb-ink)",
-              boxShadow: "var(--shadow-hard-sm)",
-              padding: "10px",
-              color: "var(--mb-ink)"
-            }}>
-              <div style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: "6px"
-              }}>
-                <h3 style={{
-                  margin: 0,
-                  fontFamily: "var(--font-pixel)",
-                  fontSize: "14px",
-                  letterSpacing: "0.04em"
-                }}>
-                  Resources ({filteredResources.length})
-                </h3>
-              </div>
-
-              <p style={{ fontSize: "13px", margin: 0, color: "var(--mb-ink-60)" }}>
-                Browse resources on the map below or use the dropdown at the top to view details.
-              </p>
-            </div>
-          </div>
-
-          {/* Map View */}
-          <div 
-            id="resourcesMap" 
-            style={{ 
-              padding: "0 10px 10px 10px",
-              flex: 1,
-              position: "relative"
-            }}
-          >
-            <h3 style={{
-              margin: "0 0 10px 0",
-              fontFamily: "var(--font-pixel)",
-              fontSize: "14px",
-              letterSpacing: "0.04em",
-              color: "var(--mb-ink)",
-              borderBottom: "2px solid var(--mb-ink)",
-              paddingBottom: "5px"
-            }}>
-              Resource Map
-            </h3>
-            
-            <div style={{ 
-              position: "relative",
-              width: "100%",
-              height: "calc(100vh - 300px)", /* Set a specific height that doesn't dominate the viewport */
-              maxHeight: "500px", /* Limit maximum height */
-              overflow: "hidden", /* Changed from auto to hidden to handle our own scrolling */
-              border: "1px solid #ddd",
-              touchAction: "none" /* Prevents browser handling of touch events */
-            }}>
-              {/* Zoom controls */}
-              <div style={{
-                position: "absolute",
-                right: "10px",
-                top: "10px",
-                zIndex: 10,
-                display: "flex",
-                flexDirection: "column",
-                gap: "5px"
-              }}>
-                <button
-                  onClick={() => setMapTransform(prev => ({ ...prev, scale: Math.min(3, prev.scale + 0.2) }))}
-                  style={{
-                    width: "30px",
-                    height: "30px",
-                    background: "white",
-                    border: "1px solid #ccc",
-                    fontSize: "16px",
-                    fontWeight: "bold",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}
-                >
-                  +
-                </button>
-                <button
-                  onClick={() => setMapTransform(prev => ({ ...prev, scale: Math.max(0.5, prev.scale - 0.2) }))}
-                  style={{
-                    width: "30px",
-                    height: "30px",
-                    background: "white",
-                    border: "1px solid #ccc",
-                    fontSize: "16px",
-                    fontWeight: "bold",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}
-                >
-                  −
-                </button>
-                <button
-                  onClick={resetZoom}
-                  style={{
-                    width: "30px",
-                    height: "30px",
-                    background: "white",
-                    border: "1px solid #ccc",
-                    fontSize: "16px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center"
-                  }}
-                >
-                  ↺
-                </button>
-              </div>
+        {/* Map */}
+        <div className="resources-map-container">
+          <div className="resources-map" ref={mapRef}>
+            {/* SVG Map */}
+            <svg viewBox="0 0 1600 1200" className="map-svg">
+              {/* Draw neighborhoods backgrounds first */}
+              <g className="neighborhoods-bg">
+                <rect 
+                  x="0" y="900" 
+                  width="1600" height="300" 
+                  fill={neighborhoodColors["Ideation"]}
+                  className="neighborhood"
+                />
+                <rect 
+                  x="0" y="600" 
+                  width="1600" height="300" 
+                  fill={neighborhoodColors["Early Stage"]}
+                  className="neighborhood"
+                />
+                <rect 
+                  x="0" y="300" 
+                  width="1600" height="300" 
+                  fill={neighborhoodColors["Growth"]}
+                  className="neighborhood"
+                />
+                <rect 
+                  x="0" y="0" 
+                  width="1600" height="300" 
+                  fill={neighborhoodColors["Established"]}
+                  className="neighborhood"
+                />
+              </g>
               
-              <div 
-                style={{ 
-                  width: "1600px", 
-                  height: "1200px", 
-                  position: "relative",
-                  transformOrigin: "0 0",
-                  transform: `scale(${mapTransform.scale}) translate(${mapTransform.translateX / mapTransform.scale}px, ${mapTransform.translateY / mapTransform.scale}px)`,
-                  transition: mapTransform.isDragging ? 'none' : 'transform 0.1s ease-out'
-                }}
-                ref={mapRef}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-                onTouchCancel={handleTouchEnd}
-              >
-                {/* Map SVG */}
-                <svg viewBox="0 0 1600 1200" style={{ width: "100%", height: "100%" }}>
-                  {/* Neighborhoods backgrounds */}
-                  <g>
-                    <rect 
-                      x="0" y="900" 
-                      width="1600" height="300" 
-                      fill={neighborhoodColors["Ideation"]}
-                    />
-                    <rect 
-                      x="0" y="600" 
-                      width="1600" height="300" 
-                      fill={neighborhoodColors["Early Stage"]}
-                    />
-                    <rect 
-                      x="0" y="300" 
-                      width="1600" height="300" 
-                      fill={neighborhoodColors["Growth"]}
-                    />
-                    <rect 
-                      x="0" y="0" 
-                      width="1600" height="300" 
-                      fill={neighborhoodColors["Established"]}
-                    />
-                  </g>
+              {/* Draw districts backgrounds */}
+              <g className="districts-bg">
+                {useMemo(() => {
+                  const districtNames = Object.keys(districts);
+                  const totalWidth = 1600;
+                  const districtWidth = totalWidth / districtNames.length;
                   
-                  {/* Draw districts backgrounds */}
-                  <g>
-                    {useMemo(() => {
-                      const districtNames = Object.keys(districts);
-                      const totalWidth = 1600;
-                      const districtWidth = totalWidth / districtNames.length;
+                  return (
+                    <>
+                      {/* Draw district background shapes without borders.
+                          Labels are rendered later in .district-labels so
+                          they sit above streets and buildings. */}
+                      {districtNames.map((district, index) => {
+                        const x = index * districtWidth;
+
+                        return (
+                          <g key={district} className="district">
+                            <rect
+                              x={x}
+                              y={0}
+                              width={districtWidth}
+                              height={1200}
+                              fill="rgba(255,255,255,0.05)"
+                              stroke="none"
+                              className="district-area"
+                            />
+                          </g>
+                        );
+                      })}
                       
-                      return (
-                        <>
-                          {/* Draw district background shapes without borders */}
-                          {districtNames.map((district, index) => {
-                            const x = index * districtWidth;
-                            
-                            return (
-                              <g key={district}>
-                                <rect 
-                                  x={x}
-                                  y={0}
-                                  width={districtWidth}
-                                  height={1200}
-                                  fill="rgba(255,255,255,0.05)"
-                                  stroke="none"
-                                />
-                                <text 
-                                  x={x + districtWidth/2} 
-                                  y="1180" 
-                                  textAnchor="middle"
-                                  style={{ fontSize: "26px", fontWeight: "bold", fill: "#4a2770", stroke: "white", strokeWidth: "0.8px", paintOrder: "stroke" }}
-                                >
-                                  {district}
-                                </text>
-                              </g>
-                            );
-                          })}
-                          
-                          {/* Draw only the 4 vertical dividing lines */}
-                          {[1, 2, 3, 4].map(i => {
-                            const x = i * districtWidth;
-                            
-                            // Create a slightly varied line for visual interest
-                            const pathData = `M ${x} 0 L ${x + (Math.sin(i * 5) * 20)} 300 
-                                             L ${x + (Math.cos(i * 3) * 30)} 600 
-                                             L ${x + (Math.sin(i * 4) * 25)} 900 
-                                             L ${x} 1200`;
-                            
-                            return (
-                              <path 
-                                key={`divider-${i}`}
-                                d={pathData}
-                                fill="none"
-                                stroke="white"
-                                strokeWidth="7"
-                                strokeDasharray="6,10"
-                              />
-                            );
-                          })}
-                        </>
-                      );
-                    }, [districts])}
-                  </g>
-                  
-                  {/* Streets */}
-                  <g>
-                    {/* Horizontal streets */}
-                    <g>
-                      {horizontalStreets.map((street, index) => {
-                        const y = 150 + index * 180;
-                        
+                      {/* Subtle district dividers — thin dotted ink */}
+                      {[1, 2, 3, 4].map(i => {
+                        const x = i * districtWidth;
+                        const pathData = `M ${x} 0 L ${x + (Math.sin(i * 5) * 14)} 300
+                                         L ${x + (Math.cos(i * 3) * 18)} 600
+                                         L ${x + (Math.sin(i * 4) * 16)} 900
+                                         L ${x} 1200`;
                         return (
-                          <g key={street}>
-                            <path 
-                              d={`M 0 ${y} C ${400} ${y+30}, ${1200} ${y-30}, ${1600} ${y}`}
-                              stroke="#aaaaaa"
-                              strokeWidth="8"
-                              fill="none"
-                            />
-                            <text 
-                              x="255" 
-                              y={y-10}
-                              style={{ fontSize: "22px", fill: "black", stroke: "white", strokeWidth: "0.8px", paintOrder: "stroke" }}
-                            >
-                              {street}
-                            </text>
-                          </g>
+                          <path
+                            key={`divider-${i}`}
+                            d={pathData}
+                            fill="none"
+                            stroke="rgba(20,20,25,0.12)"
+                            strokeWidth="2"
+                            strokeDasharray="2,8"
+                            className="district-divider"
+                          />
                         );
                       })}
-                    </g>
-                    
-                    {/* Vertical streets */}
-                    <g>
-                      {verticalStreets.map((street, index) => {
-                        const streetX = (1 + index) * (1600 / (verticalStreets.length + 1));
-                        
-                        return (
-                          <g key={street}>
-                            <path 
-                              d={`M ${streetX} 0 C ${streetX+30} ${300}, ${streetX-30} ${900}, ${streetX} ${1200}`}
-                              stroke="#aaaaaa"
-                              strokeWidth="8"
-                              fill="none"
-                            />
-                            <text 
-                              x={streetX-20} 
-                              y="470" 
-                              transform={`rotate(90, ${streetX-20}, 470)`}
-                              style={{ fontSize: "22px", fill: "black", stroke: "white", strokeWidth: "0.8px", paintOrder: "stroke" }}
-                            >
-                              {street}
-                            </text>
-                          </g>
-                        );
-                      })}
-                    </g>
-                  </g>
-                  
-                  {/* Trees */}
-                  <g>
-                    {FIXED_TREES.map(tree => (
-                      <Tree
-                        key={tree.key}
-                        x={tree.x}
-                        y={tree.y}
-                        variant={tree.variant}
-                      />
-                    ))}
-                  </g>
-
-                  {/* Moving cars */}
-                  <g>
-                    {carPositions.map(car => (
-                      <Vehicle
-                        key={car.id}
-                        x={car.x}
-                        y={car.y}
-                        variant={car.variant}
-                        direction={car.direction}
-                      />
-                    ))}
-                  </g>
-
-                  {/* Resource buildings — beveled tile + inline pictogram */}
-                  <g>
-                    {filteredResources.map(resource => {
-                      const isHovered = hoveredResource?.id === resource.id;
-                      const stageFill = {
-                        pink: "#ffd6ec",
-                        yellow: "#ffe6b3",
-                        green: "#b3e6cc",
-                        blue: "#d0eaff",
-                        purple: "#e8c8ff",
-                      }[resource.accent || "pink"];
-                      return (
-                        <g
-                          key={resource.id}
-                          onClick={(e) => handleResourceClick(resource, e)}
-                          onMouseEnter={(e) => {
-                            setHoveredResource(resource);
-                            setMousePosition({ x: e.clientX, y: e.clientY });
-                          }}
-                          onMouseMove={(e) => {
-                            setMousePosition({ x: e.clientX, y: e.clientY });
-                          }}
-                          onMouseLeave={() => {
-                            setHoveredResource(null);
-                          }}
-                          style={{ cursor: "pointer" }}
-                        >
-                          <rect
-                            x={resource.x - 22}
-                            y={resource.y - 18}
-                            width="44"
-                            height="44"
-                            fill="#2d2d2d"
-                            opacity="0.18"
-                          />
-                          <rect
-                            x={resource.x - 24}
-                            y={resource.y - 22}
-                            width="48"
-                            height="6"
-                            fill={stageFill}
-                            stroke="#2d2d2d"
-                            strokeWidth="1.25"
-                          />
-                          <rect
-                            x={resource.x - 24}
-                            y={resource.y - 16}
-                            width="48"
-                            height="38"
-                            fill={isHovered ? "#ffffff" : "#f7f7f7"}
-                            stroke="#2d2d2d"
-                            strokeWidth={isHovered ? 1.75 : 1.25}
-                          >
-                            <title>{resource.Resource}</title>
-                          </rect>
-                          <ResourceIcon
-                            type={resource.resourceType}
-                            size={34}
-                            inline
-                            x={resource.x}
-                            y={resource.y + 3}
-                            title={resource.Resource}
-                          />
-                        </g>
-                      );
-                    })}
-                  </g>
-
-                  {/* Neighborhood labels — matching desktop style */}
-                  <g>
-                    {[
-                      { text: "Establishment Heights", y: 150, fill: "#d0eaff" },
-                      { text: "Growth Park", y: 450, fill: "#b3e6cc" },
-                      { text: "Early Stage Neighborhood", y: 750, fill: "#ffe6b3" },
-                      { text: "Ideation Valley", y: 1050, fill: "#ffd6ec" },
-                    ].map(({ text, y, fill }) => (
-                      <g key={text}>
-                        <rect x="30" y={y - 24} width="320" height="36" fill="#2d2d2d" opacity="0.25" />
-                        <rect x="26" y={y - 28} width="320" height="36" fill={fill} stroke="#2d2d2d" strokeWidth="1.5" />
-                        <text
-                          x="186"
-                          y={y - 4}
-                          textAnchor="middle"
-                          fontSize="20"
-                          fontWeight="bold"
-                          fill="#2d2d2d"
-                          style={{ fontFamily: "'Arial Black', Impact, sans-serif", letterSpacing: "0.5px" }}
-                        >
-                          {text.toUpperCase()}
-                        </text>
-                      </g>
-                    ))}
-                  </g>
-                </svg>
-                
-                <div style={{
-                  position: 'absolute',
-                  bottom: '10px',
-                  left: '10px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  background: 'rgba(255,255,255,0.9)',
-                  border: '1px solid #ccc',
-                  padding: '5px 10px',
-                  zIndex: 100
-                }}>
-                  <img 
-                    src="/assets/Clampie.webp" 
-                    alt="Clampie" 
-                    style={{ width: '40px', height: '40px', marginRight: '8px' }} 
+                    </>
+                  );
+                }, [districts])}
+              </g>
+              
+              {/* Parks / greenspace — behind streets and buildings */}
+              <g className="parks">
+                {FIXED_PARKS.map(park => (
+                  <ellipse
+                    key={park.key}
+                    cx={park.cx}
+                    cy={park.cy}
+                    rx={park.rx}
+                    ry={park.ry}
+                    className={park.tone === "dark" ? "park-shape-dark" : "park-shape"}
                   />
-                  <span style={{ fontSize: '12px' }}>
-                    Missing a resource?{' '}
-                    <a
-                      href="mailto:jason@goodneighbor.fund?subject=Neighborhood%20Resources%20Map%20Edit"
-                      style={{ color: 'var(--mb-magenta-deep)', fontWeight: 'bold' }}
-                    >
-                      Email us
-                    </a>
-                  </span>
-                </div>
-              </div>
-            </div>
+                ))}
+              </g>
 
-            <div style={{
-              marginTop: "10px",
-              fontSize: "12px",
-              textAlign: "center",
-              padding: "8px",
-              background: "var(--mb-paper)",
-              border: "2px solid var(--mb-ink)",
-              color: "var(--mb-ink-60)"
-            }}>
-              <em>Tip: Pinch to zoom and drag to pan the map. Tap on resources to view details.</em>
-            </div>
+              {/* Streets — two-layer asphalt with dashed center lane */}
+              <g className="streets">
+                {/* Horizontal streets */}
+                <g className="horizontal-streets">
+                  {horizontalStreets.map((street, index) => {
+                    const y = 150 + index * 180;
+                    const d = `M 0 ${y} C ${400} ${y + 10}, ${1200} ${y - 10}, ${1600} ${y}`;
+                    return (
+                      <g key={street} className="street">
+                        <path d={d} className="street-curb" />
+                        <path d={d} className="street-asphalt" />
+                        <path d={d} className="street-lane" />
+                      </g>
+                    );
+                  })}
+                </g>
+
+                {/* Vertical streets */}
+                <g className="vertical-streets">
+                  {verticalStreets.map((street, index) => {
+                    const streetX = (1 + index) * (1600 / (verticalStreets.length + 1));
+                    const d = `M ${streetX} 0 C ${streetX + 10} ${300}, ${streetX - 10} ${900}, ${streetX} ${1200}`;
+                    return (
+                      <g key={street} className="street">
+                        <path d={d} className="street-curb" />
+                        <path d={d} className="street-asphalt" />
+                        <path d={d} className="street-lane" />
+                      </g>
+                    );
+                  })}
+                </g>
+              </g>
+
+              {/* Add trees */}
+              <g className="trees">
+                {FIXED_TREES.map(tree => (
+                  <Tree
+                    key={tree.key}
+                    x={tree.x}
+                    y={tree.y}
+                    variant={tree.variant}
+                  />
+                ))}
+              </g>
+
+              {/* Moving cars */}
+              <g className="cars">
+                {carPositions.map(car => (
+                  <Vehicle
+                    key={car.id}
+                    x={car.x}
+                    y={car.y}
+                    variant={car.variant}
+                    direction={car.direction}
+                  />
+                ))}
+              </g>
+              
+              {/* Resource buildings — stage-tinted bevel tile with inline pictogram */}
+              <g className="resources-buildings">
+                {filteredResources.map(resource => {
+                  const isHovered = hoveredResource?.id === resource.id;
+                  const stageFill = {
+                    pink:   "#fde0ec", // magenta-soft
+                    yellow: "#fde7d0", // tangerine-soft
+                    green:  "#d5f1f4", // aqua-soft
+                    blue:   "#d5f1f4", // aqua-soft
+                    purple: "#e7dffa", // grape-soft
+                  }[resource.accent || "pink"];
+                  return (
+                    <g
+                      key={resource.id}
+                      className="resource-building"
+                      onClick={(e) => handleResourceClick(resource, e)}
+                      onMouseEnter={(e) => {
+                        setHoveredResource(resource);
+                        setMousePosition({ x: e.clientX, y: e.clientY });
+                      }}
+                      onMouseMove={(e) => {
+                        setMousePosition({ x: e.clientX, y: e.clientY });
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredResource(null);
+                      }}
+                    >
+                      {/* Bevel shadow */}
+                      <rect
+                        x={resource.x - 22}
+                        y={resource.y - 18}
+                        width="44"
+                        height="44"
+                        fill="#2d2d2d"
+                        opacity="0.18"
+                      />
+                      {/* Stage-tinted accent bar (top of tile) */}
+                      <rect
+                        x={resource.x - 24}
+                        y={resource.y - 22}
+                        width="48"
+                        height="6"
+                        fill={stageFill}
+                        stroke="#2d2d2d"
+                        strokeWidth="1.25"
+                      />
+                      {/* Main tile */}
+                      <rect
+                        x={resource.x - 24}
+                        y={resource.y - 16}
+                        width="48"
+                        height="38"
+                        fill={isHovered ? "#ffffff" : "#f7f7f7"}
+                        stroke="#2d2d2d"
+                        strokeWidth={isHovered ? 1.75 : 1.25}
+                        className="resource-bg"
+                      >
+                        <title>{resource.Resource}</title>
+                      </rect>
+                      <ResourceIcon
+                        type={resource.resourceType}
+                        size={34}
+                        inline
+                        x={resource.x}
+                        y={resource.y + 3}
+                        title={resource.Resource}
+                      />
+                    </g>
+                  );
+                })}
+              </g>
+
+              {/* Pinned label above the hovered building — anchored in map
+                  coordinates so it lines up with the tile even when the
+                  viewport is scrolled or the window has been dragged. */}
+              {hoveredResource && hoveredResource.x !== undefined && (() => {
+                const label = hoveredResource.Resource || "Resource";
+                const hoverRectWidth = Math.max(180, Math.round(label.length * 11 + 36));
+                const hoverRectHeight = 32;
+                return (
+                  <g
+                    transform={`translate(${hoveredResource.x}, ${hoveredResource.y - 38})`}
+                    style={{ pointerEvents: "none" }}
+                    className="resource-map-label"
+                  >
+                    <rect
+                      x={-hoverRectWidth / 2 + 3}
+                      y={-hoverRectHeight / 2 + 3}
+                      width={hoverRectWidth}
+                      height={hoverRectHeight}
+                      fill="#2d2d2d"
+                      opacity="0.25"
+                    />
+                    <rect
+                      x={-hoverRectWidth / 2}
+                      y={-hoverRectHeight / 2}
+                      width={hoverRectWidth}
+                      height={hoverRectHeight}
+                      fill="#fff8e6"
+                      stroke="#2d2d2d"
+                      strokeWidth="1.5"
+                    />
+                    <text
+                      x="0"
+                      y="5"
+                      textAnchor="middle"
+                      fontSize="17"
+                      fontWeight="bold"
+                      fill="#2d2d2d"
+                      style={{ fontFamily: "var(--font-content), 'Inter', sans-serif" }}
+                    >
+                      {label}
+                    </text>
+                  </g>
+                );
+              })()}
+
+              {/* Street Names — white type centered on the asphalt */}
+              <g className="street-names">
+                {/* Horizontal street names */}
+                <g className="horizontal-street-names">
+                  {horizontalStreets.map((street, index) => {
+                    const y = 150 + index * 180;
+                    return (
+                      <text
+                        key={street}
+                        x="60"
+                        y={y + 6}
+                        className="street-name"
+                        style={{
+                          fontSize: "18px",
+                          fill: "#ffffff",
+                          fontWeight: 800,
+                          letterSpacing: "0.06em",
+                          fontFamily: "var(--font-content), 'Inter', sans-serif",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {street}
+                      </text>
+                    );
+                  })}
+                </g>
+
+                {/* Vertical street names — centered between the two middle
+                    horizontal streets so the rotated text sits in the gap. */}
+                <g className="vertical-street-names">
+                  {verticalStreets.map((street, index) => {
+                    const streetX = (1 + index) * (1600 / (verticalStreets.length + 1));
+                    return (
+                      <text
+                        key={street}
+                        transform={`translate(${streetX + 5}, 600) rotate(-90)`}
+                        textAnchor="middle"
+                        className="street-name"
+                        style={{
+                          fontSize: "16px",
+                          fill: "#ffffff",
+                          fontWeight: 800,
+                          letterSpacing: "0.05em",
+                          fontFamily: "var(--font-content), 'Inter', sans-serif",
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        {street}
+                      </text>
+                    );
+                  })}
+                </g>
+              </g>
+
+              {/* Neighborhood labels — white signage plates, placed between
+                  streets so they don't collide with roads. Width is sized
+                  per-label so long names don't overflow. */}
+              <g className="neighborhood-labels">
+                {[
+                  { text: "Establishment Heights",    y: 250, stage: "Established" },
+                  { text: "Growth Park",              y: 450, stage: "Growth" },
+                  { text: "Early Stage Neighborhood", y: 780, stage: "Early Stage" },
+                  { text: "Ideation Valley",          y: 960, stage: "Ideation" },
+                ].map(({ text, y, stage }) => {
+                  const upper = text.toUpperCase();
+                  const width = Math.max(160, Math.round(upper.length * 11 + 28));
+                  return (
+                    <g key={stage}>
+                      <rect x="30" y={y - 14} width={width} height={30} fill="#2d2d2d" opacity="0.22" />
+                      <rect x="26" y={y - 18} width={width} height={30} fill={neighborhoodColors[stage]} stroke="#2d2d2d" strokeWidth="1.5" />
+                      <text
+                        x={26 + width / 2}
+                        y={y + 2}
+                        textAnchor="middle"
+                        fontSize="16"
+                        fontWeight="bold"
+                        fill="#2d2d2d"
+                        style={{ fontFamily: "'Arial Black', Impact, sans-serif", letterSpacing: "0.5px" }}
+                      >
+                        {upper}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
+
+              {/* District labels — beveled pill along the bottom edge */}
+              <g className="district-labels">
+                {Object.keys(districts).map((district, index) => {
+                  const width = 1600 / Object.keys(districts).length;
+                  const x = index * width;
+                  return (
+                    <g key={district}>
+                      <rect x={x + 14} y={1144} width={width - 28} height={40} fill="#2d2d2d" opacity="0.22" />
+                      <rect x={x + 10} y={1140} width={width - 28} height={40} fill="#fff" stroke="#2d2d2d" strokeWidth="1.5" />
+                      <text
+                        x={x + width / 2 - 4}
+                        y={1164}
+                        textAnchor="middle"
+                        fontSize="18"
+                        fontWeight="bold"
+                        fill="#4a2770"
+                        style={{ fontFamily: "'Arial Black', Impact, sans-serif", letterSpacing: "0.5px" }}
+                      >
+                        {district.toUpperCase()}
+                      </text>
+                    </g>
+                  );
+                })}
+              </g>
+            </svg>
           </div>
         </div>
       </div>
-
+      
       {/* Resource Detail Modal */}
       {selectedResource && (
-        <div 
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100%",
-            height: "100%",
-            background: "rgba(0,0,0,0.7)",
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            zIndex: 1000
-          }}
+        <div
+          className="resource-modal"
           onClick={handleCloseModal}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="resource-modal-title"
         >
-          <div
-            style={{
-              background: "var(--mb-chalk)",
-              border: "2px solid var(--mb-ink)",
-              boxShadow: "var(--shadow-hard-lg)",
-              width: "90%",
-              maxWidth: "400px",
-              maxHeight: "80vh",
-              padding: "20px",
-              overflow: "auto",
-              color: "var(--mb-ink)"
-            }}
-            onClick={e => e.stopPropagation()}
-          >
-            <h2 style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              margin: "0 0 15px 0",
-              borderBottom: "2px solid var(--mb-ink)",
-              paddingBottom: "10px",
-              fontFamily: "var(--font-display)"
-            }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: 44,
-                  height: 44,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: "var(--mb-magenta-soft)",
-                  border: "2px solid var(--mb-ink)",
-                  flexShrink: 0,
-                }}
+          <div className={`resource-modal-content win95-window resource-modal--${selectedResource.accent || "pink"}`} onClick={e => e.stopPropagation()}>
+            {/* Win95-style title bar */}
+            <div className="resource-modal-titlebar">
+              <div className="resource-modal-titlebar-title">
+                <span id="resource-modal-title">{selectedResource.Resource}</span>
+              </div>
+              <button
+                type="button"
+                className="resource-modal-titlebar-close"
+                onClick={handleCloseModal}
+                aria-label="Close"
               >
-                <ResourceIcon type={selectedResource.resourceType} size={30} />
-              </span>
-              <span>{selectedResource.Resource}</span>
-            </h2>
+                ×
+              </button>
+            </div>
 
-            <div>
-              <p><strong>Type:</strong> {selectedResource.resourceType}</p>
-              <p><strong>Focus Area:</strong> {selectedResource["Focus Area"]}</p>
-              <p><strong>Business Stage:</strong> {selectedResource.businessStage}</p>
-              <p><strong>Counties Served:</strong> {selectedResource["Counties Served"]}</p>
+            <div className="resource-modal-body">
+              {/* Header summary */}
+              <div className="resource-modal-summary">
+                <div className="resource-modal-summary-icon" aria-hidden="true">
+                  <ResourceIcon type={selectedResource.resourceType} size={48} />
+                </div>
+                <div className="resource-modal-summary-text">
+                  <h2 className="resource-modal-name">{selectedResource.Resource}</h2>
+                  <div className="resource-modal-type">{selectedResource.resourceType}</div>
+                </div>
+              </div>
 
-              {selectedResource["Average Check Size"] && selectedResource["Average Check Size"] !== "NA" && (
-                <p><strong>Average Check Size:</strong> {selectedResource["Average Check Size"]}</p>
-              )}
+              {/* Tag row */}
+              <div className="resource-modal-tags">
+                {selectedResource.chapter && (
+                  <span className="resource-tag tag-chapter">
+                    <span className="resource-tag-label">Chapter</span>
+                    {selectedResource.chapter}
+                  </span>
+                )}
+                {selectedResource.businessStage && (
+                  <span className={`resource-tag tag-stage tag-stage-${selectedResource.businessStage.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <span className="resource-tag-label">Stage</span>
+                    {selectedResource.businessStage}
+                  </span>
+                )}
+                {selectedResource["Focus Area"] && (
+                  <span className="resource-tag tag-focus">
+                    <span className="resource-tag-label">Focus</span>
+                    {selectedResource["Focus Area"]}
+                  </span>
+                )}
+              </div>
 
-              {selectedResource["Relocation Required?"] && (
-                <p><strong>Relocation Required:</strong> {selectedResource["Relocation Required?"]}</p>
-              )}
-
+              {/* Expanded details */}
               {selectedResource["Expanded Details"] && (
-                <div style={{
-                  marginTop: "15px",
-                  padding: "10px",
-                  background: "var(--mb-paper)",
-                  borderLeft: "3px solid var(--mb-magenta)"
-                }}>
-                  <h3 style={{ margin: "0 0 5px 0", fontSize: "16px", fontFamily: "var(--font-pixel)", letterSpacing: "0.04em" }}>Details</h3>
-                  <p style={{ margin: 0 }}>{selectedResource["Expanded Details"]}</p>
+                <div className="resource-modal-section">
+                  <h3 className="resource-modal-section-title">About</h3>
+                  <p className="resource-modal-about">{selectedResource["Expanded Details"]}</p>
                 </div>
               )}
 
-              {selectedResource.URL && (
-                <a
-                  href={selectedResource.URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    display: "inline-block",
-                    marginTop: "15px",
-                    padding: "8px 16px",
-                    background: "var(--mb-magenta)",
-                    color: "var(--mb-chalk)",
-                    border: "2px solid var(--mb-ink)",
-                    boxShadow: "var(--shadow-hard-sm)",
-                    textDecoration: "none",
-                    fontWeight: "bold"
-                  }}
+              {/* Stat grid */}
+              <div className="resource-modal-stats">
+                {selectedResource["Average Check Size"] && selectedResource["Average Check Size"] !== "NA" && (
+                  <div className="resource-stat">
+                    <div className="resource-stat-label">Avg. Check Size</div>
+                    <div className="resource-stat-value">{selectedResource["Average Check Size"]}</div>
+                  </div>
+                )}
+                {selectedResource["Relocation Required?"] && (
+                  <div className="resource-stat">
+                    <div className="resource-stat-label">Relocation Required</div>
+                    <div className="resource-stat-value">{selectedResource["Relocation Required?"]}</div>
+                  </div>
+                )}
+                {selectedResource["Counties Served"] && (
+                  <div className="resource-stat resource-stat-wide">
+                    <div className="resource-stat-label">Counties Served</div>
+                    <div className="resource-stat-value">{selectedResource["Counties Served"]}</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="resource-modal-actions">
+                {selectedResource.URL && (
+                  <a
+                    href={selectedResource.URL.startsWith('http') ? selectedResource.URL : `http://${selectedResource.URL}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="resource-visit-btn"
+                  >
+                    Visit Website
+                    <span className="resource-visit-btn-arrow" aria-hidden="true">&rarr;</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  className="resource-close-btn win95-btn"
+                  onClick={handleCloseModal}
+                  autoFocus
                 >
-                  Visit Website ↗
-                </a>
-              )}
+                  Close
+                </button>
+              </div>
             </div>
-            
-            <button
-              onClick={handleCloseModal}
-              style={{
-                display: "block",
-                width: "100%",
-                marginTop: "20px",
-                padding: "10px",
-                background: "var(--mb-ink)",
-                color: "var(--mb-chalk)",
-                border: "2px solid var(--mb-ink)",
-                boxShadow: "var(--shadow-hard-sm)",
-                fontSize: "16px",
-                fontFamily: "inherit",
-                cursor: "pointer"
-              }}
-            >
-              Close
-            </button>
           </div>
         </div>
       )}
+
     </div>
+  );
+
+  // Decide whether to return the content wrapped in a WindowFrame or not
+  return isEmbedded ? (
+    content
+  ) : (
+    <WindowFrame
+      title="Neighborhood Navigator"
+      onClose={onClose}
+      width={1000} 
+      height={700}
+      center={true}
+      zIndex={zIndex}
+      windowId={windowId}
+      bringToFront={bringToFront}
+    >
+      {content}
+    </WindowFrame>
   );
 }

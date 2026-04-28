@@ -45,18 +45,6 @@ export default function ResourceLibrary() {
 
   return (
     <div className="resource-view">
-      <header className="resource-library__hero">
-        <p className="resource-library__eyebrow">Neighborhood Resources</p>
-        <h1 className="resource-library__title">The Chapter Library</h1>
-        <p className="resource-library__lede">
-          Everything you need to run a Good Neighbor Fund chapter in one
-          place — reference documents to share with LPs, partners, and
-          press; forms to send to new LPs and grant winners; and
-          print-ready assets like our giant ceremonial checks. All
-          downloadable, all kept up to date here.
-        </p>
-      </header>
-
       <div className="resource-grid">
         {RESOURCE_DOCUMENTS.map((resource) => (
           <ResourceCard

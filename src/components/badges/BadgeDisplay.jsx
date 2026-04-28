@@ -140,25 +140,23 @@ export function TrophyCase({ badges = [], userStats = {} }) {
   };
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'var(--font-content)' }}>
-      {/* Header */}
-      <div style={{
-        background: 'var(--mb-paper-deep)',
-        border: '2px solid',
-        borderColor: 'var(--mb-ink)',
-        boxShadow: 'var(--shadow-hard-sm)',
-        padding: '10px 15px',
-        marginBottom: '15px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px'
-      }}>
-        <BadgeIcon category={BADGE_CATEGORIES.ELITE} size={22} style={{ flex: '0 0 auto' }} />
-        <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 'bold' }}>
-          Trophy Case - {badges.length} Badges Earned
-        </h2>
-      </div>
+    <div className="lp-tab-page">
+      <section className="admin-section admin-section--hero admin-section--butter">
+        <div className="admin-section-head">
+          <span className="admin-section-head__eyebrow">Trophy Case · Achievements</span>
+          <h2 className="admin-section-head__title">
+            Hardware you've <em>earned</em>.
+          </h2>
+          <p className="admin-section-head__lede">
+            Every milestone and streak you've unlocked through your reviews.
+            <strong style={{ fontFamily: 'var(--font-numeral)', fontWeight: 700, marginLeft: 6 }}>
+              {badges.length}
+            </strong> badge{badges.length === 1 ? '' : 's'} collected so far.
+          </p>
+        </div>
+      </section>
 
+      <section className="admin-section admin-section--paper" style={{ padding: '20px' }}>
       {/* Category Filter - Win95 tab bar style */}
       <div style={{
         marginBottom: '15px',
@@ -237,18 +235,29 @@ export function TrophyCase({ badges = [], userStats = {} }) {
                 textAlign: 'center',
                 position: 'relative',
                 cursor: 'pointer',
-                opacity: isEarned ? 1 : 0.6,
                 transition: 'none'
               }}
             >
-              <div style={{ marginBottom: '6px', display: 'flex', justifyContent: 'center', filter: !isEarned ? 'grayscale(100%)' : 'none' }}>
+              <div style={{
+                marginBottom: '6px',
+                display: 'flex',
+                justifyContent: 'center',
+                filter: !isEarned ? 'grayscale(100%)' : 'none',
+                opacity: isEarned ? 1 : 0.55,
+              }}>
                 <BadgeIcon
                   id={badge.id}
                   locked={badge.hidden && !isEarned}
                   size={40}
                 />
               </div>
-              <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px', color: 'var(--gnf-text)' }}>
+              <div style={{
+                fontSize: '11px',
+                fontWeight: 'bold',
+                marginBottom: '4px',
+                color: 'var(--gnf-text)',
+                opacity: isEarned ? 1 : 0.7,
+              }}>
                 {badge.hidden && !isEarned ? 'Hidden Badge' : stripBadgeNameEmoji(badge.name)}
               </div>
 
@@ -385,6 +394,7 @@ export function TrophyCase({ badges = [], userStats = {} }) {
           })}
         </div>
       </div>
+      </section>
     </div>
   );
 }

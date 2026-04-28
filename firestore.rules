@@ -347,12 +347,39 @@ rules_version = '2';
       }
 
       // --- RESOURCES COLLECTION ---
+      // Resources are public-read (chapter pages render them unauthenticated).
+      // Writes are split:
+      //   superAdmin       — any resource, any chapter.
+      //   chapter_director — only resources tagged with their own chapter
+      //                      (matched on the canonical `Chapter` field; legacy
+      //                      docs that used lowercase `chapter` are still
+      //                      accepted on update/delete so the rules don't
+      //                      strand pre-migration data). Cannot move a
+      //                      resource between chapters: the incoming
+      //                      `Chapter` must equal their chapter too.
+      //   lp               — no write access.
       match /resources/{resourceId} {
-        // Anyone can read resources (public information)
+        function directorChapter() {
+          return requestUserData().chapter;
+        }
+        function existingResourceChapter() {
+          return resource.data.Chapter != null
+                 ? resource.data.Chapter
+                 : (resource.data.chapter != null ? resource.data.chapter : null);
+        }
+
         allow read: if true;
 
-        // Only admins can create/update/delete resources
-        allow write: if isAdminOrSuperAdmin();
+        allow create: if isSuperAdmin()
+                      || (isChapterDirector()
+                          && request.resource.data.Chapter == directorChapter());
+        allow update: if isSuperAdmin()
+                      || (isChapterDirector()
+                          && existingResourceChapter() == directorChapter()
+                          && request.resource.data.Chapter == directorChapter());
+        allow delete: if isSuperAdmin()
+                      || (isChapterDirector()
+                          && existingResourceChapter() == directorChapter());
       }
 
       // --- VOTES COLLECTION ---

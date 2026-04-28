@@ -71,6 +71,12 @@ const PITCH_CATEGORIES = ['Food & Drink', 'Products', 'Wellness', 'Arts & Media'
 // deliberately NOT exposed on the public review page so reviewers aren't anchored by prior votes.
 const LP_RATING_WEIGHTS = { Favorite: 2, Consideration: 1, Pass: 0, Ineligible: -2 };
 
+// Bayesian-shrinkage prior: number of "pseudo reviews" to blend in at the global
+// mean. Stops a single Favorite (raw avg +2.00) from outranking a pitch with five
+// Favorites and a Consideration (raw avg +1.83). Higher = stronger pull toward the
+// mean for low-coverage pitches; ~3 matches our typical 3–8 reviewers per pitch.
+const LP_SHRINKAGE_PRIOR = 3;
+
 const generateAboutCallable = httpsCallable(functions, "generateAboutFromApplication");
 const inviteUserCallable = httpsCallable(functions, "inviteUser");
 const sendSignInLinkCallable = httpsCallable(functions, "sendSignInLink");
@@ -226,7 +232,6 @@ const [shortlistTogglingId, setShortlistTogglingId] = useState(null);
 // Live Review focus: which pitch the right pane is showing. Distinct from
 // expandedPitchId, which remains List-mode-only.
 const [focusedPitchId, setFocusedPitchId] = useState(null);
-const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
 const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
 const [aboutById, setAboutById] = useState({});
 const [websiteById, setWebsiteById] = useState({});
@@ -335,6 +340,15 @@ const newMessageCount = useMemo(() => {
 // --- Refs ---
 const listScrollRef = useRef(null); // Ref for the scrollable list container
 const [listScrollPosition, setListScrollPosition] = useState(0); // Store scroll position
+
+// Scroll the main content area back to the top whenever the user navigates
+// to a new tab (or admin sub-tab). Without this, switching from a deep
+// scroll position into a fresh tab leaves you mid-page in the new content.
+useEffect(() => {
+  if (listScrollRef.current) {
+    listScrollRef.current.scrollTop = 0;
+  }
+}, [activeTab, activeAdminTab]);
 
 // --- Derived State (Roles) ---
 const isSuperAdmin = user?.role === "superAdmin";
@@ -4277,10 +4291,14 @@ const handleAdminPitchExport = () => {
       "Pitch Video URL": p.pitchVideoUrl || "",
       "Pitch Video File": p.pitchVideoFile || "", // Added
       "Total Reviews": groupedReviews.count || 0,
+      "Rated Reviews": groupedReviews.scoredCount || 0,
       "Favorite Count": groupedReviews.byRating?.["Favorite"]?.count || 0,
       "Consideration Count": groupedReviews.byRating?.["Consideration"]?.count || 0,
       "Pass Count": groupedReviews.byRating?.["Pass"]?.count || 0,
       "Ineligible Count": groupedReviews.byRating?.["Ineligible"]?.count || 0,
+      "Total Score": groupedReviews.scoredCount > 0 ? groupedReviews.score : "",
+      "Raw Avg": groupedReviews.averageScore != null ? groupedReviews.averageScore.toFixed(3) : "",
+      "Weighted Avg": groupedReviews.weightedAverage != null ? groupedReviews.weightedAverage.toFixed(3) : "",
       // Add more fields as needed
     };
   });
@@ -4399,6 +4417,23 @@ const lpFilteredPitches = useMemo(() => {
 }, [lpPitches, reviews, reviewSearchTerm, reviewFilter, reviewChapterFilter, reviewQuarterFilter, reviewCategoryFilter, hidePassedReviews]);
 
 
+// Global mean of every rated review in the system. Used as the prior in the
+// Bayesian-weighted average so low-coverage pitches don't dominate the sort.
+// Recomputes whenever reviews change.
+const globalMeanScore = useMemo(() => {
+  if (!Array.isArray(allReviewsData) || allReviewsData.length === 0) return 0;
+  let sum = 0;
+  let n = 0;
+  for (const r of allReviewsData) {
+    const rating = r.overallLpRating;
+    if (rating in LP_RATING_WEIGHTS) {
+      sum += LP_RATING_WEIGHTS[rating];
+      n++;
+    }
+  }
+  return n > 0 ? sum / n : 0;
+}, [allReviewsData]);
+
 // Index reviews by pitchId once per allReviewsData change. The admin reviews
 // tab calls getGroupedReviewsForAdmin once per row (and again per sort
 // comparator), so a per-call .filter() on the full reviews array becomes
@@ -4439,7 +4474,7 @@ const getGroupedReviewsForAdmin = useCallback((pitchId) => {
 
   const relevantReviews = reviewsByPitch.get(pitchId) || [];
   const count = relevantReviews.length;
-  if (count === 0) return { count: 0, byRating: {}, details: [], comments: [], score: 0, scoredCount: 0, averageScore: null };
+  if (count === 0) return { count: 0, byRating: {}, details: [], comments: [], score: 0, scoredCount: 0, averageScore: null, weightedAverage: null };
 
   const allComments = []; // Collect comments
 
@@ -4491,6 +4526,13 @@ const getGroupedReviewsForAdmin = useCallback((pitchId) => {
     }
   });
   const averageScore = scoredCount > 0 ? score / scoredCount : null;
+  // Bayesian-weighted average: blends raw avg with the global mean, weighted by
+  // how many actual reviews back this pitch. Few reviews → pulled toward mean.
+  // Many reviews → trusts the raw avg. Formula: (n*rawAvg + m*C) / (n+m), which
+  // here simplifies because score === scoredCount * averageScore.
+  const weightedAverage = scoredCount > 0
+    ? (score + LP_SHRINKAGE_PRIOR * globalMeanScore) / (scoredCount + LP_SHRINKAGE_PRIOR)
+    : null;
 
   return {
     count: count,
@@ -4499,9 +4541,10 @@ const getGroupedReviewsForAdmin = useCallback((pitchId) => {
     comments: allComments,
     score,
     scoredCount,
-    averageScore
+    averageScore,
+    weightedAverage
   };
-}, [allReviewsData, users, reviewsByPitch, usersById]);
+}, [allReviewsData, users, reviewsByPitch, usersById, globalMeanScore]);
 
 // Group admin notes by pitchId for render. Sorted newest-first within each pitch
 // so the live discussion always shows the most recent thought at the top.
@@ -4600,13 +4643,14 @@ const adminFilteredSortedPitches = useMemo(() => {
       return (submittedTime(b) || 0) - (submittedTime(a) || 0);
     });
   } else if (adminSortMode === 'avgDesc' || adminSortMode === 'avgAsc') {
-    // Average score (quality per review). Unreviewed treated as 0.
+    // Bayesian-weighted average. Pitches with few reviews are pulled toward the
+    // global mean so a single +2 rave doesn't outrank a well-reviewed pitch.
     // Tiebreakers: more reviews first (higher confidence), then newest.
     filtered.sort((a, b) => {
       const gA = getGroupedReviewsForAdmin(a.id);
       const gB = getGroupedReviewsForAdmin(b.id);
-      const avgA = gA.averageScore === null || gA.averageScore === undefined ? 0 : gA.averageScore;
-      const avgB = gB.averageScore === null || gB.averageScore === undefined ? 0 : gB.averageScore;
+      const avgA = gA.weightedAverage === null || gA.weightedAverage === undefined ? 0 : gA.weightedAverage;
+      const avgB = gB.weightedAverage === null || gB.weightedAverage === undefined ? 0 : gB.weightedAverage;
       const diff = adminSortMode === 'avgDesc' ? avgB - avgA : avgA - avgB;
       if (diff !== 0) return diff;
       const reviewDiff = (gB.scoredCount || 0) - (gA.scoredCount || 0);
@@ -5447,7 +5491,7 @@ return (
                             'noopener,noreferrer'
                           )}
                         >
-                          ↗ Visit Website
+                          Visit Website
                         </button>
                       )}
                     </div>
@@ -5757,7 +5801,7 @@ return (
 
       {/* --- Admin Panel Tab Content --- */}
       {activeTab === 'adminPanel' && isAdmin && (
-        <div>
+        <div className="lp-tab-page lp-tab-page--bare">
           {/* Admin Sub-Tabs Navigation — Win95 folder-tab look.
               Tab strip extracted to a shared primitive with full keyboard
               (←/→, Home/End) support and proper role="tablist" semantics.
@@ -5776,7 +5820,9 @@ return (
               ...(isSuperAdmin || isChapterDirector
                 ? [{ key: 'chaptersManagement', label: 'Chapter' }]
                 : []),
-              ...(isSuperAdmin
+              // Chapter directors get the Resources tab too, scoped to their
+              // own chapter via the render branch + Firestore rules.
+              ...(isSuperAdmin || isChapterDirector
                 ? [{ key: 'resourcesManagement', label: 'Resources' }]
                 : []),
               { key: 'createUser', label: 'Create User' },
@@ -5800,10 +5846,10 @@ return (
             if (effectiveMode === 'live') {
               return (
                 <>
-                  <section className="admin-section admin-section--hero admin-section--hero-compact admin-section--paper">
+                  <section className="admin-section admin-section--hero admin-section--paper">
                     <div className="admin-section-head">
                       <span className="admin-section-head__eyebrow">Reviews · Live</span>
-                      <h2 className="admin-section-head__title admin-section-head__title--sm">
+                      <h2 className="admin-section-head__title">
                         Live <em>Review</em>
                       </h2>
                       <p className="admin-section-head__lede">
@@ -5817,8 +5863,6 @@ return (
                     setFocusedPitchId={setFocusedPitchId}
                     detailsDrawerOpen={detailsDrawerOpen}
                     setDetailsDrawerOpen={setDetailsDrawerOpen}
-                    keyboardHelpOpen={keyboardHelpOpen}
-                    setKeyboardHelpOpen={setKeyboardHelpOpen}
                     formatDate={formatDate}
                     getGroupedReviewsForAdmin={getGroupedReviewsForAdmin}
                     actionProps={{
@@ -5939,8 +5983,8 @@ return (
                 >
                   <option value="newest">Newest</option>
                   <option value="oldest">Oldest</option>
-                  <option value="avgDesc">Avg Score ↓</option>
-                  <option value="avgAsc">Avg Score ↑</option>
+                  <option value="avgDesc">Wtd Avg ↓</option>
+                  <option value="avgAsc">Wtd Avg ↑</option>
                   <option value="sumDesc">Total Score ↓</option>
                   <option value="sumAsc">Total Score ↑</option>
                   <option value="mostReviews">Most Reviews</option>
@@ -5964,6 +6008,13 @@ return (
                 <RetroButton onClick={handleAdminPitchExport} title="Download current results as CSV">
                   Export
                 </RetroButton>
+                <span
+                  className="filter-bar__count"
+                  aria-live="polite"
+                  title="Showing filtered pitches out of total"
+                >
+                  <strong>{adminFilteredSortedPitches.length}</strong> of {adminPitches.length}
+                </span>
               </div>
 
               {/* Admin Pitches List - Uses adminFilteredSortedPitches */}
@@ -6053,13 +6104,14 @@ return (
                           {groupedReviews.scoredCount > 0 && (
                             <span
                               className="admin-pitch-card__score"
-                              title={`Weighted score. Favorite +2, Consideration +1, Pass 0, Ineligible -2. Average across ${groupedReviews.scoredCount} rated review(s).`}
+                              title={`Favorite +2, Consideration +1, Pass 0, Ineligible -2.\navg = Bayesian-weighted (used to sort) across ${groupedReviews.scoredCount} rated review(s).\nraw = unweighted average.`}
                             >
                               Score <strong style={{ fontFamily: 'var(--font-numeral)' }}>
                                 {groupedReviews.score > 0 ? `+${groupedReviews.score}` : groupedReviews.score}
                               </strong>
                               <span className="admin-pitch-card__score-avg">
-                                avg <span style={{ fontFamily: 'var(--font-numeral)' }}>{groupedReviews.averageScore.toFixed(2)}</span>
+                                avg <span style={{ fontFamily: 'var(--font-numeral)' }}>{groupedReviews.weightedAverage.toFixed(2)}</span>
+                                {' '}· raw <span style={{ fontFamily: 'var(--font-numeral)' }}>{groupedReviews.averageScore.toFixed(2)}</span>
                               </span>
                             </span>
                           )}
@@ -8332,7 +8384,7 @@ return (
           })()}
 
           {/* Resources Management Sub-Tab Content */}
-          {activeAdminTab === 'resourcesManagement' && isSuperAdmin && (() => {
+          {activeAdminTab === 'resourcesManagement' && (isSuperAdmin || isChapterDirector) && (() => {
             const RESOURCE_TYPES = [
               'Funding', 'Incubator/Accelerator', 'Mentorship', 'Community', 'Government',
               'Legal', 'Education', 'Venture Capital', 'Angel Group', 'Private Investment Office',
@@ -8340,7 +8392,14 @@ return (
               'Investment Platform'
             ];
             const BUSINESS_STAGES = ['Ideation', 'Early', 'Growth', 'Established', 'All'];
-            const filteredResources = managedResources.filter(resource => {
+            // Chapter directors see only their own chapter's resources. The
+            // Firestore rule enforces the same boundary on writes; this is the
+            // UI-side complement so the rest of the tab (filters, table, stats)
+            // operates against an already-scoped list.
+            const scopedResources = isChapterDirector && userChapter
+              ? managedResources.filter(r => (r.Chapter || r.chapter) === userChapter)
+              : managedResources;
+            const filteredResources = scopedResources.filter(resource => {
               const search = resourceSearchTerm.toLowerCase();
               const matchesSearch = !resourceSearchTerm ||
                 resource.Resource?.toLowerCase().includes(search) ||
@@ -8371,14 +8430,18 @@ return (
             const openAddForm = () => {
               setEditingResource(null);
               setResourceFormData({
-                Resource: '', Chapter: '', Type: '', 'Focus Area': '',
+                Resource: '',
+                // Pin chapter to the director's own chapter — they cannot
+                // create resources for other chapters (Firestore enforces it).
+                Chapter: isChapterDirector && userChapter ? userChapter : '',
+                Type: '', 'Focus Area': '',
                 'Business Stage': 'Ideation', 'Counties Served': '', URL: '',
                 'Expanded Details': '', 'Average Check Size': '', 'Relocation Required?': 'No'
               });
               setIsAddingResource(true);
             };
 
-            const uniqueChapters = new Set(managedResources.map(r => r.Chapter || r.chapter).filter(Boolean)).size;
+            const uniqueChapters = new Set(scopedResources.map(r => r.Chapter || r.chapter).filter(Boolean)).size;
             return (
             <>
               <section className="admin-section admin-section--hero admin-section--butter">
@@ -8389,7 +8452,9 @@ return (
                       The <em>navigator</em> index.
                     </h2>
                     <p className="admin-section-head__lede">
-                      Every funding org, incubator, and community resource your chapters point founders toward.
+                      {isChapterDirector
+                        ? `Every funding org, incubator, and community resource ${userChapter || 'your chapter'} points founders toward.`
+                        : 'Every funding org, incubator, and community resource your chapters point founders toward.'}
                     </p>
                   </div>
                   <RetroButton onClick={openAddForm} variant="primary" size="lg">
@@ -8398,13 +8463,15 @@ return (
                 </div>
                 <div className="admin-hero-stats">
                   <div className="admin-hero-stat">
-                    <span className="admin-hero-stat__num">{managedResources.length}</span>
+                    <span className="admin-hero-stat__num">{scopedResources.length}</span>
                     <span className="admin-hero-stat__label">Total resources</span>
                   </div>
-                  <div className="admin-hero-stat">
-                    <span className="admin-hero-stat__num">{uniqueChapters}</span>
-                    <span className="admin-hero-stat__label">Chapters indexed</span>
-                  </div>
+                  {!isChapterDirector && (
+                    <div className="admin-hero-stat">
+                      <span className="admin-hero-stat__num">{uniqueChapters}</span>
+                      <span className="admin-hero-stat__label">Chapters indexed</span>
+                    </div>
+                  )}
                   {hasFilters && (
                     <div className="admin-hero-stat">
                       <span className="admin-hero-stat__num">{filteredResources.length}</span>
@@ -8424,14 +8491,16 @@ return (
                   value={resourceSearchTerm}
                   onChange={(e) => setResourceSearchTerm(e.target.value)}
                 />
-                <select
-                  aria-label="Filter by chapter"
-                  value={resourceChapterFilter}
-                  onChange={(e) => setResourceChapterFilter(e.target.value)}
-                >
-                  <option value="">All Chapters</option>
-                  {activeChapterNames.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                {!isChapterDirector && (
+                  <select
+                    aria-label="Filter by chapter"
+                    value={resourceChapterFilter}
+                    onChange={(e) => setResourceChapterFilter(e.target.value)}
+                  >
+                    <option value="">All Chapters</option>
+                    {activeChapterNames.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                )}
                 <select
                   aria-label="Filter by type"
                   value={resourceTypeFilter}
@@ -8493,6 +8562,9 @@ return (
                         <select
                           value={resourceFormData.Chapter}
                           onChange={(e) => setResourceFormData({ ...resourceFormData, Chapter: e.target.value })}
+                          // Chapter directors cannot move a resource between
+                          // chapters — Firestore would reject the write anyway.
+                          disabled={isChapterDirector}
                           style={{
                             ...inputStyle,
                             background: resourceFormData.Chapter ? 'var(--gnf-bg)' : 'var(--gnf-yellow-100, #fff9c4)'
@@ -8703,14 +8775,14 @@ return (
                   </tbody>
                 </table>
 
-                {managedResources.length === 0 && (
+                {scopedResources.length === 0 && (
                   <EmptyState
                     icon={null}
                     title="No resources yet"
                     description="Click + Add Resource to create the first one."
                   />
                 )}
-                {managedResources.length > 0 && filteredResources.length === 0 && (
+                {scopedResources.length > 0 && filteredResources.length === 0 && (
                   <EmptyState
                     icon={null}
                     title="No resources match"
@@ -8741,28 +8813,44 @@ return (
 
       {/* --- Statistics Tab Content --- */}
       {activeTab === 'statistics' && (
-        <StatisticsTab user={user} chaptersFromPortal={chapters} />
+        <div className="lp-tab-page">
+          <section className="admin-section admin-section--hero admin-section--grape">
+            <div className="admin-section-head">
+              <span className="admin-section-head__eyebrow">Statistics · Chapter Pulse</span>
+              <h2 className="admin-section-head__title">
+                The numbers behind the <em>neighborhood</em>.
+              </h2>
+              <p className="admin-section-head__lede">
+                Application volume, reviewer engagement, geographic reach, and pipeline health for
+                {isSuperAdmin ? ' the chapters you select.' : ` ${user?.chapter || 'your chapter'}.`}
+              </p>
+            </div>
+          </section>
+          <section className="admin-section admin-section--paper" style={{ padding: 0 }}>
+            <StatisticsTab user={user} chaptersFromPortal={chapters} />
+          </section>
+        </div>
       )}
 
       {/* --- Chapter Members Tab Content --- */}
       {activeTab === 'chapterMembers' && (
-        <div style={{ padding: '15px', overflow: 'auto' }}>
-          <div style={{
-            background: 'var(--mb-paper-deep)',
-            border: '2px solid',
-            borderColor: 'var(--mb-ink)',
-            boxShadow: 'var(--shadow-hard-sm)',
-            padding: '8px 12px',
-            marginBottom: '15px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>
-              {user?.chapter} Chapter Members ({chapterMembers.length})
-            </h2>
-          </div>
-          
+        <div className="lp-tab-page">
+          <section className="admin-section admin-section--hero admin-section--magenta">
+            <div className="admin-section-head">
+              <span className="admin-section-head__eyebrow">Chapter · Members</span>
+              <h2 className="admin-section-head__title">
+                The team behind <em>{user?.chapter || 'your chapter'}</em>.
+              </h2>
+              <p className="admin-section-head__lede">
+                Directors, LPs, and the badges they've collected together.
+                <strong style={{ fontFamily: 'var(--font-numeral)', fontWeight: 700, marginLeft: 6 }}>
+                  {chapterMembers.length}
+                </strong> active member{chapterMembers.length === 1 ? '' : 's'}.
+              </p>
+            </div>
+          </section>
+          <section className="admin-section admin-section--paper">
+
           {chapterMembers.length === 0 ? (
             <p style={{ textAlign: 'center', color: '#666', padding: '40px' }}>
               No active members found in your chapter.
@@ -8942,42 +9030,57 @@ return (
                 })}
             </div>
           )}
+          </section>
         </div>
       )}
-      
+
       {/* --- Pitch Map Tab Content --- */}
       {activeTab === 'pitchMap' && (
-        <div style={{ padding: '15px', overflow: 'auto', height: '100%' }}>
-          <div style={{
-            background: 'var(--mb-paper-deep)',
-            border: '2px solid',
-            borderColor: 'var(--mb-ink)',
-            boxShadow: 'var(--shadow-hard-sm)',
-            padding: '8px 12px',
-            marginBottom: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <h2 style={{ margin: 0, fontSize: '15px', fontWeight: 'bold' }}>Pitch Map</h2>
-          </div>
-          <PitchMap
-            pitches={isAdmin ? adminPitches : lpPitches}
-            currentUserChapter={user?.chapter}
-          />
+        <div className="lp-tab-page">
+          <section className="admin-section admin-section--hero admin-section--aqua-soft">
+            <div className="admin-section-head">
+              <span className="admin-section-head__eyebrow">Map · Pitch Geography</span>
+              <h2 className="admin-section-head__title">
+                Founders, plotted <em>block by block</em>.
+              </h2>
+              <p className="admin-section-head__lede">
+                Every submission, mapped to its zip. Pan to your chapter or zoom out to see how
+                Good Neighbor network is taking shape across the country.
+              </p>
+            </div>
+          </section>
+          <section className="admin-section admin-section--paper" style={{ padding: 16, height: 640 }}>
+            <PitchMap
+              pitches={isAdmin ? adminPitches : lpPitches}
+              currentUserChapter={user?.chapter}
+            />
+          </section>
         </div>
       )}
 
       {/* --- Resources Tab Content --- */}
       {activeTab === 'resources' && (
-        <div style={{ padding: '20px', overflow: 'auto', height: '100%' }}>
-          <ResourceLibrary />
-          {(isChapterDirector || isSuperAdmin) && (
-            <>
-              <FormsLibrary user={user} isSuperAdmin={isSuperAdmin} />
-              <AssetsLibrary />
-            </>
-          )}
+        <div className="lp-tab-page">
+          <section className="admin-section admin-section--hero admin-section--paper">
+            <div className="admin-section-head">
+              <span className="admin-section-head__eyebrow">Resources · Library</span>
+              <h2 className="admin-section-head__title">
+                Everything you need, <em>in one drawer</em>.
+              </h2>
+              <p className="admin-section-head__lede">
+                Reference docs, founder-facing forms, and the chapter asset kit.
+              </p>
+            </div>
+          </section>
+          <section className="admin-section admin-section--paper">
+            <ResourceLibrary />
+            {(isChapterDirector || isSuperAdmin) && (
+              <>
+                <FormsLibrary user={user} isSuperAdmin={isSuperAdmin} />
+                <AssetsLibrary />
+              </>
+            )}
+          </section>
         </div>
       )}
 

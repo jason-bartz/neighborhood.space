@@ -193,6 +193,45 @@ export default function ChapterHandbookPDF() {
           unable to align schedules.
         </Callout>
 
+        <Text style={pdfStyles.h2}>How Pitches Are Ranked</Text>
+        <Paragraph>
+          Each LP gives a pitch one of four ratings. Behind the scenes,
+          every rating carries a weight:
+        </Paragraph>
+        <Bullet><Text style={pdfStyles.bold}>Favorite</Text> = +2</Bullet>
+        <Bullet><Text style={pdfStyles.bold}>Consideration</Text> = +1</Bullet>
+        <Bullet><Text style={pdfStyles.bold}>Pass</Text> = 0</Bullet>
+        <Bullet><Text style={pdfStyles.bold}>Ineligible</Text> = −2</Bullet>
+        <Paragraph>
+          When you sort pitches in the LP Portal, two numbers do the
+          work. Total Score is the raw sum of those weights — it rewards
+          volume of favorable reviews. Weighted Avg (the default sort,
+          shown as "avg" on each card) is the smarter ranking, and it's
+          the one we recommend leaning on.
+        </Paragraph>
+        <Paragraph>
+          The Weighted Avg blends a pitch's actual rating average with
+          the chapter-wide average, weighted by how many reviews it has.
+          Pitches with lots of reviews stick close to their real average.
+          Pitches with only one or two reviews get pulled toward the
+          middle of the pack until more LPs weigh in. This stops a
+          single five-star rave from outranking a pitch that's earned
+          five Favorites and a Consideration, which would otherwise look
+          worse on paper.
+        </Paragraph>
+        <Callout label="What you'll see">
+          On the live review screen, each pitch shows three numbers:
+          Score (the raw sum), Avg (the Weighted Avg used for sorting),
+          and Raw (the unweighted average). Hover any of them for a quick
+          refresher.
+        </Callout>
+        <Paragraph>
+          Scores are a starting point for discussion, not a verdict.
+          The meeting is still where the decision happens — the
+          rankings just help you spend that hour on the pitches most
+          worth talking about.
+        </Paragraph>
+
         <Text style={pdfStyles.h1}>Events &amp; Promotion</Text>
         <Paragraph>Chapters are encouraged to:</Paragraph>
         <Bullet>Host local events (pitch nights, happy hours, hackathons, founder showcases)</Bullet>

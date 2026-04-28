@@ -197,6 +197,48 @@ export default function ChapterHandbook() {
         </p>
       </div>
 
+      <h3>How Pitches Are Ranked</h3>
+      <p>
+        Each LP gives a pitch one of four ratings. Behind the scenes, every
+        rating carries a weight:
+      </p>
+      <ul>
+        <li><strong>Favorite</strong> = +2</li>
+        <li><strong>Consideration</strong> = +1</li>
+        <li><strong>Pass</strong> = 0</li>
+        <li><strong>Ineligible</strong> = −2</li>
+      </ul>
+      <p>
+        When you sort pitches in the LP Portal, two numbers do the work.
+        <strong> Total Score</strong> is the raw sum of those weights — it
+        rewards volume of favorable reviews. <strong>Weighted Avg</strong>{' '}
+        (the default sort, shown as <em>avg</em> on each card) is the
+        smarter ranking, and it's the one we recommend leaning on.
+      </p>
+      <p>
+        The Weighted Avg blends a pitch's actual rating average with the
+        chapter-wide average, weighted by how many reviews it has. Pitches
+        with lots of reviews stick close to their real average. Pitches
+        with only one or two reviews get pulled toward the middle of the
+        pack until more LPs weigh in. This stops a single five-star rave
+        from outranking a pitch that's earned five Favorites and a
+        Consideration, which would otherwise look worse on paper.
+      </p>
+      <div className="resource-callout">
+        <p className="resource-callout__label">What you'll see</p>
+        <p style={{ margin: 0 }}>
+          On the live review screen, each pitch shows three numbers:{' '}
+          <strong>Score</strong> (the raw sum), <strong>Avg</strong> (the
+          Weighted Avg used for sorting), and <strong>Raw</strong> (the
+          unweighted average). Hover any of them for a quick refresher.
+        </p>
+      </div>
+      <p>
+        Scores are a starting point for discussion, not a verdict. The
+        meeting is still where the decision happens — the rankings just
+        help you spend that hour on the pitches most worth talking about.
+      </p>
+
       <h2>Events &amp; Promotion</h2>
       <p>Chapters are encouraged to:</p>
       <ul>

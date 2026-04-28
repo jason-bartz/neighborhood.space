@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>GNF OG — Approval Dialog (1200×630)</title>
+
+  <link rel="stylesheet" href="../../css/win95-tokens.css" />
+  <link rel="stylesheet" href="../../css/win95-base.css" />
+  <link rel="stylesheet" href="../../css/theme-tokens.css" />
+
+  <style>
+    /* Lock the page to OG dimensions for headless rendering. */
+    html, body {
+      width: 1200px;
+      height: 630px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    html { background: var(--pink-light); }
+
+    body {
+      background: var(--pink-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-content, "Inter", "Helvetica Neue", Arial, sans-serif);
+      color: var(--gnf-text);
+      position: relative;
+    }
+
+    .desktop-mark {
+      position: absolute;
+      top: 28px;
+      left: 32px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: "Silkscreen", "Courier New", monospace;
+      font-size: 14px;
+      letter-spacing: 0.06em;
+      color: rgba(45, 45, 45, 0.6);
+      text-transform: uppercase;
+    }
+    .desktop-mark::before {
+      content: "";
+      display: block;
+      width: 14px;
+      height: 14px;
+      background: var(--pink-mid);
+      border: 2px solid;
+      border-color: var(--bevel-outset);
+      box-shadow: var(--shadow-outset);
+    }
+
+    .desktop-clock {
+      position: absolute;
+      top: 28px;
+      right: 32px;
+      font-family: "JetBrains Mono", "Courier New", monospace;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      color: rgba(45, 45, 45, 0.55);
+    }
+
+    /* The dialog ----------------------------------------------------- */
+    .dialog {
+      width: 1040px;
+      background: var(--window-bg);
+      border: 2px solid;
+      border-color: var(--bevel-outset);
+      box-shadow: var(--shadow-outset), 4px 4px 0 var(--gnf-pink-300);
+    }
+
+    .titlebar {
+      background: var(--titlebar-bg);
+      padding: 6px 10px;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gnf-text);
+      border-bottom: 1px solid var(--gnf-border-pink);
+    }
+    .titlebar-title { display: flex; align-items: center; gap: 8px; }
+    .titlebar-title-icon {
+      width: 14px; height: 14px;
+      background: var(--pink-mid);
+      border: 2px solid;
+      border-color: var(--bevel-outset);
+    }
+    .titlebar-buttons { display: flex; gap: 4px; }
+    .tb-btn {
+      width: 20px; height: 18px;
+      background: var(--gnf-bg-silver);
+      border: 2px solid;
+      border-color: var(--bevel-outset);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .dialog-body {
+      padding: 56px 64px 44px;
+      display: grid;
+      grid-template-columns: 112px 1fr;
+      gap: 40px;
+      align-items: start;
+    }
+
+    .check-icon {
+      width: 112px;
+      height: 112px;
+      background: var(--green-mid);
+      border: 2px solid;
+      border-color: var(--bevel-outset);
+      box-shadow: var(--shadow-outset);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .check-icon svg { display: block; width: 64px; height: 64px; }
+
+    .eyebrow {
+      font-family: "Silkscreen", "Courier New", monospace;
+      font-size: 14px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--green-dark);
+      margin-bottom: 18px;
+    }
+    .eyebrow span {
+      color: var(--gnf-text-muted);
+      margin: 0 8px;
+    }
+
+    .headline {
+      font-family: "Instrument Serif", "Times New Roman", Georgia, serif;
+      font-weight: 400;
+      font-size: 64px;
+      line-height: 1.04;
+      letter-spacing: -0.015em;
+      margin: 0 0 22px;
+      color: var(--gnf-text);
+    }
+    .headline em {
+      font-style: italic;
+      color: var(--pink-dark);
+    }
+
+    .subhead {
+      font-family: var(--font-content, "Inter", sans-serif);
+      font-size: 18px;
+      line-height: 1.4;
+      color: var(--gnf-text-secondary);
+      margin: 0 0 36px;
+      max-width: 580px;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    .btn {
+      background: var(--gnf-bg-silver);
+      border: 2px solid;
+      border-color: var(--bevel-outset);
+      box-shadow: var(--shadow-outset);
+      padding: 10px 22px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--gnf-text);
+    }
+    .btn--primary { background: var(--pink-mid); }
+
+    /* Footer wordmark */
+    .footer {
+      position: absolute;
+      bottom: 24px;
+      left: 0; right: 0;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 32px;
+      font-family: "Silkscreen", "Courier New", monospace;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: rgba(45, 45, 45, 0.55);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="desktop-mark">good neighbor fund — desktop</div>
+  <div class="desktop-clock">12 : 00 PM</div>
+
+  <main class="dialog" role="dialog" aria-label="Grant approval notification">
+    <div class="titlebar">
+      <div class="titlebar-title">
+        <span class="titlebar-title-icon" aria-hidden="true"></span>
+        <span>Good Neighbor Fund — Notification</span>
+      </div>
+      <div class="titlebar-buttons" aria-hidden="true">
+        <span class="tb-btn">_</span>
+        <span class="tb-btn">□</span>
+        <span class="tb-btn">×</span>
+      </div>
+    </div>
+
+    <div class="dialog-body">
+      <div class="check-icon" aria-hidden="true">
+        <svg width="56" height="56" viewBox="0 0 56 56" fill="none">
+          <path d="M10 30 L24 44 L48 14"
+                stroke="#2d2d2d"
+                stroke-width="6"
+                stroke-linecap="square"
+                stroke-linejoin="miter"
+                fill="none" />
+        </svg>
+      </div>
+
+      <div>
+        <div class="eyebrow">grant approved <span>✶</span> system message</div>
+
+        <h1 class="headline">
+          Your <em>$1,000</em> micro&#8209;grant has<br />
+          been approved.
+        </h1>
+
+        <p class="subhead">
+          no pitch deck. no equity. just belief.
+        </p>
+
+        <div class="button-row">
+          <span class="btn">Close</span>
+          <span class="btn btn--primary">Apply now &nbsp;→</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="footer">
+    <span>goodneighbor.fund</span>
+    <span>est. 2023 · buffalo, ny</span>
+  </div>
+
+</body>
+</html>

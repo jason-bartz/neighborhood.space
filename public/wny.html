@@ -15,12 +15,24 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="apple-touch-icon" href="/favicon.png" />
 
+  <!-- Warm DNS/TCP for Firestore + Firebase static SDK so the chapter
+       hydration request doesn't block on a cold connection. -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossorigin>
+
+  <!-- LP roster snapshot — start the fetch during HTML parse so it lands
+       around the same time chapter-hydration.js runs. See the snapshot
+       fast path in public/assets/js/chapter-hydration.js. -->
+  <link rel="preload" as="fetch" crossorigin="anonymous"
+        href="https://firebasestorage.googleapis.com/v0/b/gnf-app-9d7e3.firebasestorage.app/o/chapter-rosters%2Fwny%2Flps.json?alt=media">
+
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.goodneighbor.fund/wny">
   <meta property="og:title" content="Good Neighbor Fund WNY - $1,000 Startup Grants for Buffalo Entrepreneurs">
   <meta property="og:description" content="Get $1,000 for your Buffalo or WNY business idea. Supporting entrepreneurs across 8 counties with belief capital.">
-  <meta property="og:image" content="https://www.goodneighbor.fund/assets/og/wny.png">
+  <meta property="og:image" content="https://www.goodneighbor.fund/assets/og/default.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Good Neighbor Fund WNY — $1,000 micro-grants for Buffalo and Western New York entrepreneurs">
@@ -32,7 +44,7 @@
   <meta property="twitter:url" content="https://www.goodneighbor.fund/wny">
   <meta property="twitter:title" content="Good Neighbor Fund WNY - Buffalo Startup Grants">
   <meta property="twitter:description" content="$1,000 grants for Buffalo & WNY entrepreneurs. No equity required.">
-  <meta property="twitter:image" content="https://www.goodneighbor.fund/assets/og/wny.png">
+  <meta property="twitter:image" content="https://www.goodneighbor.fund/assets/og/default.png">
 
   <!-- Fonts -->
   <link rel="stylesheet" href="/assets/fonts/fonts.css" />
@@ -161,6 +173,11 @@
   </style>
 </head>
 <body data-chapter-slug="wny">
+  <!-- Skip-to-content: visually hidden until focused, then springs into the
+       upper-left. Targets the hero (#pitch) so keyboard users land at the
+       top of the actual content instead of paging through the taskbar/nav. -->
+  <a href="#pitch" class="win95-skip-link">Skip to content</a>
+
   <!-- Taskbar -->
   <div class="win95-taskbar">
     <a href="/" class="win95-taskbar-left">
@@ -173,16 +190,31 @@
   </div>
 
   <div class="win95-container">
+    <!-- Page jump nav (anchors land at #impact / #lps / #awardees;
+         chapter-hydration.js hides links whose section is toggled off). -->
+    <nav class="win95-page-nav" aria-label="Page sections">
+      <span class="win95-page-nav-label">Jump to</span>
+      <a href="#pitch" aria-current="page">Pitch</a>
+      <a href="#impact" data-nav-target="impact">Impact</a>
+      <a href="#awardees" data-nav-target="awardees" class="is-hidden">Awardees</a>
+      <a href="#lps" data-nav-target="lps">Our LPs</a>
+      <a href="#join">Become an LP</a>
+    </nav>
+
     <!-- Hero (always shown) -->
-    <section class="win95-hero">
+    <section class="win95-hero" id="pitch">
       <div class="win95-hero-content">
         <div class="win95-hero-left">
           <h1 data-chapter-field="heroTitle">$1,000 Micro-Grants for Buffalo Business Ideas</h1>
           <p data-chapter-field="heroTagline"><strong data-chapter-lede>We back brilliant ideas before they're "ready."</strong> No pitch deck required. No equity taken. Just belief in your vision and potential.</p>
-          <a href="/pitch" class="win95-cta">Submit Your Pitch Today</a>
+          <a href="/pitch?chapter=Western%20New%20York" class="win95-cta">Submit Your Pitch Today</a>
         </div>
         <div class="win95-hero-right">
-          <img src="/assets/gnf-fat-daddys.webp" alt="Fat Daddy's - Good Neighbor Fund $1,000 grant recipient in Buffalo, NY" />
+          <img src="https://firebasestorage.googleapis.com/v0/b/gnf-app-9d7e3.firebasestorage.app/o/chapter-photos%2Fwny%2Fhero?alt=media"
+               alt="Fat Daddy's - Good Neighbor Fund $1,000 grant recipient in Buffalo, NY"
+               width="900" height="1200"
+               loading="eager" fetchpriority="high" decoding="async"
+               onerror="this.onerror=null;this.src='/assets/gnf-fat-daddys.webp';" />
           <div class="win95-hero-caption">Fat Daddy's - Past Micro-Grant Awardee</div>
         </div>
       </div>
@@ -208,23 +240,26 @@
         </div>
       </section>
 
-      <section class="win95-section win95-section--blue">
-        <h2>Our Impact Since 2023</h2>
+      <!-- Our Impact (togglable via showImpact; defaults to shown). Stat
+           values are auto-computed from /pitches by chapter-hydration.js;
+           the values below are static fallbacks if Firestore is unreachable. -->
+      <section class="win95-section win95-section--blue" data-chapter-section="impact" id="impact">
+        <h2>Our Impact Since <span data-chapter-stat-year>2023</span></h2>
         <div class="win95-stat-grid">
           <div class="win95-stat">
-            <div class="win95-stat-num win95-stat-num--blue">34</div>
+            <div class="win95-stat-num win95-stat-num--blue" data-chapter-stat="grants">34</div>
             <p>New Business Ideas<br>Funded</p>
           </div>
           <div class="win95-stat">
-            <div class="win95-stat-num win95-stat-num--pink">80%</div>
+            <div class="win95-stat-num win95-stat-num--pink" data-chapter-stat="women">80%</div>
             <p>Women-Owned<br>Businesses</p>
           </div>
           <div class="win95-stat">
-            <div class="win95-stat-num win95-stat-num--yellow">52%</div>
+            <div class="win95-stat-num win95-stat-num--yellow" data-chapter-stat="bipoc">52%</div>
             <p>BIPOC-Owned<br>Businesses</p>
           </div>
           <div class="win95-stat">
-            <div class="win95-stat-num win95-stat-num--purple">$34,000+</div>
+            <div class="win95-stat-num win95-stat-num--purple" data-chapter-stat="dollars">$34,000</div>
             <p>In Micro-Grants<br>Awarded</p>
           </div>
         </div>
@@ -232,9 +267,9 @@
     </div>
 
     <!-- Powered by People (always shown) -->
-    <section class="win95-section win95-section--purple" style="text-align: center;">
-      <h2 style="border-bottom: none;">Powered by People, Not Institutions</h2>
-      <p class="win95-body" style="max-width: 800px; margin: 0 auto;" data-chapter-field="poweredByText">
+    <section class="win95-section win95-section--purple win95-section--centered" id="join">
+      <h2>Powered by People, Not Institutions</h2>
+      <p class="win95-body win95-body--narrow" data-chapter-field="poweredByText">
         Good Neighbor Fund is a collective giving organization. Our funding comes from Limited Partners (LPs) —
         local founders, operators, and community members who pool their own capital each quarter to fund the
         boldest new ideas in WNY. No overhead. No bureaucracy. Just neighbors investing in neighbors.
@@ -247,101 +282,18 @@
       </div>
     </section>
 
-    <!-- Chapter LPs (togglable via showLPs) -->
-    <section class="win95-section" data-chapter-section="lps">
-      <h1 style="text-align: center;">Western New York Chapter LPs</h1>
-      <div class="win95-lp-grid">
-        <div class="win95-lp-card">
-          <img src="/assets/lps/jason-bartz.png" alt="Jason Bartz - VP of Partnerships - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/jsnbrtz/" target="_blank" rel="noreferrer">Jason Bartz</a></h3>
-          <p class="win95-lp-role">VP of Partnerships</p>
-          <p class="win95-lp-bio">Jason leads revenue at Vero Technologies, is the co-founder of automotive startup Refraction, and co-founder of Good Neighbor Fund</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/andy-rose.png" alt="Andy Rose - Brand / Creative Strategist - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/itsandyrose/" target="_blank" rel="noreferrer">Andy Rose</a></h3>
-          <p class="win95-lp-role">Brand / Creative Strategist</p>
-          <p class="win95-lp-bio">Andy is a strategist who's led activation for global brands like Alibaba, BMW, and Xerox. Passionate about Buffalo's startup scene.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/bobbie-armstrong.png" alt="Bobbie Armstrong - New York Coalition Manager, Right to Start - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/bobbie-thoman/" target="_blank" rel="noreferrer">Bobbie Armstrong</a></h3>
-          <p class="win95-lp-role">New York Coalition Manager, Right to Start</p>
-          <p class="win95-lp-bio">Focused on clean energy and greentech, with a background in policy making.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/jordan-hoeber.png" alt="Jordan Hoeber - Director of Product Management, ACV Auctions - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/jhoeber/" target="_blank" rel="noreferrer">Jordan Hoeber</a></h3>
-          <p class="win95-lp-role">Director of Product Management, ACV Auctions</p>
-          <p class="win95-lp-bio">Jordan leads product at ACV Auctions and brings a background in software, startups, and Amazon-scale tech. He's a Buffalo native, dad, and mentor to early-stage founders.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/celine-krzan.png" alt="Celine Krzan - Professor & Program Director - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/celinekrzan/" target="_blank" rel="noreferrer">Celine Krzan</a></h3>
-          <p class="win95-lp-role">Professor & Program Director</p>
-          <p class="win95-lp-bio">Entrepreneurship faculty at UB. Runs M&T Minority and Women Emerging Entrepreneur Program.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/cindy-sideris.png" alt="Cindy Sideris - Director of Operations, UVC - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/cindysideris/" target="_blank" rel="noreferrer">Cindy Sideris</a></h3>
-          <p class="win95-lp-role">Director of Operations, UVC</p>
-          <p class="win95-lp-bio">Connects and empowers Upstate NY founders. Passionate about VC + entertainment creators.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/danielle-blount.png" alt="Danielle Blount - Partner at BOLD Ventures - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/blountdanielle/" target="_blank" rel="noreferrer">Danielle Blount</a></h3>
-          <p class="win95-lp-role">Partner at BOLD Ventures</p>
-          <p class="win95-lp-bio">Also leads Buffalo's Awesome Foundation. Invests in wild, weird, and wonderful ideas.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/david-brenner.png" alt="David Brenner - Startup Community Organizer - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/davidabrenner/" target="_blank" rel="noreferrer">David Brenner</a></h3>
-          <p class="win95-lp-role">Startup Community Organizer</p>
-          <p class="win95-lp-bio">BootSector volunteer and Buffalo Startup Weekend lead.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/flossie-hall.png" alt="Flossie Hall - CEO, Stella - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/flossiehall/" target="_blank" rel="noreferrer">Flossie Hall</a></h3>
-          <p class="win95-lp-role">CEO, Stella</p>
-          <p class="win95-lp-bio">Veteran Navy spouse and serial entrepreneur. Featured in Forbes, Inc., and Entrepreneur.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/jon-pancerman.png" alt="Jon Pancerman - Sr. Director, ACV Auctions - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/jpancerman/" target="_blank" rel="noreferrer">Jon Pancerman</a></h3>
-          <p class="win95-lp-role">Sr. Director, ACV Auctions</p>
-          <p class="win95-lp-bio">Ops leader with a TEDxBuffalo organizing past.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/jordan-walbesser.png" alt="Jordan Walbesser - Director, Mattel Legal - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/jordan-walbesser/" target="_blank" rel="noreferrer">Jordan Walbesser</a></h3>
-          <p class="win95-lp-role">Director, Mattel Legal</p>
-          <p class="win95-lp-bio">Exec Director of BootSector. Building Buffalo's next-gen startup leaders.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/katie-wallingford.png" alt="Katie Wallingford - Product Manager, Leap Event Technologies - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/katie-wallingford/" target="_blank" rel="noreferrer">Katie Wallingford</a></h3>
-          <p class="win95-lp-role">Product Manager, Leap Event Technologies</p>
-          <p class="win95-lp-bio">Early-stage product manager. Buffalo transplant building with heart and human-centered design.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/najja-boulden.png" alt="Najja Boulden - Founder, Phoenix Innovation Group - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/najja-a-bouldin-85182a8b/" target="_blank" rel="noreferrer">Najja Boulden</a></h3>
-          <p class="win95-lp-role">Founder, Phoenix Innovation Group</p>
-          <p class="win95-lp-bio">Trainer and developer of inclusive innovation ecosystems.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/rachel-good.png" alt="Rachel Good - Media Relations, Javen Construction - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/rachelmariegood/" target="_blank" rel="noreferrer">Rachel Good</a></h3>
-          <p class="win95-lp-role">Media Relations, Javen Construction</p>
-          <p class="win95-lp-bio">Arts advocate and community builder. Construction pro by day, culture champion by night.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/sonya-tareke.png" alt="Sonya Tareke - COO, Team Real Talk - Good Neighbor Fund Limited Partner" />
-          <h3><a href="https://www.linkedin.com/in/stareke/" target="_blank" rel="noreferrer">Sonya Tareke</a></h3>
-          <p class="win95-lp-role">COO, Team Real Talk</p>
-          <p class="win95-lp-bio">Facilitator for Kauffman FastTrac and EiR at UB's Inclusive Launch Foundry.</p>
-        </div>
-      </div>
+    <!-- Chapter LPs (togglable via showLPs; roster hydrated from Firestore) -->
+    <section class="win95-section" data-chapter-section="lps" id="lps">
+      <h1 class="win95-text-center">Western New York Chapter LPs</h1>
+      <div class="win95-lp-grid"></div>
+    </section>
+
+    <!-- Grant Awardees (togglable via showAwardees; off by default — hidden
+         until chapter-hydration.js confirms the flag is on, then it fetches
+         winners scoped to this chapter and renders the filter/grid/modal). -->
+    <section class="win95-section is-hidden" data-chapter-section="awardees" id="awardees">
+      <h1 class="win95-text-center">Western New York Grant Awardees</h1>
+      <div data-chapter-slot="awardees-grid"></div>
     </section>
 
     <!-- Community Gallery (togglable via showGallery) -->
@@ -349,22 +301,22 @@
       <h2>Building Buffalo's Entrepreneurial Community</h2>
       <div class="win95-image-grid">
         <div class="win95-image">
-          <img src="/assets/tp-sansi.webp" alt="Sansi Bansal at Twin Petrels startup event in Buffalo" />
+          <img src="/assets/tp-sansi.webp" alt="Sansi Bansal at Twin Petrels startup event in Buffalo" loading="lazy" decoding="async" />
         </div>
         <div class="win95-image">
-          <img src="/assets/tm-group.webp" alt="Good Neighbor Fund Buffalo chapter kickoff event at Thin Man Brewery" />
+          <img src="/assets/tm-group.webp" alt="Good Neighbor Fund Buffalo chapter kickoff event at Thin Man Brewery" loading="lazy" decoding="async" />
         </div>
         <div class="win95-image">
-          <img src="/assets/tp-group.webp" alt="Entrepreneurs networking at Twin Petrels in Buffalo" />
+          <img src="/assets/tp-group.webp" alt="Entrepreneurs networking at Twin Petrels in Buffalo" loading="lazy" decoding="async" />
         </div>
         <div class="win95-image">
-          <img src="/assets/lp-dinner.webp" alt="Western New York Good Neighbor Fund Limited Partners dinner" />
+          <img src="/assets/lp-dinner.webp" alt="Western New York Good Neighbor Fund Limited Partners dinner" loading="lazy" decoding="async" />
         </div>
         <div class="win95-image">
-          <img src="/assets/Ernies2.webp" alt="Ernie's Pop Shop - Buffalo small business grant winner" />
+          <img src="/assets/Ernies2.webp" alt="Ernie's Pop Shop - Buffalo small business grant winner" loading="lazy" decoding="async" />
         </div>
         <div class="win95-image">
-          <img src="/assets/tp-panel.webp" alt="Buffalo entrepreneur panel discussion at Twin Petrels" />
+          <img src="/assets/tp-panel.webp" alt="Buffalo entrepreneur panel discussion at Twin Petrels" loading="lazy" decoding="async" />
         </div>
       </div>
     </section>
@@ -376,7 +328,7 @@
         We're looking for passionate founders with bold ideas that create positive impact in Western New York.
         No business plan required — just a 60-second pitch video and your authentic vision.
       </p>
-      <a href="/pitch" class="win95-cta">Submit Your Pitch Today</a>
+      <a href="/pitch?chapter=Western%20New%20York" class="win95-cta">Submit Your Pitch Today</a>
     </section>
 
     <footer class="win95-footer">
@@ -391,18 +343,44 @@
 
       <div class="win95-footer-meta">
         <div class="win95-footer-links">
-          <a href="/upstate">Upstate NY</a>
+          <a href="/upstate">Central NY</a>
           <a href="/capital-region">Capital Region</a>
           <a href="/denver">Denver</a>
           <a href="/">Home</a>
-          <a href="/pitch">Apply</a>
+          <a href="/pitch?chapter=Western%20New%20York">Apply</a>
         </div>
         <p class="win95-footer-copy">&copy; 2026 Good Neighbor Fund</p>
       </div>
     </footer>
   </div>
 
+  <!-- Back-to-top button (revealed by JS once the visitor scrolls past the hero) -->
+  <button type="button" class="win95-back-to-top" data-back-to-top aria-label="Back to top">
+    <span class="win95-back-to-top-arrow" aria-hidden="true">▲</span>
+    <span>Top</span>
+  </button>
+
   <script>
+    // Back-to-top: show after a short scroll, smooth-scroll to top on click.
+    (function () {
+      var btn = document.querySelector('[data-back-to-top]');
+      if (!btn) return;
+      var SHOW_AT = 600;
+      var ticking = false;
+      function sync() {
+        ticking = false;
+        if (window.scrollY > SHOW_AT) btn.classList.add('is-visible');
+        else btn.classList.remove('is-visible');
+      }
+      window.addEventListener('scroll', function () {
+        if (!ticking) { window.requestAnimationFrame(sync); ticking = true; }
+      }, { passive: true });
+      btn.addEventListener('click', function () {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      sync();
+    })();
+
     // Clock functionality
     function updateClock() {
       var now = new Date();
@@ -414,9 +392,11 @@
     setInterval(updateClock, 60000);
   </script>
 
-  <!-- Firebase (compat, for chapter-hydration.js) -->
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="/assets/js/chapter-hydration.js"></script>
+  <!-- Firebase (compat, for chapter-hydration.js). Deferred so HTML parsing
+       isn't blocked on the SDK; chapter-hydration.js also has `defer` so it
+       runs after both Firebase scripts have loaded but before DOMContentLoaded. -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script defer src="/assets/js/chapter-hydration.js"></script>
 </body>
 </html>

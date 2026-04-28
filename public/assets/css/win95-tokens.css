@@ -88,7 +88,7 @@
   --font-body: "MS Sans Serif", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   --font-heading: "Arial Black", Impact, Haettenschweiler, sans-serif;
   --font-mono: "Courier New", Courier, monospace;
-  --font-decorative: "Comic Sans MS", "ComicRetro", "Pixelify Sans", cursive;
+  --font-decorative: "Comic Sans MS", "ComicRetro", "Silkscreen", cursive;
 
   /* Type scale — locked. No font-size should fall outside this set. */
   --text-xs:  11px;  /* badges, fine print */

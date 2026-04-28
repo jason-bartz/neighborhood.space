@@ -15,9 +15,10 @@
 /* ================================================================
    FONT LOADING — pulled from Google Fonts
    Instrument Serif = editorial display; Inter = body;
-   JetBrains Mono = numerals/data; Pixelify Sans = micro-labels
+   JetBrains Mono = numerals/data; Silkscreen = micro-labels
+   (Silkscreen ships in 400 and 700 only.)
    ================================================================ */
-@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Pixelify+Sans:wght@400;500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Silkscreen:wght@400;700&display=swap");
 
 :root {
   /* ================================================================
@@ -59,7 +60,7 @@
   --font-display:  "Instrument Serif", "Times New Roman", Georgia, serif;
   --font-content:  "Inter", "Helvetica Neue", Arial, sans-serif;
   --font-numeral:  "JetBrains Mono", "Menlo", "Courier New", monospace;
-  --font-pixel:    "Pixelify Sans", "Courier New", monospace;
+  --font-pixel:    "Silkscreen", "Courier New", monospace;
   --font-quirky:   "Arial Black", Impact, Haettenschweiler, sans-serif;
 
   /* Content type scale — editorial, larger than OS chrome */
@@ -120,31 +121,33 @@
 }
 
 /* ================================================================
-   CHROME — titlebar is now ink with pixel-font white text to match the
-   new aesthetic. All window frames using --titlebar-bg pick this up.
+   CHROME — titlebar is warm cream with ink pixel-font text. Sits a
+   shade lighter than the taskbar (--mb-paper-deep) so window chrome
+   reads as "foreground" against desktop-level chrome.
+   All window frames using --titlebar-bg pick this up.
    ================================================================ */
 :root {
-  --titlebar-bg: var(--mb-ink);
-  --titlebar-text: var(--mb-chalk);
+  --titlebar-bg: var(--mb-paper);
+  --titlebar-text: var(--mb-ink);
   --close-btn-bg: var(--mb-magenta);
 }
 
 /* Override the Win95 titlebar typography at the class level so even
    existing .win95-titlebar markup picks up the new look. */
 .win95-titlebar {
-  background: var(--mb-ink) !important;
-  color: var(--mb-chalk) !important;
+  background: var(--mb-paper) !important;
+  color: var(--mb-ink) !important;
   font-family: var(--font-pixel) !important;
   font-size: 11px !important;
   letter-spacing: 0.04em !important;
   text-transform: none !important;
-  border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+  border-bottom: 1px solid var(--mb-ink) !important;
 }
 
-/* Close button — solid magenta on ink, no bevel */
+/* Close button — solid magenta on cream, no bevel */
 .win95-close-btn {
   background: var(--mb-magenta) !important;
-  border: 1px solid var(--mb-chalk) !important;
+  border: 1px solid var(--mb-ink) !important;
   box-shadow: none !important;
   color: var(--mb-chalk) !important;
   font-size: 14px !important;
@@ -156,25 +159,25 @@
 }
 .win95-close-btn:hover { background: var(--mb-magenta-deep) !important; }
 .win95-close-btn:active {
-  border-color: var(--mb-chalk) !important;
+  border-color: var(--mb-ink) !important;
   box-shadow: none !important;
   padding: 0 !important;
 }
 
 /* Retro-title-bar (legacy class used by older components) */
 .retro-title-bar {
-  background: var(--mb-ink) !important;
-  color: var(--mb-chalk) !important;
+  background: var(--mb-paper) !important;
+  color: var(--mb-ink) !important;
   font-family: var(--font-pixel) !important;
   font-size: 11px !important;
   letter-spacing: 0.04em !important;
   text-transform: none !important;
-  border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+  border-bottom: 1px solid var(--mb-ink) !important;
 }
 .retro-title-bar button {
   background: var(--mb-magenta) !important;
   color: var(--mb-chalk) !important;
-  border: 1px solid var(--mb-chalk) !important;
+  border: 1px solid var(--mb-ink) !important;
   box-shadow: none !important;
 }
 
@@ -483,6 +486,93 @@
     --s-block-pad-y: 48px;
     --s-block-pad-x: 24px;
   }
+}
+
+/* Awardees filter toolbar --------------------------------------- */
+/* Search + (optional) chapter filter + sort. Stacks on narrow viewports so
+   the controls don't cramp. The --two modifier is applied when a single
+   chapter context is already known (chapter pages), collapsing the
+   dropdown and widening the remaining columns. */
+
+.mb-awardee-filters {
+  display: grid;
+  gap: 12px;
+  align-items: stretch;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+.mb-awardee-filters--two {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+@media (max-width: 700px) {
+  .mb-awardee-filters,
+  .mb-awardee-filters--two {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Focus state for the search/sort controls — mirrors the .mb-btn focus
+   vocabulary (magenta border + inset accent) so the toolbar feels of-a-piece
+   with the rest of the MB surface instead of bare HTML controls. */
+.mb-awardee-filters input:focus,
+.mb-awardee-filters input:focus-visible,
+.mb-awardee-filters select:focus,
+.mb-awardee-filters select:focus-visible {
+  outline: none;
+  border-color: var(--mb-magenta);
+  box-shadow: var(--shadow-hard), inset 0 0 0 1px var(--mb-magenta);
+}
+
+/* Awardee card — clickable, behaves like a .mb-btn for press feedback.
+   The card markup is a <button class="mb-card" data-awardee-id="..."> so we
+   scope these rules to the data-attr to avoid hijacking other .mb-card uses. */
+.mb-card[data-awardee-id] {
+  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+}
+.mb-card[data-awardee-id]:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: var(--shadow-hard-lg);
+}
+.mb-card[data-awardee-id]:active {
+  transform: translate(2px, 2px);
+  box-shadow: 0 0 0 0 var(--mb-ink);
+}
+.mb-card[data-awardee-id]:focus-visible {
+  outline: 2px solid var(--mb-magenta);
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mb-card[data-awardee-id],
+  .mb-card[data-awardee-id]:hover,
+  .mb-card[data-awardee-id]:active {
+    transition: none;
+    transform: none;
+  }
+}
+
+/* Awardee detail modal — backdrop fades in; the inner shell snaps (Win95
+   windows don't ease in, only the dimmed surround does). Close button gets
+   a hover swap so it doesn't feel inert. */
+.mb-modal-backdrop {
+  animation: mb-modal-fade-in 140ms ease-out;
+}
+@keyframes mb-modal-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mb-modal-backdrop { animation: none; }
+}
+[data-awardee-modal-close] {
+  transition: background 80ms ease-out, color 80ms ease-out;
+}
+[data-awardee-modal-close]:hover {
+  background: var(--mb-chalk);
+  color: var(--mb-magenta);
+}
+[data-awardee-modal-close]:focus-visible {
+  outline: 2px solid var(--mb-chalk);
+  outline-offset: 2px;
 }
 
 /* Pull-out stat ------------------------------------------------- */
@@ -1255,8 +1345,8 @@
 }
 
 .mb-page-titlebar {
-  background: var(--mb-ink);
-  color: var(--mb-chalk);
+  background: var(--mb-paper);
+  color: var(--mb-ink);
   padding: 10px 16px;
   min-height: 32px;
   display: flex;
@@ -1268,13 +1358,14 @@
   text-transform: uppercase;
   font-family: var(--font-pixel);
   user-select: none;
+  border-bottom: 1px solid var(--mb-ink);
 }
 
 .mb-page-close {
   width: 22px;
   height: 22px;
   background: var(--mb-magenta);
-  border: 1px solid var(--mb-chalk);
+  border: 1px solid var(--mb-ink);
   color: var(--mb-chalk);
   font-weight: bold;
   cursor: pointer;
@@ -1418,9 +1509,9 @@ body::after {
 }
 
 .dock {
-  background: var(--mb-ink) !important;
+  background: var(--mb-paper-deep) !important;
   border: none !important;
-  box-shadow: var(--shadow-hard-chalk) !important;
+  box-shadow: none !important;
   width: auto !important;
   padding: 8px !important;
   gap: 8px !important;
@@ -1428,7 +1519,7 @@ body::after {
 
 .dock-icon-wrapper {
   background: var(--mb-paper) !important;
-  border: 2px solid var(--mb-chalk) !important;
+  border: 2px solid var(--mb-ink) !important;
   box-shadow: none !important;
   width: 48px !important;
   height: 48px !important;
@@ -1482,8 +1573,8 @@ body::after {
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  background: var(--mb-ink);
-  color: var(--mb-chalk);
+  background: var(--mb-paper);
+  color: var(--mb-ink);
   border-bottom: 2px solid var(--mb-ink);
   flex-shrink: 0;
 }
@@ -1501,7 +1592,7 @@ body::after {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--mb-paper);
+  background: var(--mb-chalk);
   color: var(--mb-ink);
   border: 2px solid var(--mb-ink);
   cursor: pointer;
@@ -1522,10 +1613,9 @@ body::after {
 }
 
 .mb-nav-btn:disabled {
-  background: #4a4a52;
-  color: #2d2d35;
+  background: var(--mb-chalk);
+  color: #a0a0a8;
   cursor: not-allowed;
-  border-color: #2d2d35;
 }
 
 .mb-nav-btn:focus-visible {
@@ -1540,7 +1630,7 @@ body::after {
   flex: 1;
   min-width: 0;
   height: 30px;
-  border: 2px solid var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
   overflow: hidden;
 }
 
@@ -1564,9 +1654,9 @@ body::after {
   padding: 0 12px;
   font-family: var(--font-numeral);
   font-size: 12px;
-  color: var(--mb-chalk);
+  color: var(--mb-ink);
   letter-spacing: 0.02em;
-  background: var(--mb-ink);
+  background: var(--mb-chalk);
   height: 100%;
   display: flex;
   align-items: center;
@@ -1740,6 +1830,19 @@ body::after {
   text-decoration-thickness: 2px;
 }
 
+.pr-identity__lmi {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border: 1.5px solid var(--mb-ink);
+  background: var(--gnf-pink-300);
+  color: var(--mb-ink);
+  margin-left: 2px;
+  align-self: center;
+}
+
 .pr-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1806,6 +1909,15 @@ body::after {
   font-size: 14px;
   line-height: 1.6;
   color: var(--mb-ink);
+}
+
+.pr-ai__category {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--mb-ink-15);
+  font-size: 12px;
+  color: var(--mb-ink);
+  letter-spacing: 0.02em;
 }
 
 /* Field list — clean label/value pairs, no boxes */
@@ -2072,7 +2184,7 @@ body::after {
   align-items: center;
   justify-content: center;
   padding: 40px 20px;
-  background: var(--mb-paper);
+  background: transparent;
   box-sizing: border-box;
 }
 

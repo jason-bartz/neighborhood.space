@@ -7,7 +7,7 @@
 /* Special class for iOS devices to force Comic Sans fallbacks */
 @supports (-webkit-touch-callout: none) {
   .force-comic-font {
-    font-family: "ComicRetro", "Pixelify Sans", cursive !important;
+    font-family: "ComicRetro", "Silkscreen", cursive !important;
   }
 }
 

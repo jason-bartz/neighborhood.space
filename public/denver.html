@@ -15,12 +15,24 @@
   <link rel="icon" type="image/png" href="/favicon.png" />
   <link rel="apple-touch-icon" href="/favicon.png" />
 
+  <!-- Warm DNS/TCP for Firestore + Firebase static SDK so the chapter
+       hydration request doesn't block on a cold connection. -->
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://firebasestorage.googleapis.com" crossorigin>
+
+  <!-- LP roster snapshot — start the fetch during HTML parse so it lands
+       around the same time chapter-hydration.js runs. See the snapshot
+       fast path in public/assets/js/chapter-hydration.js. -->
+  <link rel="preload" as="fetch" crossorigin="anonymous"
+        href="https://firebasestorage.googleapis.com/v0/b/gnf-app-9d7e3.firebasestorage.app/o/chapter-rosters%2Fdenver%2Flps.json?alt=media">
+
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.goodneighbor.fund/denver">
   <meta property="og:title" content="Good Neighbor Fund Denver - $1,000 Startup Grants for Colorado Entrepreneurs">
   <meta property="og:description" content="Get $1,000 for your Denver business idea. Supporting entrepreneurs across the Mile High City with belief capital.">
-  <meta property="og:image" content="https://www.goodneighbor.fund/assets/og/denver.png">
+  <meta property="og:image" content="https://www.goodneighbor.fund/assets/og/default.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Good Neighbor Fund Denver — $1,000 micro-grants for Colorado entrepreneurs">
@@ -32,7 +44,7 @@
   <meta property="twitter:url" content="https://www.goodneighbor.fund/denver">
   <meta property="twitter:title" content="Good Neighbor Fund Denver - Colorado Startup Grants">
   <meta property="twitter:description" content="$1,000 grants for Denver entrepreneurs. No equity required.">
-  <meta property="twitter:image" content="https://www.goodneighbor.fund/assets/og/denver.png">
+  <meta property="twitter:image" content="https://www.goodneighbor.fund/assets/og/default.png">
 
   <!-- Fonts -->
   <link rel="stylesheet" href="/assets/fonts/fonts.css" />
@@ -158,6 +170,11 @@
   </style>
 </head>
 <body data-chapter-slug="denver">
+  <!-- Skip-to-content: visually hidden until focused, then springs into the
+       upper-left. Targets the hero (#pitch) so keyboard users land at the
+       top of the actual content instead of paging through the taskbar/nav. -->
+  <a href="#pitch" class="win95-skip-link">Skip to content</a>
+
   <!-- Taskbar -->
   <div class="win95-taskbar">
     <a href="/" class="win95-taskbar-left">
@@ -170,16 +187,31 @@
   </div>
 
   <div class="win95-container">
+    <!-- Page jump nav (anchors land at #impact / #lps / #awardees;
+         chapter-hydration.js hides links whose section is toggled off). -->
+    <nav class="win95-page-nav" aria-label="Page sections">
+      <span class="win95-page-nav-label">Jump to</span>
+      <a href="#pitch" aria-current="page">Pitch</a>
+      <a href="#impact" data-nav-target="impact">Impact</a>
+      <a href="#awardees" data-nav-target="awardees" class="is-hidden">Awardees</a>
+      <a href="#lps" data-nav-target="lps">Our LPs</a>
+      <a href="#join">Become an LP</a>
+    </nav>
+
     <!-- Hero (always shown) -->
-    <section class="win95-hero">
+    <section class="win95-hero" id="pitch">
       <div class="win95-hero-content">
         <div class="win95-hero-left">
           <h1 data-chapter-field="heroTitle">$1,000 Micro-Grants for Denver Business Ideas</h1>
           <p data-chapter-field="heroTagline"><strong data-chapter-lede>We back brilliant ideas before they're "ready."</strong> No pitch deck required. No equity taken. Just belief in your vision and potential.</p>
-          <a href="/pitch" class="win95-cta">Submit Your Pitch Today</a>
+          <a href="/pitch?chapter=Denver" class="win95-cta">Submit Your Pitch Today</a>
         </div>
         <div class="win95-hero-right">
-          <img src="/assets/denver-launch.webp" alt="Denver Launch - Good Neighbor Fund Denver chapter event" />
+          <img src="https://firebasestorage.googleapis.com/v0/b/gnf-app-9d7e3.firebasestorage.app/o/chapter-photos%2Fdenver%2Fhero?alt=media"
+               alt="Denver Launch - Good Neighbor Fund Denver chapter event"
+               width="1000" height="750"
+               loading="eager" fetchpriority="high" decoding="async"
+               onerror="this.onerror=null;this.src='/assets/denver-launch.webp';" />
           <div class="win95-hero-caption">Denver Chapter Launch Event</div>
         </div>
       </div>
@@ -203,23 +235,26 @@
         </div>
       </section>
 
-      <section class="win95-section win95-section--blue">
-        <h2>Our Impact Since 2023</h2>
+      <!-- Our Impact (togglable via showImpact; defaults to shown). Stat
+           values are auto-computed from /pitches by chapter-hydration.js;
+           the values below are static fallbacks if Firestore is unreachable. -->
+      <section class="win95-section win95-section--blue" data-chapter-section="impact" id="impact">
+        <h2>Our Impact Since <span data-chapter-stat-year>2023</span></h2>
         <div class="win95-stat-grid">
           <div class="win95-stat">
-            <div class="win95-stat-num win95-stat-num--blue">34</div>
+            <div class="win95-stat-num win95-stat-num--blue" data-chapter-stat="grants">34</div>
             <p>New Business Ideas<br>Funded</p>
           </div>
           <div class="win95-stat">
-            <div class="win95-stat-num win95-stat-num--pink">80%</div>
+            <div class="win95-stat-num win95-stat-num--pink" data-chapter-stat="women">80%</div>
             <p>Women-Owned<br>Businesses</p>
           </div>
           <div class="win95-stat">
-            <div class="win95-stat-num win95-stat-num--yellow">52%</div>
+            <div class="win95-stat-num win95-stat-num--yellow" data-chapter-stat="bipoc">52%</div>
             <p>BIPOC-Owned<br>Businesses</p>
           </div>
           <div class="win95-stat">
-            <div class="win95-stat-num win95-stat-num--purple">$34,000+</div>
+            <div class="win95-stat-num win95-stat-num--purple" data-chapter-stat="dollars">$34,000</div>
             <p>In Micro-Grants<br>Awarded</p>
           </div>
         </div>
@@ -227,9 +262,9 @@
     </div>
 
     <!-- Powered by People (always shown) -->
-    <section class="win95-section win95-section--purple" style="text-align: center;">
-      <h2 style="border-bottom: none;">Powered by People, Not Institutions</h2>
-      <p class="win95-body" style="max-width: 800px; margin: 0 auto;" data-chapter-field="poweredByText">
+    <section class="win95-section win95-section--purple win95-section--centered" id="join">
+      <h2>Powered by People, Not Institutions</h2>
+      <p class="win95-body win95-body--narrow" data-chapter-field="poweredByText">
         Good Neighbor Fund is a collective giving organization. Our funding comes from Limited Partners (LPs) —
         local founders, operators, and community members who pool their own capital each quarter to fund the
         boldest new ideas in Denver. No overhead. No bureaucracy. Just neighbors investing in neighbors.
@@ -242,47 +277,18 @@
       </div>
     </section>
 
-    <!-- Chapter LPs (togglable via showLPs) -->
-    <section class="win95-section" data-chapter-section="lps">
-      <h1 style="text-align: center;">Denver Chapter LPs</h1>
-      <div class="win95-lp-grid">
-        <div class="win95-lp-card">
-          <img src="/assets/lps/susan-o'rourke.png" alt="Susan O'Rourke - Co-Founder - Good Neighbor Fund Limited Partner" />
-          <h3>Susan O'Rourke</h3>
-          <p class="win95-lp-role">Co-Founder</p>
-          <p class="win95-lp-bio">VP of Sales at Plug. Former early employee at ACV Auctions.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/allie-reitz.png" alt="Allie Reitz - Founder, Meep - Good Neighbor Fund Limited Partner" />
-          <h3>Allie Reitz</h3>
-          <p class="win95-lp-role">Founder, Meep</p>
-          <p class="win95-lp-bio">UX designer, founder coach, and no-code studio builder for impact startups.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/jared-mchenry.png" alt="Jared McHenry - Launch Lead, SkySquad - Good Neighbor Fund Limited Partner" />
-          <h3>Jared McHenry</h3>
-          <p class="win95-lp-role">Launch Lead, SkySquad</p>
-          <p class="win95-lp-bio">Scaling ops + sales teams with startup DNA from ACV Auctions.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/jeff-dougherty.png" alt="Jeff Dougherty - Director, QuidelOrtho - Good Neighbor Fund Limited Partner" />
-          <h3>Jeff Dougherty</h3>
-          <p class="win95-lp-role">Director, QuidelOrtho</p>
-          <p class="win95-lp-bio">Ops wizard with experience integrating complex orgs post-merger.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/nicole-hunter.png" alt="Nicole Hunter - Professor of Finance, UB - Good Neighbor Fund Limited Partner" />
-          <h3>Nicole Hunter</h3>
-          <p class="win95-lp-role">Professor of Finance, UB</p>
-          <p class="win95-lp-bio">Spreads intercultural awareness through business education.</p>
-        </div>
-        <div class="win95-lp-card">
-          <img src="/assets/lps/scott-romano.png" alt="Scott Romano - Interim CEO, Energize Colorado - Good Neighbor Fund Limited Partner" />
-          <h3>Scott Romano</h3>
-          <p class="win95-lp-role">Interim CEO, Energize Colorado</p>
-          <p class="win95-lp-bio">Top 25 Colorado innovator. Brings tech to public-interest causes.</p>
-        </div>
-      </div>
+    <!-- Chapter LPs (togglable via showLPs; roster hydrated from Firestore) -->
+    <section class="win95-section" data-chapter-section="lps" id="lps">
+      <h1 class="win95-text-center">Denver Chapter LPs</h1>
+      <div class="win95-lp-grid"></div>
+    </section>
+
+    <!-- Grant Awardees (togglable via showAwardees; off by default — hidden
+         until chapter-hydration.js confirms the flag is on, then it fetches
+         winners scoped to this chapter and renders the filter/grid/modal). -->
+    <section class="win95-section is-hidden" data-chapter-section="awardees" id="awardees">
+      <h1 class="win95-text-center">Denver Grant Awardees</h1>
+      <div data-chapter-slot="awardees-grid"></div>
     </section>
 
     <!-- Community Gallery (togglable via showGallery) -->
@@ -290,13 +296,13 @@
       <h2>Building Denver's Startup Community</h2>
       <div class="win95-image-grid">
         <div class="win95-image">
-          <img src="/assets/kiln-panel.webp" alt="Startup pitch presentations at Kiln Denver" />
+          <img src="/assets/kiln-panel.webp" alt="Startup pitch presentations at Kiln Denver" loading="lazy" decoding="async" />
         </div>
         <div class="win95-image">
-          <img src="/assets/mana-2.webp" alt="Mana - Denver Good Neighbor Fund grant awardee" />
+          <img src="/assets/mana-2.webp" alt="Mana - Denver Good Neighbor Fund grant awardee" loading="lazy" decoding="async" />
         </div>
         <div class="win95-image">
-          <img src="/assets/denver-launch.webp" alt="Denver Chapter launch celebration" />
+          <img src="/assets/denver-launch.webp" alt="Denver Chapter launch celebration" loading="lazy" decoding="async" />
         </div>
       </div>
     </section>
@@ -308,7 +314,7 @@
         We're looking for passionate founders with bold ideas that create positive impact in Denver.
         No business plan required — just a 60-second pitch video and your authentic vision.
       </p>
-      <a href="/pitch" class="win95-cta">Submit Your Pitch Today</a>
+      <a href="/pitch?chapter=Denver" class="win95-cta">Submit Your Pitch Today</a>
     </section>
 
     <footer class="win95-footer">
@@ -324,17 +330,43 @@
       <div class="win95-footer-meta">
         <div class="win95-footer-links">
           <a href="/wny">WNY</a>
-          <a href="/upstate">Upstate NY</a>
+          <a href="/upstate">Central NY</a>
           <a href="/capital-region">Capital Region</a>
           <a href="/">Home</a>
-          <a href="/pitch">Apply</a>
+          <a href="/pitch?chapter=Denver">Apply</a>
         </div>
         <p class="win95-footer-copy">&copy; 2026 Good Neighbor Fund</p>
       </div>
     </footer>
   </div>
 
+  <!-- Back-to-top button (revealed by JS once the visitor scrolls past the hero) -->
+  <button type="button" class="win95-back-to-top" data-back-to-top aria-label="Back to top">
+    <span class="win95-back-to-top-arrow" aria-hidden="true">▲</span>
+    <span>Top</span>
+  </button>
+
   <script>
+    // Back-to-top: show after a short scroll, smooth-scroll to top on click.
+    (function () {
+      var btn = document.querySelector('[data-back-to-top]');
+      if (!btn) return;
+      var SHOW_AT = 600;
+      var ticking = false;
+      function sync() {
+        ticking = false;
+        if (window.scrollY > SHOW_AT) btn.classList.add('is-visible');
+        else btn.classList.remove('is-visible');
+      }
+      window.addEventListener('scroll', function () {
+        if (!ticking) { window.requestAnimationFrame(sync); ticking = true; }
+      }, { passive: true });
+      btn.addEventListener('click', function () {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      sync();
+    })();
+
     // Clock functionality
     function updateClock() {
       var now = new Date();
@@ -346,9 +378,11 @@
     setInterval(updateClock, 60000);
   </script>
 
-  <!-- Firebase (compat, for chapter-hydration.js) -->
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-  <script src="/assets/js/chapter-hydration.js"></script>
+  <!-- Firebase (compat, for chapter-hydration.js). Deferred so HTML parsing
+       isn't blocked on the SDK; chapter-hydration.js also has `defer` so it
+       runs after both Firebase scripts have loaded but before DOMContentLoaded. -->
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script defer src="/assets/js/chapter-hydration.js"></script>
 </body>
 </html>

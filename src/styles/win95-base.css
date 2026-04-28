@@ -648,6 +648,7 @@ h4, .win95-h4 {
   grid-template-columns: repeat(2, 1fr);
   gap: var(--space-4);
   text-align: center;
+  contain: layout;
 }
 
 .win95-stat {
@@ -668,6 +669,10 @@ h4, .win95-h4 {
   line-height: 1;
   margin: 0 0 var(--space-2) 0;
   color: var(--gnf-text);
+  /* Lock height + use tabular figures so the slot doesn't visibly resize
+     when chapter-hydration.js swaps the static fallback for the live count. */
+  min-height: 52px;
+  font-variant-numeric: tabular-nums;
 }
 
 .win95-stat-num--pink   { color: var(--pink-dark); }
@@ -821,14 +826,158 @@ h4, .win95-h4 {
 }
 
 /* ================================================================
+   PAGE JUMP NAV (anchor strip above the hero)
+   Styled to match the "Millennium Bug" editorial theme (cream paper,
+   hard ink borders, hard offset shadows — same vocabulary as .mb-btn /
+   .mb-card), NOT the pastel Win95 bevel set the class name implies.
+   The class is kept for historical continuity with other chapter-page
+   elements; the visual system is all MB tokens.
+   ================================================================ */
+
+/* Smooth-scroll for in-page anchor jumps. Respects prefers-reduced-motion
+   (handled below via a media query that overrides to auto). */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+.win95-page-nav {
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  padding: 12px 20px;
+  margin-bottom: 32px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-family: var(--font-content);
+}
+
+.win95-page-nav-label {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+  padding-right: 14px;
+  margin-right: 6px;
+  border-right: 1px solid var(--mb-ink-15);
+}
+
+.win95-page-nav a {
+  display: inline-block;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 6px 12px;
+  font-family: var(--font-content);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mb-ink);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 60ms ease-out, color 60ms ease-out;
+}
+
+.win95-page-nav a:hover {
+  background: var(--mb-ink);
+  color: var(--mb-chalk);
+  text-decoration: none;
+}
+
+/* Scrollspy active state — chapter-hydration.js sets aria-current="page"
+   on the link whose target section is currently in view. Mirrors the hover
+   look so the active anchor reads as a "pressed" tab. */
+.win95-page-nav a[aria-current="page"] {
+  background: var(--mb-ink);
+  color: var(--mb-chalk);
+}
+
+.win95-page-nav a:focus-visible {
+  outline: 2px solid var(--mb-ink);
+  outline-offset: 2px;
+}
+
+/* Anchor-target scroll offset — any element inside the chapter container
+   with an id gets enough top margin that smooth-scroll clears the fixed
+   taskbar (~36px). Scoped to .win95-container so unrelated [id] elements
+   (e.g. form inputs) aren't affected. */
+.win95-container [id] {
+  scroll-margin-top: 56px;
+}
+
+/* ================================================================
+   BACK-TO-TOP BUTTON (fixed bottom-right)
+   Follows the MB button vocabulary: hard ink border + hard shadow,
+   hover grows the shadow via a -1/-1 translate.
+   ================================================================ */
+
+.win95-back-to-top {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 52px;
+  height: 52px;
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  font-family: var(--font-content);
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  display: none;            /* JS toggles .is-visible to flip this */
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 0;
+  z-index: 999;
+  text-decoration: none;
+  transition: transform 60ms ease-out, box-shadow 60ms ease-out;
+}
+
+.win95-back-to-top.is-visible {
+  display: flex;
+}
+
+.win95-back-to-top:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard-lg);
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+  text-decoration: none;
+}
+
+.win95-back-to-top:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 0 var(--mb-ink);
+}
+
+.win95-back-to-top:focus-visible {
+  outline: 2px solid var(--mb-ink);
+  outline-offset: 4px;
+}
+
+.win95-back-to-top-arrow {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* ================================================================
    LP / PERSON CARD GRID
    ================================================================ */
 
 .win95-lp-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 320px));
   gap: var(--space-5);
   margin-top: var(--space-4);
+  justify-content: center;
 }
 
 .win95-lp-card {
@@ -962,6 +1111,108 @@ h4, .win95-h4 {
     padding-left: var(--space-3);
     padding-right: var(--space-3);
   }
+
+  .win95-page-nav {
+    gap: var(--space-1);
+    padding: var(--space-2);
+  }
+
+  .win95-page-nav-label {
+    display: none;
+  }
+
+  .win95-page-nav a {
+    font-size: var(--text-xs);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .win95-back-to-top {
+    width: 44px;
+    height: 44px;
+    font-size: 9px;
+  }
+}
+
+/* ================================================================
+   UTILITIES (chapter-page surface)
+   Small, single-purpose classes used by the static landing pages so
+   we can keep markup free of inline style attrs. Stay consistent
+   with the Win95 + Millennium-Bug vocabulary — no soft shadows,
+   no border-radius, no hex literals.
+   ================================================================ */
+
+.win95-text-center { text-align: center; }
+
+.win95-body--narrow {
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Centered-section variant: used by the "Powered by People" / "Become an LP"
+   panel where the heading sits over centered body copy and shouldn't carry
+   the default magenta underline. */
+.win95-section--centered { text-align: center; }
+.win95-section--centered h2 { border-bottom: none; }
+
+/* Generic visibility toggle, used by chapter-hydration.js to show/hide
+   togglable sections (LPs, Awardees, Gallery) and their corresponding
+   page-nav links. Kept distinct from {hidden} attr so we can override
+   when a parent container demands display: contents etc. */
+.is-hidden { display: none !important; }
+
+/* ================================================================
+   SKIP-TO-CONTENT LINK
+   Off-screen by default; springs into the upper-left on focus.
+   Targets the hero (#pitch) since it's the natural top-of-content
+   anchor on every chapter page.
+   ================================================================ */
+
+.win95-skip-link {
+  position: absolute;
+  top: -100px;
+  left: var(--space-3);
+  z-index: 10000;
+  background: var(--mb-ink);
+  color: var(--mb-chalk);
+  padding: 10px 16px;
+  font-family: var(--font-content);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  transition: top 120ms ease-out;
+}
+
+.win95-skip-link:focus,
+.win95-skip-link:focus-visible {
+  top: var(--space-3);
+  color: var(--mb-chalk);
+  text-decoration: none;
+  outline: 2px solid var(--mb-magenta);
+  outline-offset: 2px;
+}
+
+/* ================================================================
+   LP PHOTO PLACEHOLDER
+   Drop-in stand-in for the 120×120 LP avatar when the per-name
+   /assets/lps/<slug>.png file is missing or 404s. Same border /
+   inset-shadow vocabulary as .win95-lp-card img so the layout
+   doesn't shift when the fallback kicks in.
+   ================================================================ */
+
+.win95-lp-photo-placeholder {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto var(--space-3);
+  background: var(--pink-mid);
+  border: 2px solid;
+  border-color: var(--bevel-inset);
+  box-shadow: var(--shadow-inset);
+  display: block;
 }
 
 /* ================================================================
@@ -969,7 +1220,7 @@ h4, .win95-h4 {
    Reusable classes for the LP Portal admin surface. These adopt
    the editorial/modern-retro content theme established in
    theme-tokens.css (cream paper, ink borders, magenta accents,
-   Instrument Serif / Inter / Pixelify Sans / JetBrains Mono).
+   Instrument Serif / Inter / Silkscreen / JetBrains Mono).
    Namespaced with `.admin-*` and `.retro-*`.
 
    Tokens used (from theme-tokens.css):
@@ -977,7 +1228,7 @@ h4, .win95-h4 {
      --mb-magenta, --mb-magenta-deep, --mb-magenta-soft
      --mb-aqua-soft, --mb-butter, --mb-butter-soft, --mb-grape-soft
      --font-display (Instrument Serif), --font-content (Inter),
-     --font-pixel (Pixelify Sans), --font-numeral (JetBrains Mono)
+     --font-pixel (Silkscreen), --font-numeral (JetBrains Mono)
      --shadow-hard-sm / --shadow-hard / --shadow-hard-lg
    ================================================================ */
 
@@ -994,6 +1245,7 @@ h4, .win95-h4 {
   border: 2px solid var(--mb-ink);
   border-bottom: none;
   overflow-x: auto;
+  overflow-y: hidden;
   position: relative;
   z-index: 1;
 }
@@ -1094,6 +1346,15 @@ h4, .win95-h4 {
 
 .admin-section--hero {
   padding: 48px 48px 36px;
+}
+
+.admin-section--hero-compact {
+  padding: 24px 32px 20px;
+}
+
+.admin-section--hero-compact .admin-section-head {
+  margin-bottom: 0;
+  gap: 6px;
 }
 
 .admin-section--paper    { background: var(--mb-paper); }
@@ -1302,6 +1563,10 @@ h4, .win95-h4 {
   font-size: var(--tc-body);
 }
 
+/* `!important` overrides the global `input:not(...):not(...):not(...)` rule
+   at the top of this file, which has higher selector specificity (0,0,3,1)
+   than our `.filter-bar > input[type="search"]` (0,0,2,1) and would
+   otherwise leak the pink bevel border + inset shadow into this admin row. */
 .filter-bar > select,
 .filter-bar > input[type="text"],
 .filter-bar > input[type="search"] {
@@ -1310,15 +1575,15 @@ h4, .win95-h4 {
   font-size: 14px;
   min-height: 34px;
   background: var(--mb-chalk);
-  border: 2px solid var(--mb-ink);
-  box-shadow: none;
+  border: 2px solid var(--mb-ink) !important;
+  box-shadow: none !important;
   color: var(--mb-ink);
 }
 
 .filter-bar > select:focus,
 .filter-bar > input:focus {
-  outline: 2px solid var(--mb-magenta);
-  outline-offset: 2px;
+  outline: 2px solid var(--mb-ink);
+  outline-offset: 1px;
 }
 
 .filter-bar > select {
@@ -1349,12 +1614,12 @@ h4, .win95-h4 {
   flex-grow: 1;
 }
 
-/* Force the filter bar onto a single row. Leaves overflow visible so
-   absolutely-positioned children (e.g. MultiSelectDropdown panels) are not
-   clipped — setting overflow-x here would force overflow-y to compute as
-   auto and cut off the dropdown. */
+/* Prefer a single row, but wrap when controls can't fit.
+   Overflow stays visible so absolutely-positioned children (e.g.
+   MultiSelectDropdown panels) aren't clipped — setting overflow-x here
+   would force overflow-y to compute as auto and cut off the dropdown. */
 .filter-bar--one-row {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .filter-bar--one-row > select,
@@ -1555,7 +1820,11 @@ h4, .win95-h4 {
   letter-spacing: 0.14em;
 }
 
-.retro-form-row input,
+/* `:not(...)` triple-pseudo bumps specificity to (0,4,1) so this beats the
+   global `input:not([type=checkbox]):not([type=radio]):not([type=range])`
+   pink-bevel rule (0,3,1). Without it, retro-form-row text inputs/textareas
+   get the legacy inset pink border. */
+.retro-form-row input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 .retro-form-row textarea,
 .retro-form-row select {
   font-family: var(--font-content);
@@ -1568,7 +1837,7 @@ h4, .win95-h4 {
   line-height: 1.4;
 }
 
-.retro-form-row input:focus,
+.retro-form-row input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
 .retro-form-row textarea:focus,
 .retro-form-row select:focus {
   outline: 2px solid var(--mb-magenta);
@@ -1607,6 +1876,19 @@ h4, .win95-h4 {
   text-transform: uppercase;
   color: var(--mb-ink);
   margin-bottom: 16px;
+}
+
+/* ── Member photo: grayscale with ink border; hover reveals color ── */
+.member-photo {
+  border: 2px solid var(--mb-ink);
+  background: #fff;
+  filter: grayscale(100%);
+  transition: filter 120ms linear;
+}
+
+.member-photo:hover,
+.member-photo:focus-visible {
+  filter: grayscale(0%);
 }
 
 /* ── Action row (bottom of an edit panel: Save / Cancel) ── */
@@ -1749,6 +2031,66 @@ h4, .win95-h4 {
   font-family: var(--font-content);
   font-size: var(--tc-micro);
   color: var(--mb-ink-60);
+}
+
+/* ── Slider toggle (true/false switch — e.g. "Live on website") ──
+   Square per the no-border-radius rule. Hidden checkbox drives :checked. */
+.win95-toggle {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.win95-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.win95-toggle__track {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  background: var(--mb-paper-deep);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  transition: background 80ms ease-out;
+}
+
+.win95-toggle__thumb {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 14px;
+  height: 14px;
+  background: var(--mb-ink);
+  transition: transform 80ms ease-out;
+  pointer-events: none;
+}
+
+.win95-toggle input:checked ~ .win95-toggle__track {
+  background: var(--mb-aqua);
+}
+
+.win95-toggle input:checked ~ .win95-toggle__thumb {
+  transform: translateX(18px);
+}
+
+.win95-toggle input:focus-visible ~ .win95-toggle__track {
+  outline: 2px solid var(--mb-magenta);
+  outline-offset: 2px;
+}
+
+.win95-toggle input:disabled ~ .win95-toggle__track {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ── Retro toggle button (for Hide Passed/Ineligible, etc.) ── */
@@ -1910,29 +2252,29 @@ h4, .win95-h4 {
 }
 
 .social-card-tile {
-  background: var(--mb-chalk);
-  border: 2px solid var(--mb-ink);
-  box-shadow: var(--shadow-hard-sm);
   display: flex;
   flex-direction: column;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.social-card-tile__preview {
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  aspect-ratio: 1 / 1;
+  background: var(--mb-paper);
   overflow: hidden;
   transition: transform 80ms ease-out, box-shadow 80ms ease-out;
 }
 
-.social-card-tile:hover {
+.social-card-tile:hover .social-card-tile__preview {
   transform: translate(-2px, -2px);
   box-shadow: var(--shadow-hard-lg);
 }
 
-.social-card-tile__preview {
-  border-bottom: 2px solid var(--mb-ink);
-  aspect-ratio: 1 / 1;
-  background: var(--mb-paper);
-  overflow: hidden;
-}
-
 .social-card-tile__body {
-  padding: 18px 20px 20px;
+  padding: 18px 2px 4px;
   display: flex;
   flex-direction: column;
   gap: 8px;

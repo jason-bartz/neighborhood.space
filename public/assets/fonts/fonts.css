@@ -6,14 +6,6 @@
     font-display: swap;
   }
   
-  @font-face {
-    font-family: "Pixelify Sans";
-    src: url("/assets/fonts/pixelify-sans.ttf") format("truetype");
-    font-weight: normal;
-    font-style: normal;
-    font-display: swap;
-  }
-  
   /* Chicago fonts */
   @font-face {
     font-family: "ChicagoFLF";

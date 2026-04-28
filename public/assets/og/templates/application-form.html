@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>GNF OG — Application Form, Step 1 of 3 (1200×630)</title>
+
+  <link rel="stylesheet" href="../../css/win95-tokens.css" />
+  <link rel="stylesheet" href="../../css/win95-base.css" />
+  <link rel="stylesheet" href="../../css/theme-tokens.css" />
+
+  <style>
+    html, body {
+      width: 1200px;
+      height: 630px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    html { background: var(--blue-light); }
+
+    body {
+      background: var(--blue-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-content, "Inter", "Helvetica Neue", Arial, sans-serif);
+      color: var(--gnf-text);
+      position: relative;
+    }
+
+    .desktop-mark {
+      position: absolute;
+      top: 28px;
+      left: 32px;
+      font-family: "Silkscreen", "Courier New", monospace;
+      font-size: 14px;
+      letter-spacing: 0.06em;
+      color: rgba(45, 45, 45, 0.55);
+      text-transform: uppercase;
+    }
+
+    .desktop-clock {
+      position: absolute;
+      top: 28px;
+      right: 32px;
+      font-family: "JetBrains Mono", "Courier New", monospace;
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      color: rgba(45, 45, 45, 0.55);
+    }
+
+    /* Window ----------------------------------------------------------- */
+    .window {
+      width: 1040px;
+      background: var(--window-bg);
+      border: 2px solid;
+      border-color: var(--bevel-outset);
+      box-shadow: var(--shadow-outset), 4px 4px 0 var(--gnf-pink-300);
+    }
+
+    .titlebar {
+      background: var(--titlebar-bg);
+      padding: 6px 10px;
+      min-height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--gnf-text);
+      border-bottom: 1px solid var(--gnf-border-pink);
+    }
+    .titlebar-title { display: flex; align-items: center; gap: 8px; }
+    .titlebar-title-icon {
+      width: 14px; height: 14px;
+      background: var(--pink-mid);
+      border: 2px solid;
+      border-color: var(--bevel-outset);
+    }
+    .titlebar-buttons { display: flex; gap: 4px; }
+    .tb-btn {
+      width: 20px; height: 18px;
+      background: var(--gnf-bg-silver);
+      border: 2px solid;
+      border-color: var(--bevel-outset);
+      display: inline-flex; align-items: center; justify-content: center;
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .body {
+      padding: 36px 48px 32px;
+    }
+
+    .stepbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: "Silkscreen", "Courier New", monospace;
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--gnf-text-muted);
+      margin-bottom: 26px;
+    }
+    .stepbar .dots { display: flex; gap: 6px; align-items: center; }
+    .stepbar .dot {
+      width: 12px; height: 12px;
+      background: var(--gnf-bg-silver);
+      border: 2px solid;
+      border-color: var(--bevel-inset);
+    }
+    .stepbar .dot.is-active { background: var(--pink-mid); border-color: var(--bevel-outset); }
+
+    .label {
+      font-family: "Instrument Serif", "Times New Roman", Georgia, serif;
+      font-weight: 400;
+      font-size: 56px;
+      line-height: 1.05;
+      letter-spacing: -0.012em;
+      margin: 0 0 20px;
+      color: var(--gnf-text);
+    }
+    .label em { font-style: italic; color: var(--pink-dark); }
+
+    .field {
+      background: var(--gnf-bg);
+      border: 2px solid;
+      border-color: var(--bevel-inset);
+      box-shadow: var(--shadow-inset);
+      padding: 22px 24px;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      font-family: var(--font-body);
+      font-size: 26px;
+      font-weight: 400;
+      color: var(--gnf-text);
+      min-height: 36px;
+    }
+    .cursor {
+      display: inline-block;
+      width: 3px;
+      height: 30px;
+      background: var(--gnf-text);
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
+    .helper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 18px;
+    }
+    .helper-text {
+      font-family: var(--font-content, "Inter", sans-serif);
+      font-size: 14px;
+      color: var(--gnf-text-muted);
+    }
+    .helper-count {
+      font-family: "JetBrains Mono", "Courier New", monospace;
+      font-size: 13px;
+      color: var(--gnf-text-muted);
+      letter-spacing: 0.04em;
+    }
+
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 30px;
+    }
+    .brand-tag {
+      font-family: "Silkscreen", "Courier New", monospace;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--gnf-text-muted);
+    }
+    .button-row { display: flex; gap: 10px; }
+    .btn {
+      background: var(--gnf-bg-silver);
+      border: 2px solid;
+      border-color: var(--bevel-outset);
+      box-shadow: var(--shadow-outset);
+      padding: 10px 22px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--gnf-text);
+    }
+    .btn--primary { background: var(--pink-mid); }
+    .btn--ghost { color: var(--gnf-text-muted); }
+  </style>
+</head>
+<body>
+
+  <div class="desktop-mark">good neighbor fund — application</div>
+  <div class="desktop-clock">12 : 00 PM</div>
+
+  <main class="window" role="dialog" aria-label="GNF application form">
+    <div class="titlebar">
+      <div class="titlebar-title">
+        <span class="titlebar-title-icon" aria-hidden="true"></span>
+        <span>GNF Application — Step 1 of 3</span>
+      </div>
+      <div class="titlebar-buttons" aria-hidden="true">
+        <span class="tb-btn">_</span>
+        <span class="tb-btn">□</span>
+        <span class="tb-btn">×</span>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="stepbar">
+        <span>step 1 of 3 · the idea</span>
+        <span class="dots">
+          <span>progress</span>
+          <span class="dot is-active"></span>
+          <span class="dot"></span>
+          <span class="dot"></span>
+        </span>
+      </div>
+
+      <h1 class="label">What&rsquo;s your <em>big idea?</em></h1>
+
+      <div class="field" aria-hidden="true">
+        <span>I want to start a mobile bike-repair shop in my neighborhood</span>
+        <span class="cursor"></span>
+      </div>
+
+      <div class="helper">
+        <span class="helper-text">no pitch deck required. no equity. just belief.</span>
+        <span class="helper-count">1 / 1 sentence</span>
+      </div>
+
+      <div class="footer-row">
+        <span class="brand-tag">goodneighbor.fund · $1,000 micro-grants</span>
+        <div class="button-row">
+          <span class="btn btn--ghost">← Back</span>
+          <span class="btn btn--primary">Next &nbsp;→</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+</body>
+</html>

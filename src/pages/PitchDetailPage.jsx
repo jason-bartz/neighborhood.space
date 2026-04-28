@@ -135,7 +135,7 @@ export default function PitchDetailPage() {
             <div style={eyebrowStyle}>
               {pitch.chapter || "Good Neighbor Fund"}
               {submittedAt ? ` · Submitted ${submittedAt}` : ""}
-              {pitch.isWinner ? " · Grant Recipient" : ""}
+              {pitch.isWinner && pitch.winnerPublished !== false ? " · Grant Recipient" : ""}
             </div>
             <h1 style={titleStyle}>{pitch.businessName || "Untitled Pitch"}</h1>
             {pitch.founderName && (

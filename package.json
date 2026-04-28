@@ -6,7 +6,8 @@
     "start": "react-scripts start",
     "prebuild": "node scripts/sync-styles.js",
     "build": "react-scripts build",
-    "sync-styles": "node scripts/sync-styles.js"
+    "sync-styles": "node scripts/sync-styles.js",
+    "ship": "bash scripts/ship.sh"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

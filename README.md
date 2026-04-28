@@ -123,7 +123,7 @@ cd functions && npm run start-emulator
 
 ### Environment
 
-Firebase client config is hardcoded in [firebaseConfig.js](firebaseConfig.js) (public-safe by design; security lives in Firestore rules).
+Firebase client config is hardcoded in [src/firebaseConfig.js](src/firebaseConfig.js) (public-safe by design; security lives in Firestore rules).
 
 Cloud Function secrets are set via `firebase functions:config:set` — see [functions/SETUP_GUIDE.md](functions/SETUP_GUIDE.md). Required namespaces:
 

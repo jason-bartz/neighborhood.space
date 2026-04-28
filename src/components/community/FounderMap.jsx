@@ -6,7 +6,7 @@ import "./FounderMap.css";
 const chapterCenters = {
   "Western New York": { lat: 42.88, lng: -77.8, zoom: 8 }, // Zoomed out to show full WNY region
   Denver: { lat: 39.7392, lng: -104.9903, zoom: 10 },
-  "Upstate New York": { lat: 43.05, lng: -76.15, zoom: 8 }, // Centered on Syracuse
+  "Central New York": { lat: 43.05, lng: -76.15, zoom: 8 }, // Centered on Syracuse
   "Capital Region": { lat: 42.65, lng: -73.75, zoom: 9 }, // Centered on Albany
 };
 
@@ -415,6 +415,12 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
         
         snap.docs.forEach((doc) => {
           const d = doc.data();
+          // Hide winners staged in the admin Grant Winners tab but not yet
+          // published. Missing field reads as published (existing winners).
+          if (d.winnerPublished === false) {
+            skippedCount++;
+            return;
+          }
           let coords = null;
           
           // First try zip code
@@ -622,7 +628,7 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
             <option value="">All Chapters</option>
             <option value="Western New York">Western New York</option>
             <option value="Denver">Denver</option>
-            <option value="Upstate New York">Upstate New York</option>
+            <option value="Central New York">Central New York</option>
             <option value="Capital Region">Capital Region</option>
           </select>
         </div>

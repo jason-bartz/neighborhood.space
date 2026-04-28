@@ -2,12 +2,13 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import PitchPage from "../../pages/standalone/PitchPage";
 import LPApplication from "../../pages/standalone/LPApplication";
-import MobileNeighborhoodResources from "../resources/MobileNeighborhoodResources";
+import ResourceNavigator from "../resources/ResourceNavigator";
 import MobileBuddyMessenger from "../community/MobileBuddyMessenger";
 import MobileLPPortal from "../lp/MobileLPPortal";
 import MobileBootScreen from "./MobileBootScreen";
 import HitCounter from "../ui/HitCounter";
 import DockIcon from "../icons/DockIcon";
+import ChapterDonationChooser from "../donate/ChapterDonationChooser";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import "../../styles/App.css";
@@ -168,6 +169,9 @@ export default function MobileLanding({ initialBootDone = false }) {
       
       snapshot.forEach(doc => {
         const data = doc.data();
+        // Hide winners staged in the admin Grant Winners tab but not yet
+        // published. Missing field reads as published (existing winners).
+        if (data.winnerPublished === false) return;
 
         let quarter = "Unknown Quarter";
         let createdAtMs = 0;
@@ -351,7 +355,7 @@ export default function MobileLanding({ initialBootDone = false }) {
         style={{
           fontSize: "10px",
           marginTop: "4px",
-          color: "var(--mb-chalk)",
+          color: "var(--mb-ink)",
           textAlign: "center",
           fontWeight: "bold",
           fontFamily: "var(--font-body)",
@@ -376,7 +380,7 @@ export default function MobileLanding({ initialBootDone = false }) {
       case "home":
         return (
           <main className="mb-content">
-            <h1 style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", overflow: "hidden" }}>Good Neighbor Fund - $1,000 Micro-Grants for Bold Founders | Chapters in Western New York, Denver, Upstate NY, and the Capital Region</h1>
+            <h1 style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", overflow: "hidden" }}>Good Neighbor Fund - $1,000 Micro-Grants for Bold Founders | Chapters in Western New York, Denver, Central NY, and the Capital Region</h1>
 
             {/* ===== HERO — Magenta ===== */}
             <section className="mb-block mb-block-magenta" style={{ padding: "36px 20px" }}>
@@ -388,7 +392,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                   $1,000 micro-grants for <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>bold</em> business ideas.
                 </h2>
                 <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.95, fontSize: 15 }}>
-                  We back brilliant ideas before they're "ready." No pitch deck. No equity taken. Just belief in your vision and potential.
+                  We back founders before they're "ready." No pitch deck. No equity taken. Just belief in your vision and potential.
                 </p>
                 <button
                   type="button"
@@ -479,7 +483,7 @@ export default function MobileLanding({ initialBootDone = false }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 {[
                   { n: "01", title: "Submit", copy: "Complete our simple online form and upload a 60-second pitch video. That's it — no business plan required." },
-                  { n: "02", title: "Review", copy: "Our LP teams review every submission at the end of each quarter, together, over dinner." },
+                  { n: "02", title: "Review", copy: "Each chapter's LPs review every submission at the end of each quarter." },
                   { n: "03", title: "Award",  copy: "Selected founders receive a $1,000 micro-grant with no strings attached. We don't take equity; we take belief." }
                 ].map((step) => (
                   <article key={step.n} className="mb-card mb-card-sm" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -661,7 +665,7 @@ export default function MobileLanding({ initialBootDone = false }) {
         const chapterCards = mobileChapterCards || [
           { name: 'Western New York', foundedYear: 2023, tagline: 'Where it all started, serving Buffalo and the surrounding 8 counties.', pageSlug: 'wny' },
           { name: 'Denver',           foundedYear: 2023, tagline: 'Serving the greater Denver metropolitan area.', pageSlug: 'denver' },
-          { name: 'Upstate New York', foundedYear: 2026, tagline: 'Bringing belief capital to founders across Central and Upstate New York — Syracuse, Ithaca, Binghamton, Utica and beyond.', pageSlug: 'upstate' },
+          { name: 'Central New York', foundedYear: 2026, tagline: 'Bringing belief capital to founders across Central New York — Syracuse, Ithaca, Binghamton, Utica and beyond.', pageSlug: 'upstate' },
           { name: 'Capital Region',   foundedYear: 2026, tagline: "Supporting bold ideas across New York's Capital Region — Albany, Schenectady, Troy and the surrounding area.", pageSlug: 'capital-region' },
         ];
 
@@ -670,7 +674,7 @@ export default function MobileLanding({ initialBootDone = false }) {
             {/* ===== HERO — Grape ===== */}
             <section className="mb-block mb-block-grape" style={{ padding: "36px 20px" }}>
               <div className="mb-section-head" style={{ margin: 0 }}>
-                <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Network · Four Chapters Strong</span>
+                <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Network · Neighborhood by Neighborhood</span>
                 <h2 className="mb-h1" style={{ color: "var(--mb-chalk)", fontSize: 32, lineHeight: 1.05 }}>
                   GNF <em style={{ fontStyle: "italic", color: "var(--mb-aqua)" }}>Chapters.</em>
                 </h2>
@@ -728,8 +732,17 @@ export default function MobileLanding({ initialBootDone = false }) {
                   A collective giving organization, at the neighborhood scale.
                 </h2>
               </div>
+              <img
+                src="/assets/molly-brown-cookies.webp"
+                alt="Chapter community gathering — founders sharing a table over cookies"
+                width="800"
+                height="600"
+                loading="lazy"
+                decoding="async"
+                style={{ width: "100%", height: "auto", display: "block", border: "var(--border-ink-2)", marginBottom: 16 }}
+              />
               <p className="mb-lede" style={{ fontSize: 14 }}>
-                GNF is a diverse group of founders, operators, and creators who share a passion for entrepreneurship and community. LPs pool their own resources, knowledge, and networks. We meet quarterly to review applications and select new micro-grant award winners.
+                GNF is a diverse group of founders, operators, and creators who share a passion for entrepreneurship and community. LPs pool their own resources, knowledge, and networks. Each chapter meets quarterly to review applications and select new micro-grant award winners.
               </p>
             </section>
 
@@ -739,8 +752,20 @@ export default function MobileLanding({ initialBootDone = false }) {
                 <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Model</span>
                 <h2 className="mb-h2" style={{ fontSize: 26, lineHeight: 1.1 }}>What is collective giving?</h2>
               </div>
+              <img
+                src="/assets/wny-dinner.webp"
+                alt="Limited Partners gathered at a WNY chapter dinner to review applications"
+                width="800"
+                height="600"
+                loading="lazy"
+                decoding="async"
+                style={{ width: "100%", height: "auto", display: "block", border: "var(--border-ink-2)", marginBottom: 16 }}
+              />
               <p className="mb-lede" style={{ fontSize: 15, marginBottom: 12 }}>
                 Good Neighbor Fund is more than a grant program — it's a neighborhood of builders and believers. LPs are a diverse collective of founders, operators, and community members who pool their own capital each quarter to fund the boldest new ideas in their chapter.
+              </p>
+              <p className="mb-body" style={{ fontSize: 13, marginBottom: 10 }}>
+                Each chapter operates as its own independent giving circle — with its own LPs, its own quarterly dinner, and its own awardees. Dollars raised in a chapter stay in that chapter.
               </p>
               <p className="mb-body" style={{ fontSize: 13, marginBottom: 10 }}>
                 There's no overhead. No bureaucracy. We operate on a <strong style={{ fontWeight: 600 }}>money in, money out</strong> model: 100% of LP dues go directly to fund the next wave of local founders.
@@ -764,16 +789,16 @@ export default function MobileLanding({ initialBootDone = false }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
                 <button
                   type="button"
-                  onClick={() => window.location.href = "https://airtable.com/app38xfYxu9HY6yT3/pagYPQAHYvAUxPfuX/form"}
+                  onClick={() => window.location.href = "/start-a-chapter"}
                   className="mb-btn mb-btn-butter"
                   style={{ fontSize: 12, padding: "12px 18px", width: "100%", maxWidth: 280 }}
                 >
-                  Contact Us
+                  Start a Chapter
                   <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => window.open("https://jasonbartz.notion.site/Good-Neighbor-Fund-Chapter-Handbook-1fc6fdd6d4c680e2a523eb2cbd5cf365", "_blank")}
+                  onClick={() => window.open("/chapter-handbook", "_blank")}
                   className="mb-btn mb-btn-chalk"
                   style={{ fontSize: 12, padding: "12px 18px", width: "100%", maxWidth: 280 }}
                 >
@@ -838,7 +863,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                     }}
                   >
                     <option value="">All Chapters</option>
-                    {["Western New York", "Denver", "Upstate New York", "Capital Region"].map(chapter => (
+                    {["Western New York", "Denver", "Central New York", "Capital Region"].map(chapter => (
                       <option key={chapter} value={chapter}>{chapter}</option>
                     ))}
                   </select>
@@ -1005,16 +1030,20 @@ export default function MobileLanding({ initialBootDone = false }) {
                         </span>
                       ))}
                     </div>
-                    <a
-                      href="https://buy.stripe.com/8wMaEW0mqaYB1jOaEH"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mb-btn mb-btn-ink mb-btn-full"
-                      style={{ fontSize: 12, padding: "12px 14px" }}
-                    >
-                      Donate via Stripe
-                      <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
-                    </a>
+                    <ChapterDonationChooser
+                      accent="aqua"
+                      renderTrigger={(onClick) => (
+                        <button
+                          type="button"
+                          onClick={onClick}
+                          className="mb-btn mb-btn-ink mb-btn-full"
+                          style={{ fontSize: 12, padding: "12px 14px" }}
+                        >
+                          Donate via Stripe
+                          <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
+                        </button>
+                      )}
+                    />
                   </div>
                 </article>
 
@@ -1145,6 +1174,24 @@ export default function MobileLanding({ initialBootDone = false }) {
 
             {/* ===== CO-FOUNDER NOTE — Butter ===== */}
             <section className="mb-block mb-block-butter" style={{ padding: "32px 20px" }}>
+              <img
+                src="/assets/lps/jason-bartz.webp"
+                alt="Jason Bartz, co-founder of Good Neighbor Fund"
+                width="220"
+                height="220"
+                loading="lazy"
+                decoding="async"
+                style={{
+                  width: 220,
+                  maxWidth: "100%",
+                  aspectRatio: "1 / 1",
+                  objectFit: "cover",
+                  display: "block",
+                  border: "var(--border-ink-2)",
+                  filter: "grayscale(100%)",
+                  marginBottom: 20,
+                }}
+              />
               <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)", display: "block", marginBottom: 16 }}>
                 A note from the co-founder
               </span>
@@ -1152,7 +1199,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                 className="mb-display"
                 style={{ fontSize: 18, lineHeight: 1.35, margin: 0, borderLeft: "4px solid var(--mb-magenta)", paddingLeft: 16 }}
               >
-                Your support fuels $1,000 micro-grants that help early-stage founders launch their first product, buy initial inventory, or spread the word about their business. These small bets grow into job-creating, community-serving ventures.
+                Your support fuels our micro-grant program that helps early-stage founders launch their first product, buy initial inventory, or spread the word about their business. These small bets grow into job-creating, community-serving ventures.
               </blockquote>
               <div style={{ marginTop: 18, paddingLeft: 20, display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ width: 18, height: 2, background: "var(--mb-ink)", display: "inline-block" }} />
@@ -1206,7 +1253,7 @@ export default function MobileLanding({ initialBootDone = false }) {
           initialChapter={lpApplicationChapter}
         />
       ) : activeApp === "resources" ? (
-        <MobileNeighborhoodResources onClose={() => setActiveApp(null)} />
+        <ResourceNavigator onClose={() => setActiveApp(null)} />
       ) : (
         <>
           <div style={{
@@ -1230,10 +1277,10 @@ export default function MobileLanding({ initialBootDone = false }) {
               display: "flex",
               flexDirection: "column"
             }}>
-              {/* Window Title Bar — ink + pixel font to match new theme */}
+              {/* Window Title Bar — paper + pixel font, matches desktop */}
               <div style={{
-                background: "var(--mb-ink)",
-                color: "var(--mb-chalk)",
+                background: "var(--mb-paper)",
+                color: "var(--mb-ink)",
                 padding: "6px 10px",
                 minHeight: "28px",
                 display: "flex",
@@ -1243,7 +1290,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                 fontSize: "11px",
                 letterSpacing: "0.04em",
                 userSelect: "none",
-                borderBottom: "1px solid rgba(255,255,255,0.1)"
+                borderBottom: "1px solid var(--mb-ink)"
               }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <img
@@ -1256,7 +1303,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                 </div>
                 <button style={{
                   background: "var(--mb-magenta)",
-                  border: "1px solid var(--mb-chalk)",
+                  border: "1px solid var(--mb-ink)",
                   color: "var(--mb-chalk)",
                   cursor: "pointer",
                   padding: "0",
@@ -1346,15 +1393,15 @@ export default function MobileLanding({ initialBootDone = false }) {
             </div>
           </div>
 
-          {/* Dock — ink-on-chalk bar matching the Navigator theme */}
+          {/* Dock — paper-on-ink bar matching the Navigator theme */}
           <div style={{
             display: "flex",
             justifyContent: "space-around",
             alignItems: "center",
             gap: "4px",
             padding: "6px 8px",
-            background: "var(--mb-ink)",
-            color: "var(--mb-chalk)",
+            background: "var(--mb-paper)",
+            color: "var(--mb-ink)",
             margin: "0 auto 10px auto",
             width: "94%",
             maxWidth: "420px",
@@ -1428,33 +1475,37 @@ export default function MobileLanding({ initialBootDone = false }) {
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               <p>Support our micro-grant program:</p>
-              <div style={{ width: "100%", maxWidth: "220px", marginTop: "10px" }}>
-                <a 
-                  href="https://buy.stripe.com/8wMaEW0mqaYB1jOaEH"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                    padding: "14px 20px",
-                    background: "#635BFF",
-                    border: "2px solid",
-                    borderColor: "var(--mb-ink)",
-                    color: "white",
-                    fontWeight: "bold",
-                    fontSize: "14px",
-                    textDecoration: "none",
-                    boxShadow: "var(--shadow-hard-sm)",
-                    width: "100%"
-                  }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 0C5.376 0 0 5.376 0 12C0 18.624 5.376 24 12 24C18.624 24 24 18.624 24 12C24 5.376 18.624 0 12 0ZM5.04 14.832C4.464 14.832 3.96 14.328 3.96 13.728C3.96 13.128 4.464 12.624 5.04 12.624H9.72C10.32 12.624 10.8 13.128 10.8 13.728C10.8 14.328 10.32 14.832 9.72 14.832H5.04ZM19.2 10.08C19.2 10.68 18.72 11.16 18.12 11.16H4.08C3.48 11.16 3 10.68 3 10.08C3 9.48 3.48 9 4.08 9H18.12C18.72 9 19.2 9.48 19.2 10.08ZM19.68 7.44C19.68 8.04 19.2 8.52 18.6 8.52H7.92C7.32 8.52 6.84 8.04 6.84 7.44C6.84 6.84 7.32 6.36 7.92 6.36H18.6C19.2 6.36 19.68 6.84 19.68 7.44Z" fill="white"/>
-                  </svg>
-                  Donate via Stripe
-                </a>
+              <div style={{ width: "100%", maxWidth: "260px", marginTop: "10px" }}>
+                <ChapterDonationChooser
+                  renderTrigger={(onClick) => (
+                    <button
+                      type="button"
+                      onClick={onClick}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                        padding: "14px 20px",
+                        background: "#635BFF",
+                        border: "2px solid",
+                        borderColor: "var(--mb-ink)",
+                        color: "white",
+                        fontWeight: "bold",
+                        fontSize: "14px",
+                        boxShadow: "var(--shadow-hard-sm)",
+                        width: "100%",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 0C5.376 0 0 5.376 0 12C0 18.624 5.376 24 12 24C18.624 24 24 18.624 24 12C24 5.376 18.624 0 12 0ZM5.04 14.832C4.464 14.832 3.96 14.328 3.96 13.728C3.96 13.128 4.464 12.624 5.04 12.624H9.72C10.32 12.624 10.8 13.128 10.8 13.728C10.8 14.328 10.32 14.832 9.72 14.832H5.04ZM19.2 10.08C19.2 10.68 18.72 11.16 18.12 11.16H4.08C3.48 11.16 3 10.68 3 10.08C3 9.48 3.48 9 4.08 9H18.12C18.72 9 19.2 9.48 19.2 10.08ZM19.68 7.44C19.68 8.04 19.2 8.52 18.6 8.52H7.92C7.32 8.52 6.84 8.04 6.84 7.44C6.84 6.84 7.32 6.36 7.92 6.36H18.6C19.2 6.36 19.68 6.84 19.68 7.44Z" fill="white"/>
+                      </svg>
+                      Donate via Stripe
+                    </button>
+                  )}
+                />
               </div>
               <p style={{ fontSize: "12px", color: "#666", marginTop: "15px", textAlign: "center" }}>
                 Tax deductible through our fiscal sponsor, BootSector (EIN: 85-4082950)

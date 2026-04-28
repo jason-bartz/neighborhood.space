@@ -1,30 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { collection, query, where, getDocs, orderBy } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import Marquee from "react-fast-marquee";
 import HitCounter from "../ui/HitCounter";
-import NeighborhoodResources from "../resources/NeighborhoodResources";
-
-const AWARDEES_CACHE_KEY = "gnf:awardees:v1";
-
-const loadCachedAwardees = () => {
-  try {
-    const cached = sessionStorage.getItem(AWARDEES_CACHE_KEY);
-    return cached ? JSON.parse(cached) : [];
-  } catch {
-    return [];
-  }
-};
+import ResourceNavigator from "../resources/ResourceNavigator";
+import GrantAwardees from "../awardees/GrantAwardees";
+import ChapterDonationChooser from "../donate/ChapterDonationChooser";
 
 export default function BrowserWindow({ onClose, onPitchClick, onLpApplicationClick, windowId, zIndex, bringToFront }) {
   const [history, setHistory] = useState(["home"]);
   const [historyIndex, setHistoryIndex] = useState(0);
-  const [awardees, setAwardees] = useState(loadCachedAwardees);
-  const [filteredAwardees, setFilteredAwardees] = useState(loadCachedAwardees);
-  const [awardeesLoading, setAwardeesLoading] = useState(false);
-  const [awardeeChapterFilter, setAwardeeChapterFilter] = useState("");
-  const [awardeeSearchTerm, setAwardeeSearchTerm] = useState("");
-  const [awardeeSort, setAwardeeSort] = useState("alpha");
   const [currentMarqueeIndex, setCurrentMarqueeIndex] = useState(0);
 
   const currentPage = history[historyIndex];
@@ -98,122 +83,18 @@ export default function BrowserWindow({ onClose, onPitchClick, onLpApplicationCl
     }
   };
 
-  // Prefetch awardees on mount (stale-while-revalidate using sessionStorage cache)
-  useEffect(() => {
-    fetchAwardees();
-  }, []);
-
-
-  // Load awardees from Firestore
-  const fetchAwardees = async () => {
-    // Only show the spinner if we have nothing cached to render
-    if (awardees.length === 0) setAwardeesLoading(true);
-
-    try {
-      const q = query(
-        collection(db, "pitches"),
-        where("isWinner", "==", true)
-      );
-      
-      const snapshot = await getDocs(q);
-      
-      if (snapshot.empty) {
-        setAwardees([]);
-        setFilteredAwardees([]);
-        setAwardeesLoading(false);
-        return;
-      }
-      
-      const awardeesData = [];
-      
-      snapshot.forEach(doc => {
-        const data = doc.data();
-
-        let quarter = "Unknown Quarter";
-        let createdAtMs = 0;
-        if (data.createdAt) {
-          try {
-            const date = data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt);
-            const q = Math.floor(date.getMonth() / 3) + 1;
-            quarter = `Q${q} ${date.getFullYear()}`;
-            createdAtMs = date.getTime();
-          } catch (e) {
-            console.error("Error parsing date for doc " + doc.id, e);
-          }
-        }
-
-        awardeesData.push({
-          id: doc.id,
-          businessName: data.businessName || "Unnamed Business",
-          founderName: data.founderName || "Unknown Founder",
-          about: data.about || "",
-          website: data.website || "",
-          photoUrl: data["pitch-photo"] || data.founderPhotoUrl || "",
-          chapter: data.chapter || "Unknown Chapter",
-          quarter: quarter,
-          createdAtMs: createdAtMs
-        });
-      });
-
-      setAwardees(awardeesData);
-      try {
-        sessionStorage.setItem(AWARDEES_CACHE_KEY, JSON.stringify(awardeesData));
-      } catch {
-        // quota/serialization failure is non-fatal
-      }
-    } catch (error) {
-      console.error("Error fetching awardees:", error);
-    }
-
-    setAwardeesLoading(false);
-  };
-
-  // Filter + sort awardees
-  useEffect(() => {
-    if (awardees.length > 0) {
-      const filtered = awardees.filter(awardee => {
-        const matchesSearch = awardeeSearchTerm === "" ||
-          awardee.businessName.toLowerCase().includes(awardeeSearchTerm.toLowerCase()) ||
-          awardee.founderName.toLowerCase().includes(awardeeSearchTerm.toLowerCase());
-
-        const matchesChapter = awardeeChapterFilter === "" ||
-          awardee.chapter === awardeeChapterFilter;
-
-        return matchesSearch && matchesChapter;
-      });
-
-      const sorted = [...filtered].sort((a, b) => {
-        if (awardeeSort === "newest") return b.createdAtMs - a.createdAtMs;
-        if (awardeeSort === "oldest") return a.createdAtMs - b.createdAtMs;
-        return a.businessName.localeCompare(b.businessName);
-      });
-
-      setFilteredAwardees(sorted);
-    }
-  }, [awardeeSearchTerm, awardeeChapterFilter, awardeeSort, awardees]);
-
   const renderPage = () => {
     switch (currentPage) {
       case "home":
         return <HomePage onPitchClick={onPitchClick} pressLinks={pressLinks} marqueeImages={marqueeImages} currentMarqueeIndex={currentMarqueeIndex} />;
       case "chapters":
-        return <ChaptersPage setPage={setPage} onLpApplicationClick={onLpApplicationClick} />;
+        return <ChaptersPage setPage={setPage} onLpApplicationClick={onLpApplicationClick} onPitchClick={onPitchClick} />;
       case "awardees":
-        return <AwardeesPage
-                awardees={filteredAwardees}
-                loading={awardeesLoading}
-                chapters={["Western New York", "Denver", "Upstate New York", "Capital Region"]}
-                searchTerm={awardeeSearchTerm}
-                setSearchTerm={setAwardeeSearchTerm}
-                chapterFilter={awardeeChapterFilter}
-                setChapterFilter={setAwardeeChapterFilter}
-                sort={awardeeSort}
-                setSort={setAwardeeSort}
-               />;
+        return <AwardeesPage onPitchClick={onPitchClick} />;
       case "resources":
-        return <NeighborhoodResources isEmbedded={true} />;
+        return <ResourceNavigator isEmbedded={true} />;
       case "donate":
-        return <DonatePage />;
+        return <DonatePage onPitchClick={onPitchClick} />;
       default:
         return <HomePage onPitchClick={onPitchClick} pressLinks={pressLinks} marqueeImages={marqueeImages} currentMarqueeIndex={currentMarqueeIndex} />;
     }
@@ -318,7 +199,7 @@ export default function BrowserWindow({ onClose, onPitchClick, onLpApplicationCl
 
 const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex }) => (
   <main className="mb-content">
-    <h1 style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}>Good Neighbor Fund - $1,000 Micro-Grants for Bold Founders | Chapters in Western New York, Denver, Upstate NY, and the Capital Region</h1>
+    <h1 style={{ position: "absolute", width: "1px", height: "1px", padding: 0, margin: "-1px", overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}>Good Neighbor Fund - $1,000 Micro-Grants for Bold Founders | Chapters in Western New York, Denver, Central NY, and the Capital Region</h1>
 
     {/* ===== ANNOUNCEMENT MARQUEE (ink bar) ===== */}
     <div style={{
@@ -335,7 +216,7 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
         <span style={{ color: "var(--mb-magenta)", margin: "0 32px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", fontFamily: "var(--font-pixel)" }}>Now Accepting Q2 2026 Applications</span>
         <span style={{ color: "var(--mb-chalk)", margin: "0 32px" }}>$1,000 micro-grants · no pitch deck required</span>
         <span style={{ color: "var(--mb-butter)", margin: "0 32px", fontWeight: 700 }}>34 businesses funded since 2023</span>
-        <span style={{ color: "var(--mb-chalk)", margin: "0 32px" }}>Western New York · Denver · Upstate NY · Capital Region</span>
+        <span style={{ color: "var(--mb-chalk)", margin: "0 32px" }}>Western New York · Denver · Central NY · Capital Region</span>
         <span style={{ color: "var(--mb-aqua)", margin: "0 32px", fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", fontFamily: "var(--font-pixel)" }}>Join the GNF Club — support local founders</span>
       </Marquee>
     </div>
@@ -365,7 +246,7 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
           </h2>
 
           <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.95, maxWidth: "48ch" }}>
-            We back brilliant ideas before they're "ready." No pitch deck.
+            We back founders before they're "ready." No pitch deck.
             No equity taken. Just belief in your vision and potential.
           </p>
 
@@ -502,7 +383,7 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
       <div className="mb-grid mb-grid-3">
         {[
           { n: "01", title: "Submit",  copy: "Complete our simple online form and upload a 60-second pitch video. That's it — no business plan required." },
-          { n: "02", title: "Review",  copy: "Our LP teams review every submission at the end of each quarter, together, over dinner. Every applicant is considered." },
+          { n: "02", title: "Review",  copy: "Each chapter's LPs review every submission at the end of each quarter, together. Every applicant is considered." },
           { n: "03", title: "Award",   copy: "Selected founders receive a $1,000 micro-grant with no strings attached. We don't take equity; we take belief." }
         ].map(step => (
           <article key={step.n} className="mb-card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -524,11 +405,11 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
       <div className="mb-section-head" style={{ marginBottom: 40 }}>
         <span className="mb-eyebrow" style={{ color: "var(--mb-ink)" }}>Community · IRL</span>
         <h2 className="mb-h2" style={{ maxWidth: "20ch" }}>
-          Dinner, pitches, and giant checks.
+          Neighbors, pitches, and giant checks.
         </h2>
         <p className="mb-body" style={{ maxWidth: "62ch", marginTop: 4 }}>
-          Every grant starts with people in a room. LPs meet quarterly, share a meal, and vote on the
-          ideas they believe in most. Then we hand over the biggest check we can carry.
+          Every grant starts with people in a room. LPs meet quarterly and vote on the
+          ideas they believe in most.
         </p>
       </div>
 
@@ -718,6 +599,15 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
       </div>
     </section>
 
+    <PageCTAFooter onPitchClick={onPitchClick} />
+  </main>
+);
+
+// Shared "Apply Now" CTA + footer rendered at the bottom of every Navigator
+// tab page except Resources. Kept local to BrowserWindow since all Navigator
+// page components live here.
+const PageCTAFooter = ({ onPitchClick }) => (
+  <>
     {/* ===== FINAL CTA — Ink ===== */}
     <section className="mb-block mb-block-ink" style={{ textAlign: "center" }}>
       <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)", display: "block", marginBottom: 20 }}>
@@ -795,13 +685,16 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
         </a>
       </div>
     </footer>
-  </main>
+  </>
 );
 
 // -- AwardeesPage
-const AwardeesPage = ({ awardees, loading, chapters, searchTerm, setSearchTerm, chapterFilter, setChapterFilter, sort, setSort }) => (
+// Navigator-tab awardees: editorial hero band, then the shared GrantAwardees
+// component (filters + grid + detail modal). Fetch/filter/sort state is
+// owned by GrantAwardees so the same component can be embedded on chapter
+// pages without duplicating logic.
+const AwardeesPage = ({ onPitchClick }) => (
   <main className="mb-content">
-    {/* ===== HERO — Butter ===== */}
     <section className="mb-block mb-block-butter">
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)", gap: 48, alignItems: "center" }}>
         <div className="mb-section-head" style={{ margin: 0 }}>
@@ -829,134 +722,11 @@ const AwardeesPage = ({ awardees, loading, chapters, searchTerm, setSearchTerm, 
       </div>
     </section>
 
-    {/* ===== FILTER TOOLBAR — Paper ===== */}
-    <section className="mb-block mb-block-paper" style={{ paddingTop: 32, paddingBottom: 32 }}>
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr)", gap: 12, alignItems: "stretch" }} className="mb-awardee-filters">
-        <input
-          type="search"
-          placeholder="Search by founder or business name"
-          aria-label="Search by founder or business name"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            padding: "12px 14px",
-            fontFamily: "var(--font-content)",
-            fontSize: 14,
-            background: "var(--mb-chalk)",
-            color: "var(--mb-ink)",
-            border: "var(--border-ink-2)",
-            boxShadow: "var(--shadow-hard-sm)"
-          }}
-        />
-        <select
-          value={chapterFilter}
-          onChange={(e) => setChapterFilter(e.target.value)}
-          style={{
-            padding: "12px 14px",
-            fontFamily: "var(--font-content)",
-            fontSize: 14,
-            background: "var(--mb-chalk)",
-            color: "var(--mb-ink)",
-            border: "var(--border-ink-2)",
-            boxShadow: "var(--shadow-hard-sm)"
-          }}
-        >
-          <option value="">All Chapters</option>
-          {chapters.map(chapter => (
-            <option key={chapter} value={chapter}>{chapter}</option>
-          ))}
-        </select>
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
-          style={{
-            padding: "12px 14px",
-            fontFamily: "var(--font-content)",
-            fontSize: 14,
-            background: "var(--mb-chalk)",
-            color: "var(--mb-ink)",
-            border: "var(--border-ink-2)",
-            boxShadow: "var(--shadow-hard-sm)"
-          }}
-        >
-          <option value="alpha">Sort · Alphabetical</option>
-          <option value="newest">Sort · Newest first</option>
-          <option value="oldest">Sort · Oldest first</option>
-        </select>
-      </div>
-
-      {loading && (
-        <div style={{ textAlign: "center", padding: "40px 0" }}>
-          <span className="mb-numeral" style={{ fontSize: 14, color: "var(--mb-ink-60)" }}>LOADING AWARDEES&hellip;</span>
-        </div>
-      )}
-
-      {!loading && awardees.length === 0 && (
-        <div style={{ textAlign: "center", padding: "40px 20px", marginTop: 20, border: "1px dashed var(--mb-ink)" }}>
-          <p className="mb-body">No awardees match your search criteria. Try adjusting your filters.</p>
-        </div>
-      )}
+    <section className="mb-block mb-block-paper" style={{ paddingTop: 32, paddingBottom: 48 }}>
+      <GrantAwardees />
     </section>
 
-    {/* ===== AWARDEE GRID — Paper ===== */}
-    {!loading && awardees.length > 0 && (
-      <section className="mb-block mb-block-paper" style={{ paddingTop: 16 }}>
-        <div className="mb-grid mb-grid-4" style={{ gap: 28 }}>
-          {awardees.map((awardee, i) => (
-            <article key={awardee.id} className="mb-card" style={{ padding: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              {awardee.photoUrl && (
-                <div style={{ borderBottom: "var(--border-ink-2)", background: "var(--mb-ink)" }}>
-                  <img
-                    src={awardee.photoUrl}
-                    alt={`${awardee.businessName} - ${awardee.chapter} Good Neighbor Fund $1,000 grant recipient`}
-                    width="400"
-                    height="400"
-                    loading={i < 4 ? "eager" : "lazy"}
-                    fetchPriority={i < 4 ? "high" : "auto"}
-                    decoding="async"
-                    style={{ width: "100%", height: "auto", aspectRatio: "1 / 1", objectFit: "cover", display: "block" }}
-                  />
-                </div>
-              )}
-
-              <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
-                <div className="mb-numeral" style={{ fontSize: 11, color: "var(--mb-ink-60)", display: "flex", justifyContent: "space-between", gap: 8 }}>
-                  <span>{awardee.chapter}</span>
-                  <span>{awardee.quarter}</span>
-                </div>
-
-                <h3 className="mb-h4" style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 24, lineHeight: 1.1, letterSpacing: "-0.01em" }}>
-                  {awardee.businessName}
-                </h3>
-
-                <div className="mb-italic" style={{ fontSize: 14, color: "var(--mb-ink-60)" }}>
-                  by {awardee.founderName}
-                </div>
-
-                {awardee.about && (
-                  <p className="mb-body" style={{ fontSize: 13, lineHeight: 1.5, marginTop: 6, flex: 1 }}>
-                    {awardee.about}
-                  </p>
-                )}
-
-                {awardee.website && (
-                  <a
-                    href={awardee.website.startsWith('http') ? awardee.website : `http://${awardee.website}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mb-btn mb-btn-chalk"
-                    style={{ marginTop: 12, width: "100%", padding: "10px 14px", fontSize: 12 }}
-                  >
-                    Visit Website
-                    <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
-                  </a>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
-    )}
+    <PageCTAFooter onPitchClick={onPitchClick} />
   </main>
 );
 
@@ -966,14 +736,14 @@ const AwardeesPage = ({ awardees, loading, chapters, searchTerm, setSearchTerm, 
 const LEGACY_CHAPTER_CARDS = [
   { name: 'Western New York', foundedYear: 2023, tagline: 'Where it all started, serving Buffalo and the surrounding 8 counties.',                                                         pageSlug: 'wny' },
   { name: 'Denver',           foundedYear: 2023, tagline: 'Serving the greater Denver metropolitan area.',                                                                                 pageSlug: 'denver' },
-  { name: 'Upstate New York', foundedYear: 2026, tagline: 'Bringing belief capital to founders across Central and Upstate New York — Syracuse, Ithaca, Binghamton, Utica and beyond.',     pageSlug: 'upstate' },
+  { name: 'Central New York', foundedYear: 2026, tagline: 'Bringing belief capital to founders across Central New York — Syracuse, Ithaca, Binghamton, Utica and beyond.',                  pageSlug: 'upstate' },
   { name: 'Capital Region',   foundedYear: 2026, tagline: "Supporting bold ideas across New York's Capital Region — Albany, Schenectady, Troy and the surrounding area.",                  pageSlug: 'capital-region' },
 ];
 
 // -- ChaptersPage --
 // Renders the list dynamically from the /chapters Firestore collection.
 // Falls back to LEGACY_CHAPTER_CARDS if the collection is empty or the load fails.
-const ChaptersPage = ({ setPage, onLpApplicationClick }) => {
+const ChaptersPage = ({ setPage, onLpApplicationClick, onPitchClick }) => {
   const [dynamicChapters, setDynamicChapters] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
@@ -1029,7 +799,7 @@ const ChaptersPage = ({ setPage, onLpApplicationClick }) => {
           justifyContent: "center",
           gap: "var(--s-stack)"
         }}>
-          <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Network · Four Chapters Strong</span>
+          <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Network · Neighborhood by Neighborhood</span>
           <h2 className="mb-h1" style={{ color: "var(--mb-chalk)" }}>
             GNF <em style={{ fontStyle: "italic", color: "var(--mb-aqua)" }}>Chapters.</em>
           </h2>
@@ -1096,32 +866,73 @@ const ChaptersPage = ({ setPage, onLpApplicationClick }) => {
     </section>
 
     {/* ===== HOW IT WORKS — Aqua ===== */}
-    <section className="mb-block mb-block-aqua">
-      <div className="mb-section-head" style={{ marginBottom: 24, maxWidth: "56ch" }}>
-        <span className="mb-eyebrow" style={{ color: "var(--mb-ink)" }}>How Chapters Work</span>
-        <h2 className="mb-h2" style={{ maxWidth: "22ch" }}>
-          A collective giving organization, at the neighborhood scale.
-        </h2>
+    <section className="mb-block mb-block-aqua" style={{ padding: 0 }}>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+        alignItems: "stretch",
+        minHeight: "420px"
+      }}>
+        <div style={{
+          padding: "var(--s-block-pad-y) var(--s-block-pad-x)",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          gap: "var(--s-stack)"
+        }}>
+          <div className="mb-section-head" style={{ margin: 0, maxWidth: "56ch" }}>
+            <span className="mb-eyebrow" style={{ color: "var(--mb-ink)" }}>How Chapters Work</span>
+            <h2 className="mb-h2" style={{ maxWidth: "22ch" }}>
+              A collective giving organization, at the neighborhood scale.
+            </h2>
+          </div>
+          <p className="mb-lede" style={{ maxWidth: "64ch" }}>
+            GNF is a diverse group of founders, operators, and creators who share a passion for entrepreneurship
+            and community. LPs pool their own resources, knowledge, and networks. Each chapter meets quarterly to
+            review applications and select new micro-grant award winners.
+          </p>
+        </div>
+        <div style={{ position: "relative", overflow: "hidden", minHeight: "360px", borderLeft: "var(--border-ink-2)" }}>
+          <img
+            src="/assets/molly-brown-cookies.webp"
+            alt="Chapter community gathering — founders sharing a table over cookies"
+            width="800"
+            height="600"
+            loading="lazy"
+            decoding="async"
+            style={{ width: "100%", height: "100%", objectFit: "cover", position: "absolute", inset: 0 }}
+          />
+        </div>
       </div>
-      <p className="mb-lede" style={{ maxWidth: "64ch" }}>
-        GNF is a diverse group of founders, operators, and creators who share a passion for entrepreneurship
-        and community. LPs pool their own resources, knowledge, and networks. We meet quarterly to review
-        applications and select new micro-grant award winners.
-      </p>
     </section>
 
     {/* ===== COLLECTIVE GIVING — Paper ===== */}
     <section className="mb-block mb-block-paper">
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.4fr)", gap: 64, alignItems: "start" }}>
-        <div className="mb-section-head" style={{ margin: 0 }}>
-          <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Model</span>
-          <h2 className="mb-h2">What is collective giving?</h2>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          <div className="mb-section-head" style={{ margin: 0 }}>
+            <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Model</span>
+            <h2 className="mb-h2">What is collective giving?</h2>
+          </div>
+          <img
+            src="/assets/wny-dinner.webp"
+            alt="Limited Partners gathered at a WNY chapter dinner to review applications"
+            width="800"
+            height="600"
+            loading="lazy"
+            decoding="async"
+            style={{ width: "100%", height: "auto", display: "block", border: "var(--border-ink-2)" }}
+          />
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: "var(--s-stack)" }}>
           <p className="mb-lede" style={{ maxWidth: "58ch" }}>
             Good Neighbor Fund is more than a grant program &mdash; it's a neighborhood of builders and
             believers. LPs are a diverse collective of founders, operators, and community members who pool
             their own capital each quarter to fund the boldest new ideas in their chapter.
+          </p>
+          <p className="mb-body" style={{ maxWidth: "60ch" }}>
+            Each chapter operates as its own independent giving circle &mdash; with its own LPs, its own
+            quarterly dinner, and its own awardees. Dollars raised in a chapter stay in that chapter.
           </p>
           <p className="mb-body" style={{ maxWidth: "60ch" }}>
             There's no overhead. No bureaucracy. We operate on a <strong style={{ fontWeight: 600 }}>money in, money out</strong> model:
@@ -1151,21 +962,23 @@ const ChaptersPage = ({ setPage, onLpApplicationClick }) => {
       <div style={{ display: "flex", justifyContent: "center", gap: 16, flexWrap: "wrap" }}>
         <button
           type="button"
-          onClick={() => window.location.href = "https://airtable.com/app38xfYxu9HY6yT3/pagYPQAHYvAUxPfuX/form"}
+          onClick={() => window.location.href = "/start-a-chapter"}
           className="mb-btn mb-btn-butter"
         >
-          Contact Us
+          Start a Chapter
           <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
         </button>
         <button
           type="button"
-          onClick={() => window.open("https://jasonbartz.notion.site/Good-Neighbor-Fund-Chapter-Handbook-1fc6fdd6d4c680e2a523eb2cbd5cf365", "_blank")}
+          onClick={() => window.open("/chapter-handbook", "_blank")}
           className="mb-btn mb-btn-chalk"
         >
           Chapter Handbook
         </button>
       </div>
     </section>
+
+    <PageCTAFooter onPitchClick={onPitchClick} />
   </main>
   );
 };
@@ -1173,7 +986,7 @@ const ChaptersPage = ({ setPage, onLpApplicationClick }) => {
 
 
 // -- DonatePage --
-const DonatePage = () => (
+const DonatePage = ({ onPitchClick }) => (
   <main className="mb-content">
     {/* ===== HERO — Magenta with inline impact stats ===== */}
     <section className="mb-block mb-block-magenta" style={{ padding: 0 }}>
@@ -1292,16 +1105,21 @@ const DonatePage = () => (
               ))}
             </div>
 
-            <a
-              href="https://buy.stripe.com/8wMaEW0mqaYB1jOaEH"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mb-btn mb-btn-ink mb-btn-full"
-              style={{ marginTop: "auto" }}
-            >
-              Donate via Stripe
-              <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
-            </a>
+            <div style={{ marginTop: "auto" }}>
+              <ChapterDonationChooser
+                accent="aqua"
+                renderTrigger={(onClick) => (
+                  <button
+                    type="button"
+                    onClick={onClick}
+                    className="mb-btn mb-btn-ink mb-btn-full"
+                  >
+                    Donate via Stripe
+                    <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
+                  </button>
+                )}
+              />
+            </div>
           </div>
         </article>
 
@@ -1454,36 +1272,63 @@ const DonatePage = () => (
 
     {/* ===== CO-FOUNDER NOTE — Butter ===== */}
     <section className="mb-block mb-block-butter">
-      <div style={{ maxWidth: "820px", margin: "0 auto" }}>
-        <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)", display: "block", marginBottom: 20 }}>
-          A note from the co-founder
-        </span>
-        <blockquote
-          className="mb-display"
+      <div style={{
+        maxWidth: "1040px",
+        margin: "0 auto",
+        display: "grid",
+        gridTemplateColumns: "minmax(240px, 280px) minmax(0, 1fr)",
+        gap: 48,
+        alignItems: "start",
+      }}>
+        <img
+          src="/assets/lps/jason-bartz.webp"
+          alt="Jason Bartz, co-founder of Good Neighbor Fund"
+          width="280"
+          height="280"
+          loading="lazy"
+          decoding="async"
           style={{
-            fontSize: "clamp(22px, 2.6vw, 32px)",
-            lineHeight: 1.35,
-            margin: 0,
-            borderLeft: "4px solid var(--mb-magenta)",
-            paddingLeft: 24,
+            width: "100%",
+            aspectRatio: "1 / 1",
+            objectFit: "cover",
+            display: "block",
+            border: "var(--border-ink-2)",
+            filter: "grayscale(100%)",
           }}
-        >
-          Your support fuels $1,000 micro-grants that help early-stage founders launch their first product,
-          buy initial inventory, or spread the word about their business. These small bets grow into
-          job-creating, community-serving ventures.
-        </blockquote>
-        <div style={{ marginTop: 24, paddingLeft: 28, display: "flex", alignItems: "center", gap: 12 }}>
-          <span style={{ width: 20, height: 2, background: "var(--mb-ink)", display: "inline-block" }} />
-          <div>
-            <div style={{ fontFamily: "var(--font-content)", fontWeight: 700, fontSize: 15, color: "var(--mb-ink)" }}>
-              Jason Bartz
-            </div>
-            <div className="mb-numeral" style={{ fontSize: 11, color: "var(--mb-ink-60)" }}>
-              CO-FOUNDER &middot; GOOD NEIGHBOR FUND
+        />
+        <div>
+          <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)", display: "block", marginBottom: 20 }}>
+            A note from the co-founder
+          </span>
+          <blockquote
+            className="mb-display"
+            style={{
+              fontSize: "clamp(22px, 2.6vw, 32px)",
+              lineHeight: 1.35,
+              margin: 0,
+              borderLeft: "4px solid var(--mb-magenta)",
+              paddingLeft: 24,
+            }}
+          >
+            Your support fuels our micro-grant program that helps early-stage founders launch their first product,
+            buy initial inventory, or spread the word about their business. These small bets grow into
+            job-creating, community-serving ventures.
+          </blockquote>
+          <div style={{ marginTop: 24, paddingLeft: 28, display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ width: 20, height: 2, background: "var(--mb-ink)", display: "inline-block" }} />
+            <div>
+              <div style={{ fontFamily: "var(--font-content)", fontWeight: 700, fontSize: 15, color: "var(--mb-ink)" }}>
+                Jason Bartz
+              </div>
+              <div className="mb-numeral" style={{ fontSize: 11, color: "var(--mb-ink-60)" }}>
+                CO-FOUNDER &middot; GOOD NEIGHBOR FUND
+              </div>
             </div>
           </div>
         </div>
       </div>
     </section>
+
+    <PageCTAFooter onPitchClick={onPitchClick} />
   </main>
 );

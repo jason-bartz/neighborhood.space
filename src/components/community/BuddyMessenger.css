@@ -29,6 +29,38 @@
   color: var(--mb-magenta);
 }
 
+.message-username--bot {
+  color: var(--mb-grape);
+}
+
+.message-mod-tag {
+  background: var(--mb-grape);
+  color: var(--mb-paper);
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  padding: 1px 4px;
+  margin-right: 4px;
+  letter-spacing: 0.04em;
+  align-self: center;
+}
+
+.typing-indicator {
+  font-style: italic;
+  color: var(--gnf-text-muted);
+}
+
+.typing-dot {
+  opacity: 0.3;
+  animation: typing-dot 1.2s infinite ease-in-out;
+}
+.typing-dot:nth-of-type(2) { animation-delay: 0.2s; }
+.typing-dot:nth-of-type(3) { animation-delay: 0.4s; }
+
+@keyframes typing-dot {
+  0%, 60%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
+}
+
 .message-text {
   word-break: break-word;
   margin-left: 4px;

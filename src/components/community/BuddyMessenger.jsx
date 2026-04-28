@@ -1,13 +1,10 @@
 // BuddyMessenger.jsx
 import React, { useState, useEffect, useRef } from "react";
-import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
+import { containsProfanity } from "../../data/profanityList";
+import { isQuestion, BOT_USERNAME } from "../../data/chatBot";
 import "./BuddyMessenger.css";
-
-// Profanity filter
-const PROFANITY_LIST = [
-  "badword1", "badword2", "profanity", "offensive",
-];
 
 const COLORS = ["#3b5998", "#2ecc71", "#e74c3c", "#9b59b6", "#f1c40f", "#ff69b4"];
 
@@ -35,8 +32,11 @@ const BuddyMessenger = ({ onClose, windowId, zIndex, bringToFront }) => {
   const [username, setUsername] = useState("");
   const [charCount, setCharCount] = useState(0);
   const [error, setError] = useState("");
+  const [botTyping, setBotTyping] = useState(false);
   const messageEndRef = useRef(null);
   const hasScrolledInitially = useRef(false);
+  const botWaitDeadlineRef = useRef(0);
+  const botTypingTimeoutRef = useRef(null);
 
   const CHARACTER_LIMIT = 140;
 
@@ -47,56 +47,72 @@ const BuddyMessenger = ({ onClose, windowId, zIndex, bringToFront }) => {
       sessionStorage.setItem("username", sessionUsername);
     }
     setUsername(sessionUsername);
-    fetchMessages();
-  }, []);
 
-  useEffect(() => {
-    if (messages.length === 0) return;
-    const behavior = hasScrolledInitially.current ? "smooth" : "auto";
-    messageEndRef.current?.scrollIntoView({ behavior, block: "end" });
-    hasScrolledInitially.current = true;
-  }, [messages]);
-
-  const fetchMessages = async () => {
-    try {
-      const q = query(collection(db, "guestMessages"), orderBy("timestamp", "desc"), limit(50));
-      const querySnapshot = await getDocs(q);
-      const messageList = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (!data.color) {
-          data.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const q = query(collection(db, "guestMessages"), orderBy("timestamp", "desc"), limit(50));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const messageList = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (!data.color && !data.isBot) {
+            data.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+          }
+          messageList.push({ id: doc.id, ...data });
+        });
+        if (messageList.length === 0) {
+          setMessages([
+            { username: "bigdude09", text: "Lets goo!", color: "#3b5998", timestamp: new Date() },
+            { username: "beachgurXX", text: "This is awesome 😎", color: "#2ecc71", timestamp: new Date() },
+          ]);
+        } else {
+          const ordered = messageList.reverse();
+          // Hide the typing indicator as soon as a bot reply newer than the
+          // user's submit lands in the snapshot.
+          if (botWaitDeadlineRef.current > 0) {
+            const fresh = ordered.find((m) => {
+              if (!m.isBot) return false;
+              const ts = m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().getTime() : 0;
+              return ts >= botWaitDeadlineRef.current - 60000; // small clock-skew buffer
+            });
+            if (fresh) {
+              botWaitDeadlineRef.current = 0;
+              setBotTyping(false);
+              if (botTypingTimeoutRef.current) {
+                clearTimeout(botTypingTimeoutRef.current);
+                botTypingTimeoutRef.current = null;
+              }
+            }
+          }
+          setMessages(ordered);
         }
-        messageList.push({ id: doc.id, ...data });
-      });
-
-      if (messageList.length === 0) {
+      },
+      (error) => {
+        console.error("Error subscribing to messages:", error);
         setMessages([
           { username: "bigdude09", text: "Lets goo!", color: "#3b5998", timestamp: new Date() },
           { username: "beachgurXX", text: "This is awesome 😎", color: "#2ecc71", timestamp: new Date() },
         ]);
-      } else {
-        setMessages(messageList.reverse());
-      }
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-      setMessages([
-        { username: "bigdude09", text: "Lets goo!", color: "#3b5998", timestamp: new Date() },
-        { username: "beachgurXX", text: "This is awesome 😎", color: "#2ecc71", timestamp: new Date() },
-      ]);
-    }
-  };
+      },
+    );
+
+    return () => {
+      unsubscribe();
+      if (botTypingTimeoutRef.current) clearTimeout(botTypingTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (messages.length === 0 && !botTyping) return;
+    const behavior = hasScrolledInitially.current ? "smooth" : "auto";
+    messageEndRef.current?.scrollIntoView({ behavior, block: "end" });
+    hasScrolledInitially.current = true;
+  }, [messages, botTyping]);
 
   const handleMessageChange = (e) => {
     setMessage(e.target.value);
     setCharCount(e.target.value.length);
     setError("");
-  };
-
-  const containsProfanity = (text) => {
-    const lowerText = text.toLowerCase();
-    return PROFANITY_LIST.some(word => lowerText.includes(word));
   };
 
   const handleWindowClick = () => {
@@ -128,8 +144,6 @@ const BuddyMessenger = ({ onClose, windowId, zIndex, bringToFront }) => {
         ? lastMessage.color
         : COLORS[Math.floor(Math.random() * COLORS.length)];
 
-      const now = new Date();
-
       await addDoc(collection(db, "guestMessages"), {
         text: message,
         username: username,
@@ -137,12 +151,16 @@ const BuddyMessenger = ({ onClose, windowId, zIndex, bringToFront }) => {
         color: messageColor
       });
 
-      setMessages([...messages, {
-        text: message,
-        username: username,
-        timestamp: now,
-        color: messageColor
-      }]);
+      if (isQuestion(message)) {
+        botWaitDeadlineRef.current = Date.now();
+        setBotTyping(true);
+        if (botTypingTimeoutRef.current) clearTimeout(botTypingTimeoutRef.current);
+        botTypingTimeoutRef.current = setTimeout(() => {
+          setBotTyping(false);
+          botWaitDeadlineRef.current = 0;
+          botTypingTimeoutRef.current = null;
+        }, 20000);
+      }
 
       const imSound = document.getElementById("im-sound");
       if (imSound) {
@@ -165,15 +183,19 @@ const BuddyMessenger = ({ onClose, windowId, zIndex, bringToFront }) => {
     const date = timestamp.toDate ? timestamp.toDate() : timestamp;
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const day = date.getDate().toString().padStart(2, "0");
-    return `${month}/${day}/02`;
+    return `${month}/${day}`;
   };
 
   return (
     <div onClick={handleWindowClick}>
       <div className="message-window">
         {messages.map((msg, index) => (
-          <div key={index} className="message-item">
-            <span className="message-username" style={{ color: msg.color || "var(--mb-ink)" }}>
+          <div key={msg.id || index} className={`message-item${msg.isBot ? " message-item--bot" : ""}`}>
+            {msg.isBot && <span className="message-mod-tag">[MOD]</span>}
+            <span
+              className={`message-username${msg.isBot ? " message-username--bot" : ""}`}
+              style={msg.isBot ? undefined : { color: msg.color || "var(--mb-ink)" }}
+            >
               {msg.username}:
             </span>
             <span className="message-text">{" " + msg.text}</span>
@@ -182,6 +204,20 @@ const BuddyMessenger = ({ onClose, windowId, zIndex, bringToFront }) => {
             </span>
           </div>
         ))}
+        {botTyping && (
+          <div className="message-item message-item--bot">
+            <span className="message-mod-tag">[MOD]</span>
+            <span className="message-username message-username--bot">
+              {BOT_USERNAME}:
+            </span>
+            <span className="message-text typing-indicator">
+              {" typing"}
+              <span className="typing-dot">.</span>
+              <span className="typing-dot">.</span>
+              <span className="typing-dot">.</span>
+            </span>
+          </div>
+        )}
         <div ref={messageEndRef} />
       </div>
 

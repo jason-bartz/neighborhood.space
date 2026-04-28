@@ -13,14 +13,17 @@ import { collection, getDocs, query, where } from "firebase/firestore";
 import { useParams, useNavigate } from "react-router-dom";
 import { db } from "../firebaseConfig";
 import NotFoundPage from "./NotFoundPage";
+import GrantAwardees from "../components/awardees/GrantAwardees";
 
 // Gallery tile count at which we switch from a static grid to a scrolling
 // marquee. Below this threshold the grid reads fine; above it, a ticker feels
 // more alive and hides the fact that tiles don't neatly fill a row.
 const GALLERY_MARQUEE_THRESHOLD = 5;
 
+// Filenames in /assets/lps/ preserve straight apostrophes (e.g. susan-o'rourke.png),
+// so we keep them in the slug — only normalize curly/backtick variants to straight.
 const photoUrlFor = (name) =>
-  name ? `/assets/lps/${name.toLowerCase().replace(/\s+/g, "-").replace(/'/g, "")}.png` : null;
+  name ? `/assets/lps/${name.toLowerCase().replace(/\s+/g, "-").replace(/[‘’`]/g, "'")}.png` : null;
 
 export default function ChapterPage() {
   const { chapterSlug } = useParams();
@@ -28,7 +31,9 @@ export default function ChapterPage() {
   const [chapter, setChapter] = useState(null);
   const [status, setStatus] = useState("loading"); // loading | found | not-found
   const [lps, setLps] = useState([]);
+  const [impactStats, setImpactStats] = useState(null);
   const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   const openLightbox = useCallback((src) => setLightboxSrc(src), []);
   const closeLightbox = useCallback(() => setLightboxSrc(null), []);
@@ -45,6 +50,23 @@ export default function ChapterPage() {
       document.body.style.overflow = prevOverflow;
     };
   }, [lightboxSrc, closeLightbox]);
+
+  // Reveal the floating back-to-top button after the visitor scrolls past
+  // roughly the hero. Mirrors the inline IIFE on the static chapter pages.
+  useEffect(() => {
+    const SHOW_AT = 600;
+    let ticking = false;
+    const sync = () => {
+      ticking = false;
+      setShowBackToTop(window.scrollY > SHOW_AT);
+    };
+    const onScroll = () => {
+      if (!ticking) { window.requestAnimationFrame(sync); ticking = true; }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    sync();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -125,6 +147,54 @@ export default function ChapterPage() {
     return () => { cancelled = true; };
   }, [chapter?.name, chapter?.showLPs]);
 
+  // Fetch and compute Impact stats from this chapter's grant winners.
+  // Counts winners and the share who self-identified as Women Owned/Led or
+  // BIPOC Owned/Led. The pitch form's local state uses `selfId` but persists
+  // to Firestore as `selfIdentification` (see PitchPage.jsx / googleSheets.js);
+  // legacy imports may also use `selfId`, so we read either. Skipped when the
+  // section is hidden so we don't spend the read.
+  useEffect(() => {
+    if (!chapter?.name || chapter.showImpact === false) {
+      setImpactStats(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const snap = await getDocs(query(
+          collection(db, "pitches"),
+          where("isWinner", "==", true)
+        ));
+        let total = 0, women = 0, bipoc = 0;
+        snap.docs.forEach(d => {
+          const data = d.data() || {};
+          if ((data.chapter || "") !== chapter.name) return;
+          total += 1;
+          const ids = Array.isArray(data.selfIdentification)
+            ? data.selfIdentification
+            : (Array.isArray(data.selfId) ? data.selfId : []);
+          // Tolerant match: case-insensitive, substring on "women" / "bipoc"
+          // so variants like "Women-Owned", "Women Owned/Led", or "BIPOC-owned"
+          // all count the same.
+          const hasWomen = ids.some(v => /women/i.test(String(v)));
+          const hasBipoc = ids.some(v => /bipoc/i.test(String(v)));
+          if (hasWomen) women += 1;
+          if (hasBipoc) bipoc += 1;
+        });
+        if (cancelled) return;
+        setImpactStats({
+          grants: total,
+          dollars: total * 1000,
+          womenPct: total > 0 ? Math.round((women / total) * 100) : 0,
+          bipocPct: total > 0 ? Math.round((bipoc / total) * 100) : 0,
+        });
+      } catch (e) {
+        if (!cancelled) setImpactStats(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [chapter?.name, chapter?.showImpact]);
+
   if (status === "loading") {
     return (
       <div style={pageStyle}>
@@ -143,7 +213,7 @@ export default function ChapterPage() {
     servingTitle, servingText,
     counties = [], poweredByText,
     galleryPhotos = [],
-    showLPs = true, showGallery = true,
+    showLPs = true, showGallery = true, showAwardees = false, showImpact = true,
     pageSlug, id: chapterId,
   } = chapter;
 
@@ -151,12 +221,26 @@ export default function ChapterPage() {
   // Default to 2023 — when every existing chapter was founded, and matches
   // the "Our Impact Since 2023" stat heading. Firestore override wins.
   const displayFoundedYear = foundedYear || 2023;
+  const pitchHref = `/pitch?chapter=${encodeURIComponent(name)}`;
 
   return (
     <div style={pageStyle}>
       <div className="win95-container">
+        {/* Page jump nav — every link is an in-page anchor. "Pitch" and
+            "Become an LP" scroll to the hero and the Powered-by-People
+            section respectively (both carry the actual route CTA), matching
+            the static chapter pages. */}
+        <nav className="win95-page-nav" aria-label="Page sections">
+          <span className="win95-page-nav-label">Jump to</span>
+          <a href="#pitch">Pitch</a>
+          {showImpact !== false && <a href="#impact">Impact</a>}
+          {showAwardees === true && <a href="#awardees">Awardees</a>}
+          {showLPs !== false && lps.length > 0 && <a href="#lps">Our LPs</a>}
+          <a href="#join">Become an LP</a>
+        </nav>
+
         {/* Hero */}
-        <section className="win95-hero">
+        <section className="win95-hero" id="pitch">
           <div className="win95-hero-content">
             <div className="win95-hero-left">
               <div style={eyebrowStyle}>Good Neighbor Fund {name} · Est. {displayFoundedYear}</div>
@@ -165,7 +249,7 @@ export default function ChapterPage() {
                 <strong>We back brilliant ideas before they're "ready."</strong>{" "}
                 {heroTagline || "No pitch deck required. No equity taken. Just belief in your vision and potential."}
               </p>
-              <a href="/pitch" className="win95-cta" onClick={(e) => { e.preventDefault(); navigate("/pitch"); }}>
+              <a href={pitchHref} className="win95-cta" onClick={(e) => { e.preventDefault(); navigate(pitchHref); }}>
                 Submit Your Pitch Today
               </a>
             </div>
@@ -198,31 +282,41 @@ export default function ChapterPage() {
             </section>
           )}
 
-          <section className="win95-section win95-section--blue">
-            <h2>Our Impact Since {displayFoundedYear}</h2>
-            <div className="win95-stat-grid">
-              <div className="win95-stat">
-                <div className="win95-stat-num win95-stat-num--blue">34</div>
-                <p>New Business Ideas<br />Funded</p>
+          {showImpact !== false && (
+            <section className="win95-section win95-section--blue" id="impact">
+              <h2>Our Impact Since {displayFoundedYear}</h2>
+              <div className="win95-stat-grid">
+                <div className="win95-stat">
+                  <div className="win95-stat-num win95-stat-num--blue">
+                    {impactStats ? impactStats.grants : "—"}
+                  </div>
+                  <p>New Business Ideas<br />Funded</p>
+                </div>
+                <div className="win95-stat">
+                  <div className="win95-stat-num win95-stat-num--pink">
+                    {impactStats ? `${impactStats.womenPct}%` : "—"}
+                  </div>
+                  <p>Women-Owned<br />Businesses</p>
+                </div>
+                <div className="win95-stat">
+                  <div className="win95-stat-num win95-stat-num--yellow">
+                    {impactStats ? `${impactStats.bipocPct}%` : "—"}
+                  </div>
+                  <p>BIPOC-Owned<br />Businesses</p>
+                </div>
+                <div className="win95-stat">
+                  <div className="win95-stat-num win95-stat-num--purple">
+                    {impactStats ? `$${impactStats.dollars.toLocaleString()}` : "—"}
+                  </div>
+                  <p>In Micro-Grants<br />Awarded</p>
+                </div>
               </div>
-              <div className="win95-stat">
-                <div className="win95-stat-num win95-stat-num--pink">80%</div>
-                <p>Women-Owned<br />Businesses</p>
-              </div>
-              <div className="win95-stat">
-                <div className="win95-stat-num win95-stat-num--yellow">52%</div>
-                <p>BIPOC-Owned<br />Businesses</p>
-              </div>
-              <div className="win95-stat">
-                <div className="win95-stat-num win95-stat-num--purple">$34,000+</div>
-                <p>In Micro-Grants<br />Awarded</p>
-              </div>
-            </div>
-          </section>
+            </section>
+          )}
         </div>
 
         {/* Powered by */}
-        <section className="win95-section win95-section--purple" style={{ textAlign: "center" }}>
+        <section className="win95-section win95-section--purple" id="join" style={{ textAlign: "center" }}>
           <h2 style={{ borderBottom: "none" }}>Powered by People, Not Institutions</h2>
           <p className="win95-body" style={{ maxWidth: 800, margin: "0 auto" }}>
             {poweredByText ||
@@ -241,7 +335,7 @@ export default function ChapterPage() {
 
         {/* Chapter LPs */}
         {showLPs !== false && lps.length > 0 && (
-          <section className="win95-section">
+          <section className="win95-section" id="lps">
             <h1 style={{ textAlign: "center" }}>{name} Chapter LPs</h1>
             <div className="win95-lp-grid">
               {lps.map(lp => {
@@ -271,6 +365,16 @@ export default function ChapterPage() {
                 );
               })}
             </div>
+          </section>
+        )}
+
+        {/* Grant Awardees — toggled per-chapter; off by default. Reuses the shared
+            GrantAwardees component (same grid, search, sort, and modal as the
+            Navigator tab) scoped to this chapter. */}
+        {showAwardees === true && (
+          <section className="win95-section" id="awardees">
+            <h1 style={{ textAlign: "center" }}>{name} Grant Awardees</h1>
+            <GrantAwardees chapterName={name} />
           </section>
         )}
 
@@ -333,7 +437,7 @@ export default function ChapterPage() {
             We're looking for passionate founders with bold ideas that create positive impact in {name}.
             No business plan required — just a 60-second pitch video and your authentic vision.
           </p>
-          <a href="/pitch" className="win95-cta" onClick={(e) => { e.preventDefault(); navigate("/pitch"); }}>
+          <a href={pitchHref} className="win95-cta" onClick={(e) => { e.preventDefault(); navigate(pitchHref); }}>
             Submit Your Pitch Today
           </a>
         </section>
@@ -353,12 +457,22 @@ export default function ChapterPage() {
           <div className="win95-footer-meta">
             <div className="win95-footer-links">
               <a href="/" onClick={(e) => { e.preventDefault(); navigate("/"); }}>Home</a>
-              <a href="/pitch" onClick={(e) => { e.preventDefault(); navigate("/pitch"); }}>Apply</a>
+              <a href={pitchHref} onClick={(e) => { e.preventDefault(); navigate(pitchHref); }}>Apply</a>
             </div>
             <p className="win95-footer-copy">&copy; 2026 Good Neighbor Fund</p>
           </div>
         </footer>
       </div>
+
+      <button
+        type="button"
+        className={`win95-back-to-top${showBackToTop ? " is-visible" : ""}`}
+        aria-label="Back to top"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      >
+        <span className="win95-back-to-top-arrow" aria-hidden="true">▲</span>
+        <span>Top</span>
+      </button>
 
       {lightboxSrc && (
         <div

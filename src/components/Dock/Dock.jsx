@@ -2,8 +2,13 @@ import React, { useState } from 'react';
 import DockIcon from '../icons/DockIcon';
 import './Dock.css';
 
-const DockItem = ({ iconType, label, onClick, isOpen }) => {
+const DockItem = ({ iconType, label, onClick, isOpen, badgeCount }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+  const showBadge = badgeCount > 0;
+  const badgeLabel = badgeCount > 99 ? '99+' : String(badgeCount);
+  const ariaLabel = showBadge
+    ? `${label} (${badgeCount} new ${badgeCount === 1 ? 'message' : 'messages'})`
+    : label;
 
   return (
     <div className="dock-item">
@@ -20,9 +25,12 @@ const DockItem = ({ iconType, label, onClick, isOpen }) => {
             onClick();
           }
         }}
-        aria-label={label}
+        aria-label={ariaLabel}
       >
         <DockIcon type={iconType} size={30} />
+        {showBadge && (
+          <span className="dock-badge" aria-hidden="true">{badgeLabel}</span>
+        )}
         {showTooltip && (
           <div className="dock-tooltip">
             {label}
@@ -38,7 +46,8 @@ export default function Dock({
   openApps,
   onAppClick,
   showMessenger,
-  showFounderMap
+  showFounderMap,
+  unreadMessengerCount = 0
 }) {
   const dockApps = [
     {
@@ -60,6 +69,7 @@ export default function Dock({
       iconType: 'buddyMessenger',
       label: 'Buddy Messenger',
       isOpen: showMessenger,
+      badgeCount: unreadMessengerCount,
       onClick: () => onAppClick('buddyMessenger')
     },
     {
@@ -88,6 +98,7 @@ export default function Dock({
             label={app.label}
             onClick={app.onClick}
             isOpen={app.isOpen}
+            badgeCount={app.badgeCount}
           />
         ))}
       </div>

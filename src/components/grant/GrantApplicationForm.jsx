@@ -5,6 +5,11 @@ import { collection, addDoc, Timestamp } from "firebase/firestore";
 import VideoUploader from "../media/VideoUploader";
 import Confetti from "react-confetti";
 import WindowFrame from "../ui/WindowFrame/WindowFrame";
+import {
+  PITCH_REFERRAL_OPTIONS,
+  PITCH_REFERRAL_OTHER,
+  resolvePitchReferral,
+} from "../../data/pitchReferralOptions";
 
 const REQUIRED_FIELDS = [
   { name: "founder", label: "Founder Name" },
@@ -131,7 +136,7 @@ export default function GrantApplicationForm({ onClose, zIndex, windowId, bringT
         grantUsePlan: form.fundUse || "",
         pitchVideoUrl: form.videoUrl || form.videoUrlInput || "",
         selfIdentification: form.selfId || [],
-        heardAbout: form.referral || "",
+        heardAbout: resolvePitchReferral(form.referral, form.referralOther),
         consentToShare: form.consent || false,
         consentToMeetup: form.meetupConsent || false,
         createdAt: Timestamp.now(),
@@ -186,19 +191,18 @@ export default function GrantApplicationForm({ onClose, zIndex, windowId, bringT
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
-            height: "100%",
+            justifyContent: "flex-start",
             textAlign: "center",
-            padding: "8px"
+            padding: "20px 16px"
           }}
         >
           <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={250} recycle={false} />
-          <h2 style={{ marginTop: 0 }}>Thank you for submitting your pitch!</h2>
-          <p>Our GNF LPs review all submissions after each quarter. We'll be in touch soon!</p>
+          <h2 style={{ margin: 0, fontSize: "20px" }}>Thank you for submitting your pitch!</h2>
+          <p style={{ margin: "12px 0 0" }}>Our GNF LPs review all submissions after each quarter. We'll be in touch soon!</p>
           <button
             className="win95-btn win95-btn-primary"
             onClick={onClose}
-            style={{ marginTop: "16px", padding: "10px 24px", fontSize: "14px" }}
+            style={{ marginTop: "20px", padding: "10px 24px", fontSize: "14px" }}
             autoFocus
           >
             Return to Desktop
@@ -304,7 +308,7 @@ export default function GrantApplicationForm({ onClose, zIndex, windowId, bringT
             <option value="">Select Chapter *</option>
             <option value="Western New York">Western New York</option>
             <option value="Denver">Denver</option>
-            <option value="Upstate New York">Upstate New York</option>
+            <option value="Central New York">Central New York</option>
             <option value="Capital Region">Capital Region</option>
           </select>
           <small style={helpStyle}>
@@ -422,20 +426,31 @@ export default function GrantApplicationForm({ onClose, zIndex, windowId, bringT
         </div>
 
         {/* Self Identification */}
-        <div style={fieldRowStyle}>
-          <label style={labelStyle} htmlFor="pitch-selfId">Do any of the following apply to you? (optional)</label>
-          <select
-            id="pitch-selfId"
-            name="selfId"
-            multiple
-            value={form.selfId || []}
-            onChange={handleChange}
-            style={{ padding: "6px", fontSize: "14px", height: "120px" }}
-          >
-            {["Veteran Owned/Led", "Women Owned/Led", "BIPOC Owned/Led", "LGBTQ+ Owned/Led", "Disabled Owned/Led", "Student Owned/Led", "Minority Owned/Led"].map(opt => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
-          </select>
+        <div style={fieldRowStyle} role="group" aria-labelledby="pitch-selfId-label">
+          <span id="pitch-selfId-label" style={labelStyle}>Do any of the following apply to you? (optional)</span>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "4px" }}>
+            {["Veteran Owned/Led", "Women Owned/Led", "BIPOC Owned/Led", "LGBTQ+ Owned/Led", "Disabled Owned/Led", "Student Owned/Led", "Minority Owned/Led"].map(opt => {
+              const selected = (form.selfId || []).includes(opt);
+              return (
+                <label key={opt} style={{ fontSize: "13px", display: "flex", alignItems: "center", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    name="selfId"
+                    value={opt}
+                    checked={selected}
+                    onChange={(e) => {
+                      const next = e.target.checked
+                        ? [...(form.selfId || []), opt]
+                        : (form.selfId || []).filter((v) => v !== opt);
+                      setForm((prev) => ({ ...prev, selfId: next }));
+                    }}
+                    style={{ marginRight: "8px" }}
+                  />
+                  <span>{opt}</span>
+                </label>
+              );
+            })}
+          </div>
           <small style={helpStyle}>
             This self-identifying information is used only for GNF reporting purposes and is never shared publicly without your consent.
           </small>
@@ -444,18 +459,29 @@ export default function GrantApplicationForm({ onClose, zIndex, windowId, bringT
         {/* Referral */}
         <div style={fieldRowStyle}>
           <label style={labelStyle} htmlFor="pitch-referral">How did you hear about us? (optional)</label>
-          <input
+          <select
             id="pitch-referral"
-            type="text"
             name="referral"
             value={form.referral || ""}
             onChange={handleChange}
-            placeholder="e.g., LinkedIn, Instagram, SBDC, LP Referral"
             style={{ padding: "6px", fontSize: "14px" }}
-          />
-          <small style={helpStyle}>
-            Example: LinkedIn, Instagram, Facebook, SBDC, LP Referral, Prior Grant Awardee, School, Etc.
-          </small>
+          >
+            <option value="">Select one…</option>
+            {PITCH_REFERRAL_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+          {form.referral === PITCH_REFERRAL_OTHER && (
+            <input
+              id="pitch-referral-other"
+              type="text"
+              name="referralOther"
+              value={form.referralOther || ""}
+              onChange={handleChange}
+              placeholder="Please specify"
+              style={{ padding: "6px", fontSize: "14px", marginTop: "8px" }}
+            />
+          )}
         </div>
 
         {/* Consent */}

@@ -1,12 +1,10 @@
 // MobileBuddyMessenger.jsx
 import React, { useState, useEffect, useRef } from "react";
-import { collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
-
-// Profanity filter
-const PROFANITY_LIST = [
-  "badword1", "badword2", "profanity", "offensive",
-];
+import { containsProfanity } from "../../data/profanityList";
+import { isQuestion, BOT_USERNAME } from "../../data/chatBot";
+import "./BuddyMessenger.css";
 
 const COLORS = ["#3b5998", "#2ecc71", "#e74c3c", "#9b59b6", "#f1c40f", "#ff69b4"];
 
@@ -34,70 +32,87 @@ const MobileBuddyMessenger = ({ onClose }) => {
   const [username, setUsername] = useState("");
   const [charCount, setCharCount] = useState(0);
   const [error, setError] = useState("");
+  const [botTyping, setBotTyping] = useState(false);
   const messageEndRef = useRef(null);
   const hasScrolledInitially = useRef(false);
+  const botWaitDeadlineRef = useRef(0);
+  const botTypingTimeoutRef = useRef(null);
 
   const CHARACTER_LIMIT = 140;
 
   useEffect(() => {
     // No sound effects on mobile
-    
+
     let sessionUsername = sessionStorage.getItem("username");
     if (!sessionUsername) {
       sessionUsername = generateUsername();
       sessionStorage.setItem("username", sessionUsername);
     }
     setUsername(sessionUsername);
-    fetchMessages();
-  }, []);
 
-  useEffect(() => {
-    if (messages.length === 0) return;
-    const behavior = hasScrolledInitially.current ? "smooth" : "auto";
-    messageEndRef.current?.scrollIntoView({ behavior, block: "end" });
-    hasScrolledInitially.current = true;
-  }, [messages]);
-
-  const fetchMessages = async () => {
-    try {
-      const q = query(collection(db, "guestMessages"), orderBy("timestamp", "desc"), limit(50));
-      const querySnapshot = await getDocs(q);
-      const messageList = [];
-
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (!data.color) {
-          data.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const q = query(collection(db, "guestMessages"), orderBy("timestamp", "desc"), limit(50));
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const messageList = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          if (!data.color && !data.isBot) {
+            data.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+          }
+          messageList.push({ id: doc.id, ...data });
+        });
+        if (messageList.length === 0) {
+          setMessages([
+            { username: "bigdude09", text: "Lets goo!", color: "#3b5998", timestamp: new Date() },
+            { username: "beachgurXX", text: "This is awesome 😎", color: "#2ecc71", timestamp: new Date() },
+          ]);
+        } else {
+          const ordered = messageList.reverse();
+          if (botWaitDeadlineRef.current > 0) {
+            const fresh = ordered.find((m) => {
+              if (!m.isBot) return false;
+              const ts = m.timestamp && m.timestamp.toDate ? m.timestamp.toDate().getTime() : 0;
+              return ts >= botWaitDeadlineRef.current - 60000;
+            });
+            if (fresh) {
+              botWaitDeadlineRef.current = 0;
+              setBotTyping(false);
+              if (botTypingTimeoutRef.current) {
+                clearTimeout(botTypingTimeoutRef.current);
+                botTypingTimeoutRef.current = null;
+              }
+            }
+          }
+          setMessages(ordered);
         }
-        messageList.push({ id: doc.id, ...data });
-      });
-
-      if (messageList.length === 0) {
+      },
+      (error) => {
+        console.error("Error subscribing to messages:", error);
         setMessages([
           { username: "bigdude09", text: "Lets goo!", color: "#3b5998", timestamp: new Date() },
           { username: "beachgurXX", text: "This is awesome 😎", color: "#2ecc71", timestamp: new Date() },
         ]);
-      } else {
-        setMessages(messageList.reverse());
-      }
-    } catch (error) {
-      console.error("Error fetching messages:", error);
-      setMessages([
-        { username: "bigdude09", text: "Lets goo!", color: "#3b5998", timestamp: new Date() },
-        { username: "beachgurXX", text: "This is awesome 😎", color: "#2ecc71", timestamp: new Date() },
-      ]);
-    }
-  };
+      },
+    );
+
+    return () => {
+      unsubscribe();
+      if (botTypingTimeoutRef.current) clearTimeout(botTypingTimeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (messages.length === 0 && !botTyping) return;
+    const behavior = hasScrolledInitially.current ? "smooth" : "auto";
+    messageEndRef.current?.scrollIntoView({ behavior, block: "end" });
+    hasScrolledInitially.current = true;
+  }, [messages, botTyping]);
 
   const handleMessageChange = (e) => {
     setMessage(e.target.value);
     setCharCount(e.target.value.length);
     setError("");
-  };
-
-  const containsProfanity = (text) => {
-    const lowerText = text.toLowerCase();
-    return PROFANITY_LIST.some(word => lowerText.includes(word));
   };
 
   const handleSubmit = async (e) => {
@@ -123,8 +138,6 @@ const MobileBuddyMessenger = ({ onClose }) => {
         ? lastMessage.color
         : COLORS[Math.floor(Math.random() * COLORS.length)];
 
-      const now = new Date();
-
       await addDoc(collection(db, "guestMessages"), {
         text: message,
         username: username,
@@ -132,12 +145,16 @@ const MobileBuddyMessenger = ({ onClose }) => {
         color: messageColor
       });
 
-      setMessages([...messages, {
-        text: message,
-        username: username,
-        timestamp: now,
-        color: messageColor
-      }]);
+      if (isQuestion(message)) {
+        botWaitDeadlineRef.current = Date.now();
+        setBotTyping(true);
+        if (botTypingTimeoutRef.current) clearTimeout(botTypingTimeoutRef.current);
+        botTypingTimeoutRef.current = setTimeout(() => {
+          setBotTyping(false);
+          botWaitDeadlineRef.current = 0;
+          botTypingTimeoutRef.current = null;
+        }, 20000);
+      }
 
       // No sound effects on mobile
 
@@ -155,7 +172,7 @@ const MobileBuddyMessenger = ({ onClose }) => {
     const date = timestamp.toDate ? timestamp.toDate() : timestamp;
     const month = (date.getMonth() + 1).toString().padStart(2, "0");
     const day = date.getDate().toString().padStart(2, "0");
-    return `${month}/${day}/02`;
+    return `${month}/${day}`;
   };
 
   return (
@@ -190,11 +207,11 @@ const MobileBuddyMessenger = ({ onClose }) => {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Chat title bar — ink + pixel font to match Navigator theme */}
+        {/* Chat title bar — cream + pixel font to match Navigator theme */}
         <div
           style={{
-            background: "var(--mb-ink)",
-            color: "var(--mb-chalk)",
+            background: "var(--mb-paper)",
+            color: "var(--mb-ink)",
             padding: "6px 10px",
             minHeight: "28px",
             display: "flex",
@@ -204,24 +221,16 @@ const MobileBuddyMessenger = ({ onClose }) => {
             fontSize: "11px",
             letterSpacing: "0.04em",
             userSelect: "none",
-            borderBottom: "1px solid rgba(255,255,255,0.1)"
+            borderBottom: "1px solid var(--mb-ink)"
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <img
-              src="/assets/BuddyMessenger-icon.webp"
-              alt=""
-              aria-hidden="true"
-              style={{ height: "14px", width: "14px" }}
-            />
-            <span>Buddy Messenger</span>
-          </div>
+          <span>Buddy Messenger</span>
           <button
             onClick={onClose}
             aria-label="Close window"
             style={{
               background: "var(--mb-magenta)",
-              border: "1px solid var(--mb-chalk)",
+              border: "1px solid var(--mb-ink)",
               color: "var(--mb-chalk)",
               cursor: "pointer",
               padding: "0",
@@ -254,8 +263,25 @@ const MobileBuddyMessenger = ({ onClose }) => {
           }}
         >
           {messages.map((msg, index) => (
-            <div key={index} style={{ marginBottom: "6px", display: "flex", flexWrap: "wrap" }}>
-              <span style={{ color: msg.color || "var(--mb-ink)", fontWeight: "bold" }}>
+            <div key={msg.id || index} style={{ marginBottom: "6px", display: "flex", flexWrap: "wrap" }}>
+              {msg.isBot && (
+                <span
+                  style={{
+                    background: "var(--mb-grape)",
+                    color: "var(--mb-paper)",
+                    fontFamily: "var(--font-pixel)",
+                    fontSize: "9px",
+                    lineHeight: 1.4,
+                    padding: "1px 4px",
+                    marginRight: "4px",
+                    letterSpacing: "0.04em",
+                    alignSelf: "flex-start",
+                  }}
+                >
+                  MOD
+                </span>
+              )}
+              <span style={{ color: msg.isBot ? "var(--mb-grape)" : (msg.color || "var(--mb-ink)"), fontWeight: "bold" }}>
                 {msg.username}:
               </span>
               <span style={{ marginLeft: "4px", wordBreak: "break-word", flex: "1" }}>
@@ -266,6 +292,31 @@ const MobileBuddyMessenger = ({ onClose }) => {
               </span>
             </div>
           ))}
+          {botTyping && (
+            <div style={{ marginBottom: "6px", display: "flex", flexWrap: "wrap" }}>
+              <span
+                style={{
+                  background: "var(--mb-grape)",
+                  color: "var(--mb-paper)",
+                  fontFamily: "var(--font-pixel)",
+                  fontSize: "9px",
+                  lineHeight: 1.4,
+                  padding: "1px 4px",
+                  marginRight: "4px",
+                  letterSpacing: "0.04em",
+                  alignSelf: "flex-start",
+                }}
+              >
+                MOD
+              </span>
+              <span style={{ color: "var(--mb-grape)", fontWeight: "bold" }}>
+                {BOT_USERNAME}:
+              </span>
+              <span style={{ marginLeft: "4px", fontStyle: "italic", color: "var(--mb-ink-60)" }}>
+                typing<span className="typing-dot">.</span><span className="typing-dot">.</span><span className="typing-dot">.</span>
+              </span>
+            </div>
+          )}
           <div ref={messageEndRef} />
         </div>
 

@@ -48,10 +48,10 @@ export function BadgeNotification({ badge, onClose }) {
         zIndex: 10000,
         fontFamily: 'var(--font-content)'
       }}>
-        {/* Title bar — ink + pixel font to match Navigator theme */}
+        {/* Title bar — cream + pixel font to match Navigator theme */}
         <div style={{
-          background: 'var(--mb-ink)',
-          color: 'var(--mb-chalk)',
+          background: 'var(--mb-paper)',
+          color: 'var(--mb-ink)',
           padding: '6px 10px',
           minHeight: '28px',
           display: 'flex',
@@ -61,7 +61,7 @@ export function BadgeNotification({ badge, onClose }) {
           letterSpacing: '0.04em',
           textAlign: 'left',
           userSelect: 'none',
-          borderBottom: '1px solid rgba(255,255,255,0.1)'
+          borderBottom: '1px solid var(--mb-ink)'
         }}>
           Achievement Unlocked!
         </div>

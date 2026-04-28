@@ -1,5 +1,7 @@
 // DesktopEnvironment.jsx
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
+import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
+import { db } from "../firebaseConfig";
 import BootScreen from "../components/layout/BootScreen";
 import WindowFrame from "../components/ui/WindowFrame/WindowFrame";
 import GrantApplicationForm from "../components/grant/GrantApplicationForm";
@@ -11,6 +13,8 @@ import FounderMap from "../components/community/FounderMap";
 import MobileLanding from "../components/layout/MobileLanding";
 import Dock from "../components/Dock/Dock";
 import "../styles/App.css";
+
+const MESSENGER_LAST_SEEN_KEY = "gnf-buddy-messenger-last-seen";
 
 export default function DesktopEnvironment() {
   // Skip the boot screen if the user has already booted this session
@@ -34,6 +38,22 @@ export default function DesktopEnvironment() {
   // const [showBlockParty, setShowBlockParty] = useState(false); // BlockParty removed
   const [openApps, setOpenApps] = useState(['website']); // Track all open apps
   const [lpApplicationChapter, setLpApplicationChapter] = useState("");
+
+  // Buddy Messenger unread tracking — persists per-device in localStorage so a
+  // visitor coming back in a new tab still sees what's new since they last looked.
+  const [recentMessages, setRecentMessages] = useState([]);
+  const [lastSeenMessageAt, setLastSeenMessageAt] = useState(() => {
+    try {
+      const stored = localStorage.getItem(MESSENGER_LAST_SEEN_KEY);
+      if (stored) return Number(stored);
+    } catch {}
+    // First visit: anchor "seen" to now so old messages don't all show as unread.
+    const now = Date.now();
+    try {
+      localStorage.setItem(MESSENGER_LAST_SEEN_KEY, String(now));
+    } catch {}
+    return now;
+  });
 
   // Improved z-index management - Set website to have a higher initial z-index
   // Use a ref for the counter so rapid successive opens can't read a stale value.
@@ -142,6 +162,55 @@ export default function DesktopEnvironment() {
       }, 100);
     }
   }, [desktopReady]); // Only run when desktop becomes ready
+
+  // Subscribe to recent buddy messages so the dock badge updates live.
+  useEffect(() => {
+    if (!desktopReady) return;
+    const q = query(
+      collection(db, "guestMessages"),
+      orderBy("timestamp", "desc"),
+      limit(50)
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setRecentMessages(
+          snap.docs.map((d) => {
+            const data = d.data();
+            const ts = data.timestamp?.toMillis?.() ?? 0;
+            return { username: data.username, ts };
+          })
+        );
+      },
+      (err) => console.error("guestMessages snapshot failed:", err)
+    );
+    return unsub;
+  }, [desktopReady]);
+
+  // Count messages newer than lastSeen, excluding ones the visitor sent.
+  const unreadMessengerCount = useMemo(() => {
+    if (showMessenger) return 0;
+    let myUsername = "";
+    try {
+      myUsername = sessionStorage.getItem("username") || "";
+    } catch {}
+    return recentMessages.filter(
+      (m) => m.ts > lastSeenMessageAt && m.username !== myUsername
+    ).length;
+  }, [recentMessages, lastSeenMessageAt, showMessenger]);
+
+  // When the messenger is open, treat anything we can see as seen — covers
+  // both "user opens the window" and "new message arrives while it's open".
+  useEffect(() => {
+    if (!showMessenger || recentMessages.length === 0) return;
+    const newest = recentMessages.reduce((max, m) => (m.ts > max ? m.ts : max), 0);
+    if (newest > lastSeenMessageAt) {
+      setLastSeenMessageAt(newest);
+      try {
+        localStorage.setItem(MESSENGER_LAST_SEEN_KEY, String(newest));
+      } catch {}
+    }
+  }, [showMessenger, recentMessages, lastSeenMessageAt]);
 
   // Boot sequence handling
   const handleBootProgress = (isPreloading) => {
@@ -441,6 +510,7 @@ export default function DesktopEnvironment() {
         onAppClick={handleDockAppClick}
         showMessenger={showMessenger}
         showFounderMap={showFounderMap}
+        unreadMessengerCount={unreadMessengerCount}
       />
     </div>
   );

@@ -292,6 +292,50 @@ export const trackRatingChange = async (userId) => {
   });
 };
 
+// Reverse the per-LP stat bumps that updateWinnerPredictions applied when a
+// pitch's winner flag is toggled back off. Decrements `correctPredictions`,
+// `winnersIdentified`, and (for Favorite voters) `favoriteWinners`, then
+// recomputes `accuracyRate` from the fresh counters. Floors counters at 0 so
+// an out-of-order replay can never drive them negative.
+//
+// Scope note: `perfectQuartersEarned` is intentionally NOT rolled back here —
+// it's an award-for-lifetime flag keyed by quarter, and reversing it would
+// require scanning that quarter's other winners. Left as-is; the next
+// updateWinnerPredictions call will re-evaluate correctly.
+export const reverseWinnerPredictions = async (pitchId) => {
+  const reviewsQuery = query(
+    collection(db, "reviews"),
+    where("pitchId", "==", pitchId)
+  );
+  const reviewsSnapshot = await getDocs(reviewsQuery);
+
+  for (const reviewDoc of reviewsSnapshot.docs) {
+    const review = reviewDoc.data();
+    if (review.overallLpRating !== 'Favorite' && review.overallLpRating !== 'Consideration') continue;
+
+    const userId = review.reviewerId;
+    if (!userId) continue;
+
+    const userRef = doc(db, "users", userId);
+    const userDoc = await getDoc(userRef);
+    if (!userDoc.exists()) continue;
+
+    const currentStats = userDoc.data().stats || {};
+    const nextCorrect = Math.max(0, (currentStats.correctPredictions || 0) - 1);
+    const nextWinnersIdentified = Math.max(0, (currentStats.winnersIdentified || 0) - 1);
+    const totalPredictions = currentStats.totalPredictions || 0;
+    const updates = {
+      'stats.correctPredictions': nextCorrect,
+      'stats.winnersIdentified': nextWinnersIdentified,
+      'stats.accuracyRate': totalPredictions > 0 ? Math.round((nextCorrect / totalPredictions) * 100) : 0
+    };
+    if (review.overallLpRating === 'Favorite') {
+      updates['stats.favoriteWinners'] = Math.max(0, (currentStats.favoriteWinners || 0) - 1);
+    }
+    await updateDoc(userRef, updates);
+  }
+};
+
 // Update winner predictions after winners are announced
 export const updateWinnerPredictions = async (pitchId, pitchData) => {
   console.log('Updating winner predictions for pitch:', pitchId);
@@ -416,7 +460,7 @@ export const checkFoundingMember = async (userId) => {
     const chapterFoundingDates = {
       'Western New York': new Date('2023-10-01'),
       'Denver': new Date('2024-01-01'),
-      'Upstate New York': new Date('2026-05-26'),
+      'Central New York': new Date('2026-05-26'),
       'Capital Region': new Date('2026-05-26'),
     };
     

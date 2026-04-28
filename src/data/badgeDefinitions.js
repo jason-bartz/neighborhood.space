@@ -274,11 +274,16 @@ export const BADGES = {
     id: 'og_neighbor',
     category: BADGE_CATEGORIES.GENERAL,
     name: '🏛️ Founding Member',
-    description: 'LP who joined in 2023',
+    description: "LP who joined within their chapter's first year",
     checkFunction: (stats, userData) => {
       if (!userData?.anniversary) return false;
+      const founding = userData.chapterFoundedDate;
+      if (!founding) return false;
       const joinDate = userData.anniversary.toDate ? userData.anniversary.toDate() : new Date(userData.anniversary);
-      return joinDate.getFullYear() === 2023;
+      const foundingDate = founding.toDate ? founding.toDate() : new Date(founding);
+      if (isNaN(joinDate.getTime()) || isNaN(foundingDate.getTime())) return false;
+      const daysDiff = (joinDate.getTime() - foundingDate.getTime()) / (24 * 60 * 60 * 1000);
+      return daysDiff >= 0 && daysDiff <= 365;
     },
     progress: () => 1 // Always complete if earned
   },

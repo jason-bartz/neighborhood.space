@@ -6,6 +6,10 @@ import DesktopEnvironment from "./pages/DesktopEnvironment";
 import PitchPage from "./pages/standalone/PitchPage";
 import PitchDetailPage from "./pages/PitchDetailPage";
 import LPApplication from "./pages/standalone/LPApplication";
+import StartAChapter from "./pages/standalone/StartAChapter";
+import PublicChapterHandbook from "./pages/standalone/PublicChapterHandbook";
+import LPOnboardingForm from "./pages/standalone/LPOnboardingForm";
+import MicrograntAwardeeForm from "./pages/standalone/MicrograntAwardeeForm";
 import TermsPage from "./pages/standalone/TermsPage";
 import PrivacyPage from "./pages/standalone/PrivacyPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -25,6 +29,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/pitch" element={<PitchPage />} />
         <Route path="/pitch/:pitchId" element={<PitchDetailPage />} />
         <Route path="/lp-application" element={<LPApplication />} />
+        <Route path="/start-a-chapter" element={<StartAChapter />} />
+        <Route path="/chapter-handbook" element={<PublicChapterHandbook />} />
+        <Route path="/forms/lp-onboarding" element={<LPOnboardingForm />} />
+        <Route path="/forms/microgrant-awardee" element={<MicrograntAwardeeForm />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/portal" element={<LPPortal />} />

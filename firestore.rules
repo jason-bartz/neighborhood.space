@@ -153,6 +153,37 @@ rules_version = '2';
         allow delete: if isAdminOrSuperAdmin();
       }
 
+      // --- CHAPTER APPLICATIONS COLLECTION ---
+      // Public-write submissions from /start-a-chapter (interest form for
+      // launching a new GNF chapter in a city). Cloud Function picks up the
+      // create event and emails hello@goodneighbor.fund.
+      match /chapterApplications/{appId} {
+        allow create: if true;
+        allow read: if isAdminOrSuperAdmin();
+        allow update: if isAdminOrSuperAdmin();
+        allow delete: if isAdminOrSuperAdmin();
+      }
+
+      // --- FORM LIBRARY SUBMISSIONS COLLECTION ---
+      // Public-write submissions from the Forms Library (LP onboarding, microgrant
+      // awardee, etc). Distinct from /formSubmissions which feeds the Google Sheets
+      // pipeline; this collection is the source of truth for forms a chapter
+      // director sends to an LP or grant winner. Reads are scoped: superAdmins see
+      // everything; chapter directors and LPs in the same chapter see their
+      // chapter's submissions. Update/delete is locked to chapter_director (own
+      // chapter) and superAdmin to match the FormsLibrary admin UI gating.
+      match /formLibrarySubmissions/{submissionId} {
+        allow create: if true;
+        allow read: if isSuperAdmin()
+                    || (isValidUser() && resource.data.chapter == requestUserData().chapter);
+        allow update: if isSuperAdmin()
+                      || (isChapterDirector()
+                          && resource.data.chapter == requestUserData().chapter);
+        allow delete: if isSuperAdmin()
+                      || (isChapterDirector()
+                          && resource.data.chapter == requestUserData().chapter);
+      }
+
       // --- REVIEWS COLLECTION ---
       match /reviews/{reviewId} {
         function isOwner() {
@@ -172,6 +203,27 @@ rules_version = '2';
         allow delete: if isOwner() || isAdminOrSuperAdmin();
       }
 
+      // --- ADMIN NOTES COLLECTION ---
+      // Discussion notes captured during the quarterly group review meeting.
+      // Chapter directors (and superAdmins) can add unlimited notes against a
+      // pitch; authors manage their own, superAdmins can manage any. Not
+      // visible outside the admin Reviews tab — LPs never see these.
+      match /adminNotes/{noteId} {
+        allow get, list: if isAdminOrSuperAdmin()
+                         && (isSuperAdmin()
+                             || resource.data.chapter == requestUserData().chapter);
+        allow create: if isAdminOrSuperAdmin()
+                      && request.resource.data.authorId == request.auth.uid
+                      && (isSuperAdmin()
+                          || request.resource.data.chapter == requestUserData().chapter);
+        allow update: if isAdminOrSuperAdmin()
+                      && (resource.data.authorId == request.auth.uid || isSuperAdmin())
+                      && request.resource.data.authorId == resource.data.authorId
+                      && request.resource.data.pitchId == resource.data.pitchId;
+        allow delete: if isAdminOrSuperAdmin()
+                      && (resource.data.authorId == request.auth.uid || isSuperAdmin());
+      }
+
       // --- INVITATIONS COLLECTION ---
       match /invitations/{inviteId} {
         allow read, write: if isAdminOrSuperAdmin();
@@ -179,9 +231,19 @@ rules_version = '2';
 
       // --- GUEST MESSAGES COLLECTION ---
       match /guestMessages/{msgId} {
-        allow create: if true;  // Anyone can leave a message
+        // Anyone can leave a message, but the client cannot impersonate the
+        // gnf_mod bot. Bot replies are written server-side via the admin SDK
+        // (which bypasses these rules).
+        allow create: if !('isBot' in request.resource.data)
+                      && request.resource.data.username != 'gnf_mod';
         allow read: if true;    // Messages are publicly visible
         allow update, delete: if isAdminOrSuperAdmin();  // Only admins can edit/delete
+      }
+
+      // --- BOT RATE LIMITS COLLECTION ---
+      // Server-only. Cloud Functions read/write via admin SDK (bypasses rules).
+      match /botRateLimits/{docId} {
+        allow read, write: if false;
       }
 
       // --- BULLETIN POSTS COLLECTION ---
@@ -256,7 +318,7 @@ rules_version = '2';
             'heroTitle', 'heroTagline',
             'servingTitle', 'servingText', 'counties',
             'poweredByText',
-            'showLPs', 'showGallery',
+            'showLPs', 'showGallery', 'showAwardees', 'showImpact',
             // Hero image + caption shown in the chapter-page hero block.
             // heroImageStoragePath lets the uploader delete the previous file
             // when a new one is uploaded. Storage lives under chapter-photos/{slug}/.
@@ -267,6 +329,10 @@ rules_version = '2';
             // chapter director uploads a member photo. Public reads (the
             // /chapters doc is world-readable) feed the static landing pages.
             'lpPhotos',
+            // Per-chapter default grant size used by the Statistics tab when an
+            // individual winner doc has no explicit awardAmount. Directors set
+            // this for their own chapter; superAdmin can override any chapter.
+            'defaultGrantAmount',
             'updatedAt'
           ];
         }

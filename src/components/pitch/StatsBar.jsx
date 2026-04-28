@@ -22,7 +22,12 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
   const pitchesThisQuarter = pitchStats?.quarterlyPitches?.[currentQuarter] || 0;
   const pitchesThisYear = pitchStats?.yearlyPitches?.[currentYear] || 0;
   const totalGrantWinners = pitchStats?.totalGrantWinners || 0;
-  const totalDollarsAwarded = totalGrantWinners * 1000;
+  // Prefer the caller's computed total (sum of per-winner awardAmount with
+  // chapter-default fallback). Fall back to winners × $1,000 for legacy call
+  // sites that haven't been updated to pass an explicit total.
+  const totalDollarsAwarded = Number.isFinite(pitchStats?.totalDollarsAwarded)
+    ? pitchStats.totalDollarsAwarded
+    : totalGrantWinners * 1000;
 
   // Find next milestone badge — id maps to the matching entry in BADGES.
   const milestoneBadges = [
@@ -65,7 +70,6 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
       background: 'var(--mb-paper)',
       border: '2px solid',
       borderColor: 'var(--mb-ink)',
-      boxShadow: 'var(--shadow-hard-sm)',
       padding: '10px 16px',
       fontFamily: 'var(--font-content)'
     }}>
@@ -80,10 +84,6 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
         <div className="stats-sections" style={{ display: 'flex', gap: '12px', alignItems: 'stretch', flexWrap: 'wrap' }}>
           {/* LP Stats Group */}
           <div className="stats-group" style={{
-            border: '2px solid',
-            borderColor: 'var(--mb-ink)',
-            boxShadow: 'var(--shadow-hard-sm)',
-            background: 'var(--mb-paper)',
             padding: '8px 12px'
           }}>
             <div style={{
@@ -115,10 +115,6 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
 
           {/* Chapter Stats Group */}
           <div className="stats-group" style={{
-            border: '2px solid',
-            borderColor: 'var(--mb-ink)',
-            boxShadow: 'var(--shadow-hard-sm)',
-            background: 'var(--mb-paper)',
             padding: '8px 12px'
           }}>
             <div style={{
@@ -190,8 +186,7 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
                   padding: '8px 12px',
                   border: '2px solid',
                   borderColor: 'var(--mb-ink)',
-                  boxShadow: 'var(--shadow-hard-sm)',
-                  textAlign: 'center',
+                        textAlign: 'center',
                   display: 'flex',
                   flexDirection: 'column',
                   justifyContent: 'center',
@@ -239,8 +234,7 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
               padding: '8px 12px',
               border: '2px solid',
               borderColor: 'var(--mb-ink)',
-              boxShadow: 'var(--shadow-hard-sm)',
-              display: 'flex',
+                display: 'flex',
               flexDirection: 'column',
               justifyContent: 'center',
               minHeight: '70px'
@@ -280,7 +274,6 @@ export default function StatsBar({ user, stats, badges = [], pitchStats = {} }) 
             padding: '8px 12px',
             border: '2px solid',
             borderColor: 'var(--mb-ink)',
-            boxShadow: 'var(--shadow-hard-sm)',
             textAlign: 'center',
             display: 'flex',
             flexDirection: 'column',

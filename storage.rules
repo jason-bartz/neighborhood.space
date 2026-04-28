@@ -88,6 +88,31 @@ service firebase.storage {
            );
     }
 
+    // --- Chapter LP roster snapshots ---
+    // Path: chapter-rosters/{chapterSlug}/lps.json
+    // JSON snapshot built by Cloud Functions (refreshLpRosterOnUserWrite /
+    // refreshLpRosterOnChapterWrite) and consumed by chapter-hydration.js to
+    // skip the Firebase SDK + 3 Firestore queries on the public chapter
+    // pages. Public read; writes are admin-only (Cloud Functions use the
+    // admin SDK, which bypasses these rules).
+    match /chapter-rosters/{chapterSlug}/{fileName} {
+      allow read: if true;
+      allow write, delete: if false;
+    }
+
+    // --- Form Library uploads (headshots, photos from public forms) ---
+    // Path: form-uploads/{formType}/{fileName}
+    // Public write so anyone with the link to a form can upload an image
+    // (LP onboarding headshot, microgrant awardee social photo). Locked down
+    // to images <10MB. Public read so the chapter director sees the image
+    // when reviewing the submission. Delete restricted to portal admins.
+    match /form-uploads/{formType}/{fileName} {
+      allow read: if true;
+      allow write: if request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+      allow delete: if isPortalUser();
+    }
+
     // --- Default deny ---
     match /{allPaths=**} {
       allow read: if false;

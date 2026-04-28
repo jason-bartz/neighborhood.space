@@ -137,6 +137,8 @@ export default function SelfIdBreakdown({ pitches, chaptersByName }) {
         Based on <strong>{totalPitches}</strong> applications and <strong>{totalWinners}</strong> winners.
         Founders can identify with multiple categories, so tile percentages and bar rows may sum above 100%.
         Win-rate percentages require at least {MIN_SAMPLE_FOR_PCT} applications in a category before a value is shown.
+        The <strong>LGBTQ+ Owned/Led</strong> tag was added to the application form in April 2026, so its
+        applicant and winner counts only reflect submissions from that point forward.
       </p>
     </SectionCard>
   );

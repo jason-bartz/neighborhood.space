@@ -3,6 +3,10 @@ import "./StatisticsTab.css";
 import { useChapterStats } from "./useChapterStats";
 import KPITiles from "./components/KPITiles";
 import ApplicationsOverTime from "./components/ApplicationsOverTime";
+import CategoryBreakdown from "./components/CategoryBreakdown";
+import CategoriesOverTime from "./components/CategoriesOverTime";
+import CategoryByDemographics from "./components/CategoryByDemographics";
+import CategoryByChapter from "./components/CategoryByChapter";
 import SelfIdBreakdown from "./components/SelfIdBreakdown";
 import ReferralSources from "./components/ReferralSources";
 import GeographicReach from "./components/GeographicReach";
@@ -109,7 +113,20 @@ export default function StatisticsTab({ user, chaptersFromPortal }) {
             scopeLabel={scopeLabel}
           />
           <ApplicationsOverTime pitches={stats.pitches} />
+          <CategoryBreakdown
+            pitches={stats.pitches}
+            chaptersByName={stats.chaptersByName}
+          />
+          <CategoriesOverTime pitches={stats.pitches} />
           <SelfIdBreakdown pitches={stats.pitches} chaptersByName={stats.chaptersByName} />
+          <CategoryByDemographics pitches={stats.pitches} />
+          {/* Cross-chapter heatmap is only meaningful when the loaded set spans
+              multiple chapters — i.e. super-admin viewing "All chapters". For
+              any single-chapter scope the row collapses and the chart is just
+              a re-do of CategoryBreakdown. */}
+          {isSuperAdmin && !chapterFilter && (
+            <CategoryByChapter pitches={stats.pitches} />
+          )}
           <ReferralSources pitches={stats.pitches} />
           <GeographicReach pitches={stats.pitches} />
           <PipelineHealth pitches={stats.pitches} />

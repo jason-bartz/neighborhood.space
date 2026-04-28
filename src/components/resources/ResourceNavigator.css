@@ -1,0 +1,641 @@
+/* ================================================================
+   Resource Navigator — Millennium Bug editorial layer
+   Visual styling comes from .mb-* utility classes in theme-tokens.css.
+   This file only adds layout scaffolding the utility set doesn't cover.
+   ================================================================ */
+
+.rn-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--mb-paper);
+  font-family: var(--font-content);
+  color: var(--mb-ink);
+}
+
+.rn-root.rn-embedded {
+  height: 100%;
+}
+
+/* ----------------------------------------------------------------
+   Mode tabs — ink-bordered segmented control, magenta active fill.
+   Lives in the hero-actions slot of each mode's hero.
+---------------------------------------------------------------- */
+
+.rn-mode-tabs {
+  display: inline-flex;
+  border: 2px solid var(--mb-ink);
+  background: var(--mb-chalk);
+  box-shadow: var(--shadow-hard-sm);
+}
+
+.rn-mode-tab {
+  padding: 8px 18px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 0;
+  color: var(--mb-ink);
+  cursor: pointer;
+}
+
+.rn-mode-tab + .rn-mode-tab {
+  border-left: 2px solid var(--mb-ink);
+}
+
+.rn-mode-tab:hover {
+  background: var(--mb-paper);
+}
+
+.rn-mode-tab.is-active {
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+}
+
+/* ----------------------------------------------------------------
+   Body container
+---------------------------------------------------------------- */
+
+.rn-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--mb-paper);
+}
+
+.rn-mode-pane {
+  padding: 0;
+}
+
+/* ----------------------------------------------------------------
+   Hero block — eyebrow + serif h2 + lede. Always present above
+   the action area (wizard / results / directory).
+---------------------------------------------------------------- */
+
+.rn-hero {
+  padding: 48px 40px 32px;
+  border-bottom: 1px solid var(--mb-ink);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: end;
+}
+
+.rn-hero-text {
+  max-width: 60ch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rn-hero-eyebrow {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mb-magenta);
+}
+
+.rn-hero-title {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(32px, 4vw, 48px);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--mb-ink);
+  margin: 0;
+}
+
+.rn-hero-lede {
+  font-family: var(--font-content);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--mb-ink-60);
+  margin: 0;
+}
+
+.rn-hero-actions {
+  display: flex;
+  gap: 8px;
+  align-self: end;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+/* ----------------------------------------------------------------
+   Action area — what sits below the hero. Padded for breathing room
+   and uses the paper background.
+---------------------------------------------------------------- */
+
+.rn-action {
+  padding: 32px 40px 48px;
+}
+
+/* ----------------------------------------------------------------
+   Wizard — wide enough to feel anchored, big serif question, full
+   width inputs.
+---------------------------------------------------------------- */
+
+.rn-wizard {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.rn-wizard-progress {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.rn-wizard-progress-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.rn-wizard-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: var(--mb-paper-deep);
+}
+
+.rn-wizard-progress-step.is-on .rn-wizard-progress-bar {
+  background: var(--mb-magenta);
+}
+
+.rn-wizard-progress-label {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+}
+
+.rn-wizard-progress-step.is-on .rn-wizard-progress-label {
+  color: var(--mb-ink);
+}
+
+.rn-wizard-card {
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  padding: 36px;
+}
+
+.rn-wizard-step-body {
+  margin-bottom: 32px;
+}
+
+.rn-wizard-question {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3vw, 32px);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  margin: 0 0 8px 0;
+  color: var(--mb-ink);
+}
+
+.rn-wizard-hint {
+  margin: 0 0 24px 0;
+  font-family: var(--font-content);
+  font-size: 15px;
+  color: var(--mb-ink-60);
+  line-height: 1.45;
+}
+
+.rn-wizard-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 24px;
+  border-top: 1px solid var(--mb-ink-15);
+}
+
+/* mb-form-shell doesn't size inputs, so force full width here. */
+.rn-wizard select,
+.rn-wizard textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.rn-wizard textarea {
+  min-height: 110px;
+}
+
+.rn-field-label {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink);
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* ----------------------------------------------------------------
+   Stage grid (step 2)
+---------------------------------------------------------------- */
+
+.rn-stage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.rn-stage-btn {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 16px 18px;
+  background: var(--mb-paper);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  font-family: var(--font-content);
+  cursor: pointer;
+  color: var(--mb-ink);
+  transition: transform 60ms ease-out, box-shadow 60ms ease-out;
+}
+
+.rn-stage-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard);
+}
+
+.rn-stage-btn.is-selected {
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+}
+
+.rn-stage-btn-label {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 400;
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.rn-stage-btn-hint {
+  font-family: var(--font-content);
+  font-size: 13px;
+  color: var(--mb-ink-60);
+  line-height: 1.35;
+}
+
+.rn-stage-btn.is-selected .rn-stage-btn-hint {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ----------------------------------------------------------------
+   Chip row (step 3)
+---------------------------------------------------------------- */
+
+.rn-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.rn-chip {
+  padding: 8px 14px;
+  background: var(--mb-paper);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink);
+  cursor: pointer;
+  transition: transform 60ms ease-out, box-shadow 60ms ease-out;
+}
+
+.rn-chip:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-hard);
+}
+
+.rn-chip.is-selected {
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+}
+
+/* ----------------------------------------------------------------
+   Results
+---------------------------------------------------------------- */
+
+.rn-results-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 80px 24px;
+  font-family: var(--font-content);
+  color: var(--mb-ink-60);
+}
+
+.rn-results-empty {
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  padding: 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  font-family: var(--font-content);
+  color: var(--mb-ink);
+}
+
+/* 2-column grid until viewport is genuinely wide. Resource names are
+   long; cramming 3 cols squeezes them into 4-line wraps. */
+.rn-results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 24px;
+}
+
+.rn-results-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--mb-ink-15);
+  flex-wrap: wrap;
+}
+
+.rn-results-source {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+}
+
+/* ----------------------------------------------------------------
+   Card — extends .mb-card. Title gets full width; tags wrap below.
+---------------------------------------------------------------- */
+
+.rn-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-left-width: 6px;
+}
+
+.rn-card[data-tone="green"]   { border-left-color: var(--mb-aqua); }
+.rn-card[data-tone="yellow"]  { border-left-color: var(--mb-tangerine); }
+.rn-card[data-tone="blue"]    { border-left-color: var(--mb-grape); }
+.rn-card[data-tone="pink"]    { border-left-color: var(--mb-magenta); }
+.rn-card[data-tone="purple"]  { border-left-color: var(--mb-butter); }
+
+.rn-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rn-card-title {
+  font-family: var(--font-content);
+  font-weight: 700;
+  font-size: 18px;
+  line-height: 1.25;
+  letter-spacing: -0.005em;
+  margin: 0;
+  color: var(--mb-ink);
+  /* Allow up to 3 lines, but keep a uniform card height ceiling */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-wrap: balance;
+}
+
+.rn-card-tags {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Tag inside a card is smaller than free-floating .mb-tag */
+.rn-card-tags .mb-tag,
+.rn-card-tags .mb-badge {
+  font-size: 10px;
+  padding: 3px 8px;
+  letter-spacing: 0.1em;
+}
+
+/* Category tag — solid color fill keyed off the resource's Type. */
+.rn-card-type[data-type-tone] {
+  border-color: transparent;
+  color: var(--mb-chalk);
+}
+.rn-card-type[data-type-tone="capital"]   { background: var(--mb-grape); }
+.rn-card-type[data-type-tone="program"]   { background: var(--mb-tangerine); }
+.rn-card-type[data-type-tone="education"] { background: var(--mb-aqua); }
+.rn-card-type[data-type-tone="community"] { background: var(--mb-magenta); }
+.rn-card-type[data-type-tone="mentor"]    { background: var(--mb-butter); color: var(--mb-ink); }
+.rn-card-type[data-type-tone="gov"]       { background: var(--mb-ink); }
+.rn-card-type[data-type-tone="other"]     { background: var(--mb-paper-deep); color: var(--mb-ink); }
+
+.rn-card-reason {
+  margin: 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 17px;
+  line-height: 1.35;
+  color: var(--mb-ink);
+  border-left: 3px solid var(--mb-magenta);
+  padding-left: 12px;
+}
+
+.rn-card-focus {
+  margin: 0;
+  font-family: var(--font-content);
+  font-size: 14px;
+  color: var(--mb-ink-60);
+  line-height: 1.5;
+}
+
+.rn-card-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: auto;
+}
+
+.rn-card-detail {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--mb-ink-15);
+}
+
+.rn-card-detail-text {
+  margin: 0 0 14px 0;
+  font-family: var(--font-content);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--mb-ink);
+}
+
+.rn-card-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 14px;
+  margin: 0;
+  font-family: var(--font-content);
+  font-size: 13px;
+}
+
+.rn-card-meta dt {
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+}
+
+.rn-card-meta dd {
+  margin: 0;
+  color: var(--mb-ink);
+}
+
+/* ----------------------------------------------------------------
+   Compact button override for in-card and toolbar use
+---------------------------------------------------------------- */
+
+.rn-btn-compact {
+  padding: 8px 14px !important;
+  font-size: 11px !important;
+  letter-spacing: 0.12em !important;
+  box-shadow: var(--shadow-hard-sm) !important;
+}
+
+/* ----------------------------------------------------------------
+   Directory toolbar — uses mb-form-shell on the wrapper
+---------------------------------------------------------------- */
+
+.rn-directory {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.rn-directory-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  padding: 18px;
+}
+
+.rn-directory-controls input,
+.rn-directory-controls select {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.rn-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rn-directory-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+}
+
+/* ----------------------------------------------------------------
+   Spinner
+---------------------------------------------------------------- */
+
+.rn-spinner {
+  width: 32px;
+  height: 32px;
+  border: 4px solid var(--mb-paper-deep);
+  border-top-color: var(--mb-magenta);
+  animation: rn-spin 0.9s linear infinite;
+}
+
+@keyframes rn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ----------------------------------------------------------------
+   Mobile / narrow
+---------------------------------------------------------------- */
+
+@media (max-width: 760px) {
+  .rn-mode-tabs {
+    width: 100%;
+  }
+
+  .rn-mode-tab {
+    flex: 1;
+    padding: 10px 6px;
+  }
+
+  .rn-hero {
+    padding: 28px 20px 20px;
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .rn-hero-actions {
+    justify-content: flex-start;
+  }
+
+  .rn-action {
+    padding: 24px 20px 32px;
+  }
+
+  .rn-wizard-card {
+    padding: 24px;
+  }
+
+  .rn-stage-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rn-results-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rn-directory-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Between 760-1100, drop the directory controls to 2 columns instead of 4. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .rn-directory-controls {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}

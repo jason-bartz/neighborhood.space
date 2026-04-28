@@ -88,7 +88,7 @@ export default function TermsPage() {
           lineHeight: "1.6",
           color: "var(--mb-ink)"
         }}>
-          <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Last Updated · April 2026</span>
+          <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Last Updated · April 24, 2026</span>
           <div style={{
             background: "var(--mb-magenta-soft)",
             padding: "16px 20px",
@@ -143,11 +143,21 @@ export default function TermsPage() {
 
           <h3 style={{ marginBottom: "4px" }}>5. Use of Grant Funds</h3>
           <p style={{ marginTop: "4px" }}>
-            Awarded funds are expected to be used for the purpose described in your application and
-            within 30 days of award. GNF reserves the right to request a brief follow-up about how
-            funds were used. Funds may not be used for personal expenses unrelated to the business,
-            illegal activities, or for the direct benefit of a third party outside the scope of your
-            application.
+            We hope awardees will put their grant to work within 30 days of receiving it, but this
+            is an aspiration, not a requirement. GNF micro-grants are given in good faith and come
+            with no strings attached — we do not ask for proof of how funds were spent, and we do
+            not require any follow-up reporting.
+          </p>
+          <p style={{ marginTop: "4px" }}>
+            <strong style={{ fontWeight: 700 }}>These are grants, not investments.</strong> GNF, our
+            chapters, and our Limited Partners expect no financial return, no equity, no revenue
+            share, and no repayment of any kind. If anyone ever approaches you claiming to be
+            entitled to a return, repayment, or ownership interest as a result of a Good Neighbor
+            Fund micro-grant, please contact us directly at{" "}
+            <a href="mailto:hello@goodneighbor.fund" style={{ color: "var(--mb-magenta)" }}>
+              hello@goodneighbor.fund
+            </a>
+            .
           </p>
 
           <h3 style={{ marginBottom: "4px" }}>6. No Obligation; Right to Decline</h3>

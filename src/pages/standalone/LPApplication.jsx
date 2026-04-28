@@ -11,7 +11,7 @@ import PageTaskbar from "../../components/ui/Taskbar/PageTaskbar";
 const FALLBACK_CHAPTERS = [
   { slug: "wny",            name: "Western New York" },
   { slug: "denver",         name: "Denver" },
-  { slug: "upstate",        name: "Upstate New York" },
+  { slug: "upstate",        name: "Central New York" },
   { slug: "capital-region", name: "Capital Region" },
 ];
 // Quick lookup used to pre-populate the chapter select from a ?chapter=slug query param.
@@ -197,6 +197,7 @@ export default function LPApplication({ onClose, initialChapter, hideFrame = fal
         textAlign: "center",
         padding: hasOnClose ? "20px" : "60px 20px 20px",
         boxSizing: "border-box",
+        background: "transparent",
       }}>
         {!hasOnClose && <PageTaskbar />}
         {successInner}
@@ -467,6 +468,7 @@ export default function LPApplication({ onClose, initialChapter, hideFrame = fal
       paddingTop: hasOnClose ? "10px" : "60px",
       paddingBottom: "calc(80px + env(safe-area-inset-bottom))",
       boxSizing: "border-box",
+      background: "transparent",
     }}>
       {!hasOnClose && <PageTaskbar />}
       <div className="mb-page-window mb-form-shell">

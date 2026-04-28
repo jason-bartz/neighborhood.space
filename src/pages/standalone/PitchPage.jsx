@@ -4,11 +4,16 @@ import { collection, addDoc, getDocs, Timestamp } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import VideoUploader from "../../components/media/VideoUploader";
 import Confetti from "react-confetti";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import PageTaskbar from "../../components/ui/Taskbar/PageTaskbar";
+import {
+  PITCH_REFERRAL_OPTIONS,
+  PITCH_REFERRAL_OTHER,
+  resolvePitchReferral,
+} from "../../data/pitchReferralOptions";
 
 // Fallback chapter names used while /chapters is loading or if the fetch fails.
-const FALLBACK_PITCH_CHAPTERS = ["Western New York", "Denver", "Upstate New York", "Capital Region"];
+const FALLBACK_PITCH_CHAPTERS = ["Western New York", "Denver", "Central New York", "Capital Region"];
 
 
 export default function PitchPage({ onClose }) {
@@ -18,7 +23,6 @@ export default function PitchPage({ onClose }) {
   const [windowSize, setWindowSize] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [chapterOptions, setChapterOptions] = useState(FALLBACK_PITCH_CHAPTERS);
   const navigate = useNavigate();
-  const location = useLocation();
   const isEmbedded = Boolean(onClose); // If onClose prop is provided, component is embedded
 
 
@@ -33,6 +37,16 @@ export default function PitchPage({ onClose }) {
   // Scroll to top when component mounts
   useEffect(() => {
     window.scrollTo(0, 0);
+  }, []);
+
+  // Pre-fill the chapter dropdown when the visitor arrives from a chapter page
+  // (e.g. /denver → /pitch?chapter=Denver). Canonical names match the options
+  // in chapterOptions so the select renders with the right item selected.
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(window.location.search).get("chapter");
+    if (fromUrl) {
+      setForm((prev) => ({ ...prev, chapter: fromUrl }));
+    }
   }, []);
 
   // Load active chapters from Firestore; fall back to hardcoded list if empty/failed.
@@ -130,7 +144,7 @@ export default function PitchPage({ onClose }) {
         grantUsePlan: form.fundUse || "",
         pitchVideoUrl: form.videoUrl || form.videoUrlInput || "",
         selfIdentification: form.selfId || [],
-        heardAbout: form.referral || "",
+        heardAbout: resolvePitchReferral(form.referral, form.referralOther),
         consentToShare: form.consent || false,
         consentToMeetup: form.meetupConsent || false,
         createdAt: Timestamp.now(),
@@ -169,7 +183,7 @@ export default function PitchPage({ onClose }) {
         justifyContent: "center",
         alignItems: "center",
         flexDirection: "column",
-        background: "var(--mb-paper)",
+        background: "transparent",
         fontFamily: "var(--font-content)",
         textAlign: "center",
         padding: isEmbedded ? "20px" : "60px 20px 20px",
@@ -221,7 +235,8 @@ export default function PitchPage({ onClose }) {
       display: "flex",
       flexDirection: "column",
       padding: "10px",
-      paddingTop: isEmbedded ? "10px" : "60px"
+      paddingTop: isEmbedded ? "10px" : "60px",
+      background: "transparent"
     }}>
       {!isEmbedded && <PageTaskbar />}
       {/* Window Frame */}
@@ -431,16 +446,26 @@ export default function PitchPage({ onClose }) {
           {/* Referral */}
           <div style={{ display: "flex", flexDirection: "column" }}>
             <label>How did you hear about us? (optional)</label>
-            <input
-              type="text"
+            <select
               name="referral"
               value={form.referral || ""}
               onChange={handleChange}
-              placeholder="e.g., LinkedIn, Instagram, SBDC, LP Referral"
-            />
-            <small>
-              Example: LinkedIn, Instagram, Facebook, SBDC, LP Referral, Prior Grant Awardee, School, Etc.
-            </small>
+            >
+              <option value="">Select one…</option>
+              {PITCH_REFERRAL_OPTIONS.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+            {form.referral === PITCH_REFERRAL_OTHER && (
+              <input
+                type="text"
+                name="referralOther"
+                value={form.referralOther || ""}
+                onChange={handleChange}
+                placeholder="Please specify"
+                style={{ marginTop: "8px" }}
+              />
+            )}
           </div>
 
 

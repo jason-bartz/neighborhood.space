@@ -651,67 +651,24 @@ const loadLPData = useCallback(async () => {
     return; // Stop processing if pitches fail
   }
 
-  // Load Reviews for this user (only if pitches loaded successfully)
+  // Load Reviews for this user via a single reviewerId query. Earlier this
+  // fanned out one getDoc per pitch (N+1 reads); the where() query below
+  // covers the same ground in one round-trip and stays cheap as the chapter
+  // grows. Reviews always carry both reviewerId and pitchId on write, so the
+  // doc-ID fallback is no longer load-bearing.
   try {
-    console.log(`LPPortal: Querying reviews for user ${user.uid}...`);
-    
-    // First try to load reviews by document ID pattern (uid_pitchId)
+    const reviewQuery = query(collection(db, "reviews"), where("reviewerId", "==", user.uid));
+    const reviewSnap = await getDocs(reviewQuery);
     const reviewsMap = {};
-    
-    // Get all possible review IDs based on pitches (this ensures we find all reviews even if not stored with consistent query fields)
-    const possibleReviewIds = pitchDocs.map(pitch => `${user.uid}_${pitch.id}`);
-    
-    // Log the possible review IDs we're looking for
-    console.log(`LPPortal: Looking for ${possibleReviewIds.length} possible review documents with IDs like: ${user.uid}_[pitchId]`);
-    
-    // Use Promise.all to fetch multiple docs in parallel
-    const reviewPromises = possibleReviewIds.map(reviewId => 
-      getDoc(doc(db, "reviews", reviewId))
-        .then(docSnap => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            const pitchId = data.pitchId;
-            if (pitchId) {
-              reviewsMap[pitchId] = { reviewId: docSnap.id, ...data };
-              console.log(`LPPortal: Found review ${docSnap.id} for pitch ${pitchId}`);
-            }
-          }
-          return null; // Return null for non-existent docs
-        })
-        .catch(err => {
-          console.warn(`LPPortal: Error fetching review ${reviewId}:`, err);
-          return null;
-        })
-    );
-    
-    await Promise.all(reviewPromises);
-    
-    // Only try the backup query if we have permission; otherwise, skip it
-    try {
-      // As a backup, also query by reviewerId - this helps find any reviews that might not follow the ID pattern
-      const reviewQuery = query(collection(db, "reviews"), where("reviewerId", "==", user.uid));
-      const reviewSnap = await getDocs(reviewQuery);
-      
-      reviewSnap.forEach((docSnap) => {
-        const reviewData = docSnap.data();
-        // Use the pitchId from the review document as the key
-        if (reviewData.pitchId) {
-          // Only add if not already added from direct doc lookup
-          if (!reviewsMap[reviewData.pitchId]) {
-            reviewsMap[reviewData.pitchId] = { reviewId: docSnap.id, ...reviewData };
-            console.log(`LPPortal: Found additional review ${docSnap.id} for pitch ${reviewData.pitchId} via query`);
-          }
-        } else {
-          console.warn("LPPortal: Found review without pitchId, skipping:", docSnap.id, reviewData);
-        }
-      });
-    } catch (queryError) {
-      // If we get a permission error on the backup query, just log it but don't fail
-      console.warn(`LPPortal: Backup query by reviewerId failed (continuing with direct lookups only): ${queryError.message}`);
-    }
-    
-    // Log the results
-    console.log(`LPPortal: Fetched ${Object.keys(reviewsMap).length} total reviews for user ${user.email}. Setting reviews state with:`, reviewsMap);
+    reviewSnap.forEach((docSnap) => {
+      const reviewData = docSnap.data();
+      if (reviewData.pitchId) {
+        reviewsMap[reviewData.pitchId] = { reviewId: docSnap.id, ...reviewData };
+      } else {
+        console.warn("LPPortal: Found review without pitchId, skipping:", docSnap.id);
+      }
+    });
+    console.log(`LPPortal: Fetched ${Object.keys(reviewsMap).length} reviews for user ${user.email}.`);
     setReviews(reviewsMap);
   } catch (reviewError) {
     console.error(`LPPortal: Error loading reviews for user ${user.email}:`, reviewError.code, reviewError.message);
@@ -4442,6 +4399,36 @@ const lpFilteredPitches = useMemo(() => {
 }, [lpPitches, reviews, reviewSearchTerm, reviewFilter, reviewChapterFilter, reviewQuarterFilter, reviewCategoryFilter, hidePassedReviews]);
 
 
+// Index reviews by pitchId once per allReviewsData change. The admin reviews
+// tab calls getGroupedReviewsForAdmin once per row (and again per sort
+// comparator), so a per-call .filter() on the full reviews array becomes
+// O(pitches × reviews) — at 1k pitches and 5k reviews that's 5M ops per render.
+const reviewsByPitch = useMemo(() => {
+  const map = new Map();
+  if (!Array.isArray(allReviewsData)) return map;
+  for (const review of allReviewsData) {
+    const pitchId = review?.pitchId;
+    if (!pitchId) continue;
+    const list = map.get(pitchId);
+    if (list) list.push(review);
+    else map.set(pitchId, [review]);
+  }
+  return map;
+}, [allReviewsData]);
+
+// Same idea for the users lookup that runs inside getGroupedReviewsForAdmin —
+// users.find() per review is O(reviews × users), which compounds with the
+// outer call pattern.
+const usersById = useMemo(() => {
+  const map = new Map();
+  if (!Array.isArray(users)) return map;
+  for (const u of users) {
+    const id = u.uid || u.id;
+    if (id) map.set(id, u);
+  }
+  return map;
+}, [users]);
+
 // Memoized function to group reviews for a specific pitch in the admin view
 const getGroupedReviewsForAdmin = useCallback((pitchId) => {
   // Ensure dependencies (allReviewsData, users) are available
@@ -4450,7 +4437,7 @@ const getGroupedReviewsForAdmin = useCallback((pitchId) => {
     return { count: 0, byRating: {}, details: [], comments: [] }; // Return empty structure, added comments array
   }
 
-  const relevantReviews = allReviewsData.filter(r => r.pitchId === pitchId);
+  const relevantReviews = reviewsByPitch.get(pitchId) || [];
   const count = relevantReviews.length;
   if (count === 0) return { count: 0, byRating: {}, details: [], comments: [], score: 0, scoredCount: 0, averageScore: null };
 
@@ -4464,7 +4451,7 @@ const getGroupedReviewsForAdmin = useCallback((pitchId) => {
     acc[rating].count++;
 
     // Find reviewer's name using the 'users' state
-    const reviewerInfo = users.find(u => u.uid === review.reviewerId || u.id === review.reviewerId);
+    const reviewerInfo = usersById.get(review.reviewerId);
     const reviewerDisplay = reviewerInfo ? (reviewerInfo.name || reviewerInfo.email) : (review.reviewerName || `ID: ${review.reviewerId?.substring(0,6)}...` || 'Unknown Reviewer');
     acc[rating].reviewers.push(reviewerDisplay);
 
@@ -4478,7 +4465,7 @@ const getGroupedReviewsForAdmin = useCallback((pitchId) => {
 
   // Prepare detailed list for potential expansion later (remains unchanged)
   const detailedReviews = relevantReviews.map(review => {
-    const reviewerInfo = users.find(u => u.uid === review.reviewerId || u.id === review.reviewerId);
+    const reviewerInfo = usersById.get(review.reviewerId);
     const reviewerDisplay = reviewerInfo ? (reviewerInfo.name || reviewerInfo.email) : (review.reviewerName || `ID: ${review.reviewerId?.substring(0,6)}...` || 'Unknown Reviewer');
     return {
       ...review,
@@ -4514,7 +4501,7 @@ const getGroupedReviewsForAdmin = useCallback((pitchId) => {
     scoredCount,
     averageScore
   };
-}, [allReviewsData, users]); // Depend on the full reviews list and the users list
+}, [allReviewsData, users, reviewsByPitch, usersById]);
 
 // Group admin notes by pitchId for render. Sorted newest-first within each pitch
 // so the live discussion always shows the most recent thought at the top.

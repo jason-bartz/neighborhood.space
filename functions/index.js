@@ -2,10 +2,18 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const fetch = require("node-fetch");
 const { google } = require("googleapis");
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated, onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
-const { generatePitchSummary, generateAboutSection } = require("./aiSummary");
+const { generatePitchSummary, generateAboutSection, generatePitchCategory } = require("./aiSummary");
+const { handleGuestMessage } = require("./guestMessageBot");
+const {
+  rebuildLpRosterSnapshot,
+  rosterRelevantUserChange,
+  findChapterSlugByName,
+  listAllChapterSlugs,
+} = require("./chapterRosterSnapshot");
+const { recommend: recommendResourcesHelper } = require("./recommendResources");
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 // v2 functions can't use functions.config(); secrets flow through Secret Manager.
@@ -27,25 +35,25 @@ exports.helloWorld = functions.https.onRequest((request, response) => {
 const FALLBACK_CHAPTER_CHANNELS = {
   "Western New York": "C04V14N4W83",
   "Denver": "C04ULN7FPB9",
-  "Upstate New York": "C0AUSSA9DGW",
+  "Central New York": "C0AUSSA9DGW",
   "Capital Region": "C0B096U4KK2",
 };
 const FALLBACK_LP_CHAPTER_CHANNELS = {
   "Western New York": "C04K9G2L29L",
   "Denver": "C04K9G4PVML",
-  "Upstate New York": "C0AUUTAB2BC",
+  "Central New York": "C0AUUTAB2BC",
   "Capital Region": "C0AV7QJS1TK",
 };
 const FALLBACK_LP_CHAPTER_EMAILS = {
   "Western New York": "wny@goodneighbor.fund",
   "Denver": "denver@goodneighbor.fund",
-  "Upstate New York": "upstateny@goodneighbor.fund",
+  "Central New York": "cny@goodneighbor.fund",
   "Capital Region": "capitalregion@goodneighbor.fund",
 };
 const FALLBACK_CHAPTER_PAGE_SLUGS = {
   "Western New York": "wny",
   "Denver": "denver",
-  "Upstate New York": "upstate",
+  "Central New York": "upstate",
   "Capital Region": "capital-region",
 };
 
@@ -87,10 +95,9 @@ async function getChapterPageSlug(chapterName) {
 }
 
 const SITE_BASE_URL = "https://www.goodneighbor.fund";
-const PITCH_EMAIL_FROM = "Jason at Good Neighbor Fund <hello@goodneighbor.fund>";
-const PITCH_EMAIL_REPLY_TO = "hello@goodneighbor.fund";
-const LP_EMAIL_FROM = "Good Neighbor Fund <hello@goodneighbor.fund>";
-const LP_EMAIL_REPLY_TO = "hello@goodneighbor.fund";
+const JASON_EMAIL_FROM = "Jason at Good Neighbor Fund <hello@goodneighbor.fund>";
+const TEAM_EMAIL_FROM = "Good Neighbor Fund <hello@goodneighbor.fund>";
+const DEFAULT_REPLY_TO = "hello@goodneighbor.fund";
 
 function escapeHtml(value) {
   return String(value || "")
@@ -189,9 +196,9 @@ async function sendPitchConfirmationEmail(pitchData) {
 </html>`;
 
   const body = {
-    from: PITCH_EMAIL_FROM,
+    from: JASON_EMAIL_FROM,
     to: [recipient],
-    reply_to: PITCH_EMAIL_REPLY_TO,
+    reply_to: chapterEmail || DEFAULT_REPLY_TO,
     subject,
     html,
     text,
@@ -290,6 +297,22 @@ async function savePitchToGoogleSheets(pitchData, pitchId) {
   console.log("Successfully saved pitch to Google Sheets");
 }
 
+exports.respondToGuestMessage = onDocumentCreated(
+  {
+    document: "guestMessages/{msgId}",
+    serviceAccount: "gnf-app-9d7e3@appspot.gserviceaccount.com",
+    secrets: [ANTHROPIC_API_KEY],
+  },
+  async (event) => {
+    try {
+      await handleGuestMessage(event, ANTHROPIC_API_KEY.value());
+    } catch (err) {
+      console.error("respondToGuestMessage failed:", err);
+    }
+    return null;
+  },
+);
+
 exports.sendPitchToSlack = onDocumentCreated(
   {
     document: "pitches/{pitchId}",
@@ -336,6 +359,16 @@ exports.sendPitchToSlack = onDocumentCreated(
       console.error("Failed to generate AI summary for pitch:", summaryError);
     }
 
+    try {
+      const category = await generatePitchCategory(pitchData, ANTHROPIC_API_KEY.value());
+      if (category) {
+        await event.data.ref.update({ category });
+        pitchData.category = category;
+      }
+    } catch (categoryError) {
+      console.error("Failed to generate AI category for pitch:", categoryError);
+    }
+
     const message = {
       channel: channelId,
       text: `New Pitch Submission - ${pitchData.chapter}`,
@@ -373,7 +406,9 @@ exports.sendPitchToSlack = onDocumentCreated(
           type: "section",
           text: {
             type: "mrkdwn",
-            text: `*AI Summary:*\n${aiSummary || "_(AI summary unavailable — review the application directly in the LP portal.)_"}`,
+            text:
+              `*AI Summary:*\n${aiSummary || "_(AI summary unavailable — review the application directly in the LP portal.)_"}` +
+              (pitchData.category ? `\n\n*Category:* ${pitchData.category}` : ""),
           },
         },
         {
@@ -504,7 +539,7 @@ async function sendLPApplicationConfirmationEmail(lpData) {
     "",
     `Thank you for applying to become a Limited Partner with Good Neighbor Fund${chapter ? ` ${chapter}` : ""}. We're grateful you're interested in supporting early-stage founders in your community.`,
     "",
-    "A chapter representative will be in touch soon to answer any questions and share next steps. Each chapter has a limited number of LP seats, and we aim for a thoughtful balance of backgrounds. If your chapter is currently full, we'll keep your application on the waitlist and reach out as space opens up.",
+    "A Chapter Director will be in touch soon to answer any questions and share next steps. Each chapter has a limited number of LP seats, and we aim for a thoughtful balance of backgrounds. If your chapter is currently full, we'll keep your application on the waitlist and reach out as space opens up.",
     "",
     `You can learn more about your chapter anytime at ${chapterUrl}.`,
     "",
@@ -529,7 +564,7 @@ async function sendLPApplicationConfirmationEmail(lpData) {
 
                 <p style="margin:0 0 16px 0;">Thank you for applying to become a Limited Partner with <strong>Good Neighbor Fund${chapter ? ` ${escapeHtml(chapter)}` : ""}</strong>. We're grateful you're interested in supporting early-stage founders in your community.</p>
 
-                <p style="margin:0 0 16px 0;">A chapter representative will be in touch soon to answer any questions and share next steps. Each chapter has a limited number of LP seats, and we aim for a thoughtful balance of backgrounds. If your chapter is currently full, we'll keep your application on the waitlist and reach out as space opens up.</p>
+                <p style="margin:0 0 16px 0;">A Chapter Director will be in touch soon to answer any questions and share next steps. Each chapter has a limited number of LP seats, and we aim for a thoughtful balance of backgrounds. If your chapter is currently full, we'll keep your application on the waitlist and reach out as space opens up.</p>
 
                 <p style="margin:0 0 16px 0;">You can learn more about your chapter anytime here: <a href="${chapterUrl}" style="color:#1a5fb4;">${escapeHtml(chapterUrl)}</a></p>
 
@@ -547,9 +582,9 @@ async function sendLPApplicationConfirmationEmail(lpData) {
 </html>`;
 
   const body = {
-    from: LP_EMAIL_FROM,
+    from: JASON_EMAIL_FROM,
     to: [recipient],
-    reply_to: LP_EMAIL_REPLY_TO,
+    reply_to: chapterEmail || DEFAULT_REPLY_TO,
     subject,
     html,
     text,
@@ -705,6 +740,207 @@ async function requireRole(auth, allowedRoles) {
   return { uid: auth.uid, role };
 }
 
+// New chapter interest form (/start-a-chapter). On submission, email
+// hello@goodneighbor.fund with the form contents plus a confirmation email
+// to the applicant.
+async function sendChapterApplicationEmails(appData, appId) {
+  const apiKey = getResendKey();
+  if (!apiKey) {
+    console.error("Resend API key not configured. Skipping chapter application emails.");
+    return;
+  }
+
+  const fields = [
+    ["Name", appData.name],
+    ["Email", appData.email],
+    ["Phone", appData.phone],
+    ["LinkedIn / Website", appData.linkedinOrWebsite],
+    ["City / Region", appData.city],
+    ["Why this city would benefit", appData.whyBenefit],
+    ["Connected to local orgs", appData.hasLocalOrgs],
+    ["Local orgs details", appData.localOrgsDetails],
+    ["Willing to be Chapter Director", appData.willingChapterDirector],
+    ["Has 2-3 supporters", appData.hasSupporters],
+    ["Anything else", appData.anythingElse],
+  ];
+  const filledFields = fields.filter(([, value]) => value && String(value).trim());
+
+  let timestampStr = new Date().toLocaleString();
+  if (appData.createdAt && appData.createdAt.toDate) {
+    timestampStr = appData.createdAt.toDate().toLocaleString();
+  }
+
+  const subject = `New Chapter Interest – ${appData.city || "Unknown city"} (${appData.name || "no name"})`;
+
+  const adminTextLines = [
+    `New chapter interest submission`,
+    ``,
+    `Submitted: ${timestampStr}`,
+    `Doc ID: ${appId}`,
+    ``,
+    ...filledFields.map(([label, value]) => `${label}: ${value}`),
+  ];
+  const adminText = adminTextLines.join("\n");
+
+  const adminRows = filledFields.map(([label, value]) => `
+              <tr>
+                <td style="padding:8px 12px;border-bottom:1px solid #eee;font-weight:600;color:#555;width:200px;vertical-align:top;">${escapeHtml(label)}</td>
+                <td style="padding:8px 12px;border-bottom:1px solid #eee;color:#222;white-space:pre-wrap;">${escapeHtml(value)}</td>
+              </tr>`).join("");
+
+  const adminHtml = `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f4f4;font-family:Helvetica,Arial,sans-serif;color:#222;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e5e5e5;border-radius:6px;padding:0;overflow:hidden;">
+            <tr>
+              <td style="padding:24px 32px;border-bottom:1px solid #e5e5e5;">
+                <p style="margin:0;font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#888;">New Chapter Interest</p>
+                <h2 style="margin:6px 0 0 0;font-size:22px;color:#222;">${escapeHtml(appData.city || "Unknown city")}</h2>
+                <p style="margin:6px 0 0 0;font-size:13px;color:#666;">Submitted ${escapeHtml(timestampStr)} · Doc ID ${escapeHtml(appId)}</p>
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;line-height:1.5;">
+                  ${adminRows}
+                </table>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  const adminBody = {
+    from: TEAM_EMAIL_FROM,
+    to: ["hello@goodneighbor.fund"],
+    reply_to: appData.email ? [appData.email] : [DEFAULT_REPLY_TO],
+    subject,
+    html: adminHtml,
+    text: adminText,
+  };
+
+  try {
+    const adminResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(adminBody),
+    });
+    const adminResult = await adminResponse.json();
+    if (!adminResponse.ok) {
+      console.error(`Resend admin email error: ${adminResponse.status}`, adminResult);
+    } else {
+      console.log(`Chapter interest admin email sent (Resend id: ${adminResult.id || "unknown"})`);
+    }
+  } catch (err) {
+    console.error("Failed to send chapter interest admin email:", err);
+  }
+
+  const recipient = (appData.email || "").trim();
+  if (!recipient) {
+    console.log("Chapter application has no email; skipping confirmation email.");
+    return;
+  }
+
+  const firstName = (appData.name || "").trim().split(/\s+/)[0] || "there";
+  const confirmSubject = "Thanks for your interest in starting a Good Neighbor Fund chapter";
+  const confirmTextLines = [
+    `Hi ${firstName},`,
+    "",
+    `Thank you for your interest in bringing Good Neighbor Fund to ${appData.city || "your city"}. We're grateful you're stepping up to support early-stage founders in your community.`,
+    "",
+    "We'll be reaching out shortly to answer your questions and walk you through next steps. New chapters typically launch once a Chapter Director and a few founding supporters are in place.",
+    "",
+    "In the meantime, the Chapter Handbook on our site walks through how new chapters get up and running.",
+    "",
+    "Thanks again for raising your hand, and welcome to the community.",
+    "",
+    "Best,",
+    "Jason",
+    "Co-founder, Good Neighbor Fund",
+  ];
+  const confirmHtml = `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f4f4;font-family:Helvetica,Arial,sans-serif;color:#222;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e5e5e5;border-radius:6px;padding:32px;">
+            <tr>
+              <td style="font-size:15px;line-height:1.55;color:#222;">
+                <p style="margin:0 0 16px 0;">Hi ${escapeHtml(firstName)},</p>
+                <p style="margin:0 0 16px 0;">Thank you for your interest in bringing <strong>Good Neighbor Fund</strong> to ${escapeHtml(appData.city || "your city")}. We're grateful you're stepping up to support early-stage founders in your community.</p>
+                <p style="margin:0 0 16px 0;">We'll be reaching out shortly to answer your questions and walk you through next steps. New chapters typically launch once a Chapter Director and a few founding supporters are in place.</p>
+                <p style="margin:0 0 16px 0;">In the meantime, the Chapter Handbook on our site walks through how new chapters get up and running.</p>
+                <p style="margin:0 0 24px 0;">Thanks again for raising your hand, and welcome to the community.</p>
+                <p style="margin:0 0 4px 0;">Best,</p>
+                <p style="margin:0;"><strong>Jason</strong><br/>Co-founder, Good Neighbor Fund</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  const confirmBody = {
+    from: JASON_EMAIL_FROM,
+    to: [recipient],
+    reply_to: DEFAULT_REPLY_TO,
+    subject: confirmSubject,
+    html: confirmHtml,
+    text: confirmTextLines.join("\n"),
+  };
+
+  try {
+    const confirmResponse = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(confirmBody),
+    });
+    const confirmResult = await confirmResponse.json();
+    if (!confirmResponse.ok) {
+      console.error(`Resend confirmation email error: ${confirmResponse.status}`, confirmResult);
+    } else {
+      console.log(`Chapter interest confirmation email sent to ${recipient} (Resend id: ${confirmResult.id || "unknown"})`);
+    }
+  } catch (err) {
+    console.error("Failed to send chapter interest confirmation email:", err);
+  }
+}
+
+exports.sendChapterApplicationEmail = onDocumentCreated(
+  {
+    document: "chapterApplications/{appId}",
+    serviceAccount: "gnf-app-9d7e3@appspot.gserviceaccount.com",
+    secrets: [RESEND_API_KEY],
+  },
+  async (event) => {
+    try {
+      const appId = event.params.appId;
+      const appData = event.data.data();
+      console.log(`Processing new chapter application: ${appId}`);
+      await sendChapterApplicationEmails(appData, appId);
+      return null;
+    } catch (error) {
+      console.error("Error processing chapter application:", error);
+      return null;
+    }
+  }
+);
+
 exports.generateAboutFromApplication = onCall(
   {
     serviceAccount: "gnf-app-9d7e3@appspot.gserviceaccount.com",
@@ -731,6 +967,69 @@ exports.generateAboutFromApplication = onCall(
     console.error("generateAboutFromApplication failed:", error);
     throw new HttpsError("internal", "Failed to generate about text.");
   }
+  }
+);
+
+// Public-facing concierge endpoint for the resource navigator. Reads the
+// resources collection server-side (rather than trusting client input) and
+// asks Haiku to rank the best matches for a founder's stage + need. No auth
+// required — the resource directory is already public-readable.
+exports.recommendResources = onCall(
+  {
+    serviceAccount: "gnf-app-9d7e3@appspot.gserviceaccount.com",
+    secrets: [ANTHROPIC_API_KEY],
+    cors: true,
+  },
+  async (request) => {
+    const data = request.data || {};
+    const chapter = typeof data.chapter === "string" ? data.chapter : null;
+    const stage = typeof data.stage === "string" ? data.stage : null;
+    const chips = Array.isArray(data.chips)
+      ? data.chips.filter((c) => typeof c === "string").slice(0, 8)
+      : [];
+    const needText = typeof data.needText === "string" ? data.needText.slice(0, 600) : "";
+
+    if (!chapter && !stage && chips.length === 0 && !needText) {
+      throw new HttpsError("invalid-argument", "Provide at least one of: chapter, stage, chips, needText.");
+    }
+
+    let resources = [];
+    try {
+      const snap = await admin.firestore().collection("resources").get();
+      resources = snap.docs.map((doc) => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          Resource: d.Resource || d.resource || "",
+          Type: d.Type || d.type || "",
+          "Focus Area": d.FocusArea || d["Focus Area"] || d.focusArea || "",
+          "Business Stage": d.Stage || d["Business Stage"] || d.businessStage || "",
+          "Counties Served": d.CountiesServed || d["Counties Served"] || d.countiesServed || "",
+          Chapter: d.Chapter || d.chapter || "",
+          URL: d.Website || d.URL || d.url || "",
+          "Expanded Details": d.About || d["Expanded Details"] || d.expandedDetails || "",
+          "Average Check Size": d.AverageCheckSize || d["Average Check Size"] || d.averageCheckSize || "",
+        };
+      });
+    } catch (error) {
+      console.error("recommendResources failed to load corpus:", error);
+      throw new HttpsError("internal", "Could not load resources.");
+    }
+
+    try {
+      const result = await recommendResourcesHelper({
+        resources,
+        chapter,
+        stage,
+        chips,
+        needText,
+        apiKey: ANTHROPIC_API_KEY.value(),
+      });
+      return result;
+    } catch (error) {
+      console.error("recommendResources helper threw:", error);
+      throw new HttpsError("internal", "Recommendation failed.");
+    }
   }
 );
 
@@ -830,9 +1129,9 @@ async function sendMagicLinkEmail({ recipient, recipientName, chapter, role, sig
 </html>`;
 
   const body = {
-    from: LP_EMAIL_FROM,
+    from: TEAM_EMAIL_FROM,
     to: [recipient],
-    reply_to: LP_EMAIL_REPLY_TO,
+    reply_to: DEFAULT_REPLY_TO,
     subject,
     html,
     text,
@@ -956,6 +1255,47 @@ exports.inviteUser = onCall(
       if (!isNaN(parsed.getTime())) anniversaryDate = parsed;
     }
 
+    // Founding Member auto-award: any LP joining within 1 year of their chapter's
+    // founding date earns the og_neighbor badge at creation. Looks up the chapter
+    // by display name (matches the user doc's `chapter` field). Falls back to
+    // Jan 1 of foundedYear when foundedDate isn't set on the chapter doc.
+    const startingBadges = [];
+    if (role === "lp") {
+      try {
+        const chapterSnap = await admin.firestore()
+          .collection("chapters")
+          .where("name", "==", chapter)
+          .limit(1)
+          .get();
+        if (!chapterSnap.empty) {
+          const chapterData = chapterSnap.docs[0].data();
+          let foundingDate = null;
+          if (chapterData.foundedDate) {
+            foundingDate = chapterData.foundedDate.toDate
+              ? chapterData.foundedDate.toDate()
+              : new Date(chapterData.foundedDate);
+          } else if (typeof chapterData.foundedYear === "number") {
+            foundingDate = new Date(Date.UTC(chapterData.foundedYear, 0, 1));
+          }
+          if (foundingDate && !isNaN(foundingDate.getTime())) {
+            const daysDiff = (anniversaryDate.getTime() - foundingDate.getTime()) / (24 * 60 * 60 * 1000);
+            if (daysDiff >= 0 && daysDiff <= 365) {
+              startingBadges.push({
+                badgeId: "og_neighbor",
+                earnedDate: admin.firestore.Timestamp.now(),
+                category: "general",
+                name: "🏛️ Founding Member",
+                description: "LP who joined within their chapter's first year",
+              });
+            }
+          }
+        }
+      } catch (err) {
+        // Don't block invite on badge lookup failure — log and move on.
+        console.error("founding-member badge lookup failed:", err);
+      }
+    }
+
     const userDoc = {
       uid,
       reviewerId: uid,
@@ -984,7 +1324,7 @@ exports.inviteUser = onCall(
         winnersIdentified: 0,
         accuracyRate: 0,
       },
-      badges: [],
+      badges: startingBadges,
     };
     if (chapterRole) {
       userDoc.chapterRole = chapterRole;
@@ -1142,6 +1482,59 @@ exports.backfillPitchSummaries = onCall(
   }
 );
 
+exports.backfillPitchCategory = onCall(
+  {
+    timeoutSeconds: 540,
+    memory: "512MiB",
+    serviceAccount: "gnf-app-9d7e3@appspot.gserviceaccount.com",
+    secrets: [ANTHROPIC_API_KEY],
+  },
+  async (request) => {
+    await requireRole(request.auth, ["superAdmin"]);
+
+    const chapter = request.data && typeof request.data.chapter === "string" ? request.data.chapter : null;
+    const limit = request.data && Number.isInteger(request.data.limit) ? Math.min(request.data.limit, 300) : 100;
+
+    let query = admin.firestore().collection("pitches");
+    if (chapter) query = query.where("chapter", "==", chapter);
+    const snap = await query.limit(500).get();
+
+    let processed = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const doc of snap.docs) {
+      if (processed >= limit) break;
+      const pitchData = doc.data();
+      if (pitchData.category && String(pitchData.category).trim() !== "") {
+        skipped += 1;
+        continue;
+      }
+      try {
+        const category = await generatePitchCategory(pitchData, ANTHROPIC_API_KEY.value());
+        if (category) {
+          await doc.ref.update({ category });
+          processed += 1;
+        } else {
+          skipped += 1;
+        }
+      } catch (error) {
+        console.error(`Category backfill failed for pitch ${doc.id}:`, error);
+        failed += 1;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
+
+    return {
+      scanned: snap.size,
+      processed,
+      skipped,
+      failed,
+      chapter: chapter || "all",
+    };
+  }
+);
+
 // ---------------------------------------------------------------------------
 // Stripe → Slack: LP membership finance notifications
 // ---------------------------------------------------------------------------
@@ -1177,10 +1570,16 @@ function prettyBillingPeriod(productType, value) {
   if (productType === "gnf_club") {
     if (value === "monthly") return "Monthly ($25 / month)";
   }
+  if (productType === "gnf_chapter_fee") {
+    if (value === "monthly") return "Monthly ($15 / month)";
+  }
+  if (productType === "donation") {
+    if (value === "one_time") return "One-Time";
+  }
   return value || "—";
 }
 
-const TRACKED_PRODUCT_TYPES = new Set(["lp_membership", "gnf_club"]);
+const TRACKED_PRODUCT_TYPES = new Set(["lp_membership", "gnf_club", "gnf_chapter_fee", "donation"]);
 
 // Walk an event's object graph to find metadata from the payment link.
 // Different event types surface the same metadata in different places.
@@ -1198,6 +1597,8 @@ function extractTrackedMetadata(obj) {
 
 function productLabel(metadata) {
   if (metadata.product_type === "gnf_club") return "GNF Club Membership";
+  if (metadata.product_type === "gnf_chapter_fee") return "GNF Chapter Fee";
+  if (metadata.product_type === "donation") return "Donation";
   const chapter = metadata.chapter || "";
   return `${chapter ? chapter + " " : ""}LP Membership`;
 }
@@ -1205,8 +1606,15 @@ function productLabel(metadata) {
 function headerFor(eventType, metadata) {
   const isClub = metadata.product_type === "gnf_club";
   const suffix = isClub ? "" : ` – ${metadata.chapter || "Unknown Chapter"}`;
-  const noun = isClub ? "GNF Club Membership" : "LP Membership";
-  if (eventType === "checkout.session.completed") return `New ${noun}${suffix}`;
+  const noun = (
+    isClub ? "GNF Club Membership"
+    : metadata.product_type === "gnf_chapter_fee" ? "GNF Chapter Fee"
+    : metadata.product_type === "donation" ? "Donation"
+    : "LP Membership"
+  );
+  if (eventType === "checkout.session.completed") {
+    return metadata.product_type === "donation" ? `New Donation${suffix}` : `New ${noun}${suffix}`;
+  }
   if (eventType === "invoice.paid") return `${noun} Renewal${suffix}`;
   if (eventType === "invoice.payment_failed") return `⚠️ ${noun} Payment Failed${suffix}`;
   if (eventType === "customer.subscription.deleted") return `${noun} Canceled${suffix}`;
@@ -1382,3 +1790,512 @@ exports.stripeLPWebhook = functions.https.onRequest(async (req, res) => {
 
   res.status(200).send("ok");
 });
+
+// =====================================================================
+// Forms Library — sendFormInvite + notifyFormSubmission
+// =====================================================================
+//
+// Server-side metadata for forms exposed in the LP portal Forms Library. Mirrors
+// src/components/lp/forms-library/formsRegistry.js — duplication is intentional
+// so the function isn't coupled to the client bundle, but keep the two in sync
+// when adding a form. inviteIntro is a function so chapter name interpolation
+// happens here, not in template strings.
+const FORM_META = {
+  "lp-onboarding": {
+    title: "LP Onboarding",
+    publicPath: "/forms/lp-onboarding",
+    inviteSubject: "Welcome to Good Neighbor Fund — please complete your LP onboarding",
+    inviteIntro: ({ chapter }) =>
+      `Welcome to the Good Neighbor Fund${chapter ? ` ${chapter}` : ""} chapter! Before our next gathering, please take a few minutes to complete your LP onboarding. It captures the headshot and bio for your public chapter profile and gets the Volunteer Agreement and NDA on file.`,
+    submissionSubject: (data) =>
+      `New LP onboarding — ${data.name || data.email || "submission"} (${data.chapter})`,
+    submissionRows: (data) => ([
+      ["Name", data.name],
+      ["Email", data.email],
+      ["Chapter", data.chapter],
+      ["Bio", data.bio],
+      ["Committees", Array.isArray(data.committees) ? data.committees.join(", ") : ""],
+      ["Mailing Address", [data.addressStreet, [data.addressCity, data.addressState].filter(Boolean).join(", "), data.addressZip].filter(Boolean).join(" · ")],
+      ["Shirt Size", data.shirtSize],
+      ["Volunteer Agreement", data.volunteerAgreement && data.volunteerAgreement.accepted ? `Accepted (${data.volunteerAgreement.version || "v1"})` : "Not accepted"],
+      ["NDA", data.nda && data.nda.accepted ? `Accepted (${data.nda.version || "v1"})` : "Not accepted"],
+    ]),
+    submissionAttachmentLabel: "Headshot",
+    submissionAttachmentField: "headshotUrl",
+  },
+  "microgrant-awardee": {
+    title: "Microgrant Awardee Information",
+    publicPath: "/forms/microgrant-awardee",
+    inviteSubject: "Your Good Neighbor Fund grant — final details",
+    inviteIntro: ({ chapter }) =>
+      `Congratulations on your Good Neighbor Fund grant${chapter ? ` from the ${chapter} chapter` : ""}. Before we mail the check and put together the announcement, we need a few quick details from you.`,
+    submissionSubject: (data) =>
+      `Microgrant awardee details — ${data.fullName || data.email || "submission"} (${data.chapter})`,
+    submissionRows: (data) => ([
+      ["Name on Check", data.fullName],
+      ["Email", data.email],
+      ["Chapter", data.chapter],
+      ["Mailing Address", [data.addressStreet, [data.addressCity, data.addressState].filter(Boolean).join(", "), data.addressZip].filter(Boolean).join(" · ")],
+      ["Social Handles", data.socialHandles],
+    ]),
+    submissionAttachmentLabel: "Announcement Photo",
+    submissionAttachmentField: "photoUrl",
+    // Cross-chapter announcement channel — every microgrant awardee submission
+    // pings here so the comms team has a single feed to pull from.
+    slackChannel: "C0520EMTA5P",
+    slackTitle: "New Microgrant Awardee Information",
+  },
+};
+
+// Builds the public form URL with chapter slug + recipient email pre-filled so
+// the form opens with a chapter already selected — recipients shouldn't have to
+// guess which chapter sent it to them.
+function buildFormUrl(formType, { chapterSlug, email }) {
+  const meta = FORM_META[formType];
+  if (!meta) return null;
+  const params = new URLSearchParams();
+  if (chapterSlug) params.set("chapter", chapterSlug);
+  if (email) params.set("email", email);
+  const qs = params.toString();
+  return `${SITE_BASE_URL}${meta.publicPath}${qs ? `?${qs}` : ""}`;
+}
+
+// Send a form invite link to a recipient via Resend. The chapter director (or
+// superAdmin) initiates this from the Forms Library admin UI; the chapter
+// alias is cc'd so the chapter team has a record.
+exports.sendFormInvite = onCall(
+  {
+    serviceAccount: "gnf-app-9d7e3@appspot.gserviceaccount.com",
+    secrets: [RESEND_API_KEY],
+  },
+  async (request) => {
+    const { uid, role } = await requireRole(request.auth, ["chapter_director", "superAdmin"]);
+
+    const data = request.data || {};
+    const formType = String(data.formType || "").trim();
+    const recipient = String(data.recipient || "").trim().toLowerCase();
+    let chapter = String(data.chapter || "").trim();
+
+    const meta = FORM_META[formType];
+    if (!meta) {
+      throw new HttpsError("invalid-argument", `Unknown form type: ${formType}`);
+    }
+    if (!recipient || !recipient.includes("@")) {
+      throw new HttpsError("invalid-argument", "Invalid recipient email.");
+    }
+
+    // chapter_director can only send for their own chapter — read it from the
+    // user doc rather than trusting the client.
+    if (role === "chapter_director") {
+      const userSnap = await admin.firestore().collection("users").doc(uid).get();
+      const userChapter = userSnap.exists ? userSnap.data().chapter : null;
+      if (!userChapter) {
+        throw new HttpsError("failed-precondition", "No chapter set on your user record.");
+      }
+      chapter = userChapter;
+    }
+    if (!chapter) {
+      throw new HttpsError("invalid-argument", "Chapter is required.");
+    }
+
+    const apiKey = getResendKey();
+    if (!apiKey) {
+      throw new HttpsError("failed-precondition", "Resend API key not configured.");
+    }
+
+    const chapterSlug = await getChapterPageSlug(chapter);
+    const chapterEmail = await getChapterEmailAlias(chapter);
+    const url = buildFormUrl(formType, { chapterSlug, email: recipient });
+
+    const intro = meta.inviteIntro({ chapter });
+    const subject = meta.inviteSubject;
+
+    const text = [
+      intro,
+      "",
+      `Open the form: ${url}`,
+      "",
+      "If you have questions, just reply to this email — your chapter team is on the cc.",
+      "",
+      "— Good Neighbor Fund",
+    ].join("\n");
+
+    const html = `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f4f4;font-family:Helvetica,Arial,sans-serif;color:#222;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e5e5e5;border-radius:6px;padding:32px;">
+            <tr>
+              <td style="font-size:15px;line-height:1.55;color:#222;">
+                <p style="margin:0 0 16px 0;">${escapeHtml(intro)}</p>
+                <p style="margin:0 0 24px 0;text-align:center;">
+                  <a href="${url}" style="display:inline-block;background:#d48fc7;color:#ffffff;text-decoration:none;padding:14px 28px;border-radius:4px;font-weight:bold;font-size:15px;">Open the Form</a>
+                </p>
+                <p style="margin:0 0 16px 0;font-size:13px;color:#555;">Or paste this link into your browser:<br/><a href="${url}" style="color:#1a5fb4;word-break:break-all;">${escapeHtml(url)}</a></p>
+                <p style="margin:0 0 16px 0;font-size:13px;color:#777;">If you have questions, just reply to this email — your chapter team is on the cc.</p>
+                <p style="margin:0 0 4px 0;">Thanks,</p>
+                <p style="margin:0;"><strong>Good Neighbor Fund</strong></p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+    const body = {
+      from: TEAM_EMAIL_FROM,
+      to: [recipient],
+      reply_to: chapterEmail || DEFAULT_REPLY_TO,
+      subject,
+      html,
+      text,
+    };
+    if (chapterEmail) body.cc = [chapterEmail];
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    const result = await response.json();
+    if (!response.ok) {
+      console.error("sendFormInvite Resend error:", result);
+      throw new HttpsError("internal", `Resend API error: ${response.status}`);
+    }
+
+    console.log(`Form invite sent (${formType}) to ${recipient}${body.cc ? ` (cc: ${body.cc.join(", ")})` : ""}, Resend id: ${result.id || "unknown"}`);
+
+    return { ok: true, cc: chapterEmail || null };
+  }
+);
+
+// Helper: email the chapter alias with the contents of a form submission.
+async function sendFormSubmissionEmail(meta, data) {
+  const chapterEmail = await getChapterEmailAlias(data.chapter);
+  if (!chapterEmail) {
+    console.error(`No chapter email alias for ${data.chapter}; skipping form submission email`);
+    return;
+  }
+  const apiKey = getResendKey();
+  if (!apiKey) {
+    console.error("Resend API key not configured; skipping form submission email");
+    return;
+  }
+
+  const subject = meta.submissionSubject(data);
+  const rows = meta.submissionRows(data).filter(([, value]) => value && String(value).trim() !== "");
+
+  const submittedAtText = data.submittedAt && data.submittedAt.toDate
+    ? data.submittedAt.toDate().toLocaleString()
+    : new Date().toLocaleString();
+
+  const textRows = rows.map(([label, value]) => `${label}:\n${value}`).join("\n\n");
+  const attachmentUrl = data[meta.submissionAttachmentField];
+  const attachmentLine = attachmentUrl
+    ? `${meta.submissionAttachmentLabel}: ${attachmentUrl}`
+    : "";
+
+  const text = [
+    `A new ${meta.title} submission was received for the ${data.chapter} chapter.`,
+    "",
+    `Submitted: ${submittedAtText}`,
+    "",
+    textRows,
+    "",
+    attachmentLine,
+    "",
+    "View this submission and download a PDF copy in the portal Forms Library.",
+  ].filter(Boolean).join("\n");
+
+  const htmlRows = rows
+    .map(
+      ([label, value]) => `
+            <tr>
+              <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#666;width:160px;vertical-align:top;">${escapeHtml(label)}</td>
+              <td style="padding:8px 12px;border-bottom:1px solid #eee;font-size:14px;color:#222;white-space:pre-wrap;">${escapeHtml(value)}</td>
+            </tr>`,
+    )
+    .join("");
+
+  const attachmentHtml = attachmentUrl
+    ? `<p style="margin:24px 0 0;font-size:13px;color:#555;">${escapeHtml(meta.submissionAttachmentLabel)}: <a href="${attachmentUrl}" style="color:#1a5fb4;word-break:break-all;">${escapeHtml(attachmentUrl)}</a></p>`
+    : "";
+
+  const html = `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f4f4f4;font-family:Helvetica,Arial,sans-serif;color:#222;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:24px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #e5e5e5;border-radius:6px;padding:32px;">
+            <tr>
+              <td>
+                <p style="margin:0 0 6px 0;font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:#888;">${escapeHtml(meta.title)} · ${escapeHtml(data.chapter)}</p>
+                <h1 style="margin:0 0 18px 0;font-size:22px;color:#222;font-weight:700;">New submission received</h1>
+                <p style="margin:0 0 16px 0;font-size:13px;color:#666;">Submitted ${escapeHtml(submittedAtText)}</p>
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eee;border-collapse:collapse;">
+                  ${htmlRows}
+                </table>
+                ${attachmentHtml}
+                <p style="margin:24px 0 0;font-size:13px;color:#555;">View this submission and download a PDF copy in the portal Forms Library.</p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+
+  const recipientEmail = (data.email || "").trim();
+  const body = {
+    from: TEAM_EMAIL_FROM,
+    to: [chapterEmail],
+    reply_to: recipientEmail || DEFAULT_REPLY_TO,
+    subject,
+    html,
+    text,
+  };
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    console.error("sendFormSubmissionEmail Resend error:", result);
+    return;
+  }
+  console.log(`Form submission email sent to ${chapterEmail} for ${data.formType} (Resend id: ${result.id || "unknown"})`);
+}
+
+// Helper: post a form submission to a Slack channel. Block layout mirrors
+// sendPitchToSlack — header + key/value field pairs + (optional) image block.
+async function postFormSubmissionToSlack(meta, data) {
+  if (!meta.slackChannel) return;
+  const botToken = getBotToken();
+  if (!botToken) return;
+
+  const fields = meta.submissionRows(data)
+    .filter(([, value]) => value && String(value).trim() !== "")
+    .map(([label, value]) => ({
+      type: "mrkdwn",
+      text: `*${label}:*\n${value}`,
+    }));
+
+  const blocks = [
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: `${meta.slackTitle || meta.title} — ${data.chapter || ""}`,
+        emoji: true,
+      },
+    },
+  ];
+  // Slack caps a section to 10 fields; chunk to stay safely under.
+  for (let i = 0; i < fields.length; i += 8) {
+    blocks.push({ type: "section", fields: fields.slice(i, i + 8) });
+  }
+
+  const attachmentUrl = data[meta.submissionAttachmentField];
+  if (attachmentUrl) {
+    blocks.push({
+      type: "image",
+      image_url: attachmentUrl,
+      alt_text: meta.submissionAttachmentLabel || "attachment",
+      title: { type: "plain_text", text: meta.submissionAttachmentLabel || "Photo" },
+    });
+  }
+  blocks.push({ type: "divider" });
+
+  const message = {
+    channel: meta.slackChannel,
+    text: `${meta.slackTitle || meta.title} — ${data.chapter || ""}`,
+    blocks,
+  };
+
+  const response = await fetch("https://slack.com/api/chat.postMessage", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      Authorization: `Bearer ${botToken}`,
+    },
+    body: JSON.stringify(message),
+  });
+  const result = await response.json();
+  if (!result.ok) {
+    console.error(`Slack API error posting form submission: ${result.error}`, result);
+    return;
+  }
+  console.log(`Form submission posted to Slack channel ${meta.slackChannel}`);
+}
+
+// On a new submission to /formLibrarySubmissions, email the chapter alias with
+// the contents of the form. Director sees the response in the portal UI too,
+// but the email keeps a copy in their inbox for non-portal-using teammates.
+// If the form has a slackChannel configured, also posts there (e.g. microgrant
+// awardees go to a cross-chapter announcement channel).
+exports.notifyFormSubmission = onDocumentCreated(
+  {
+    document: "formLibrarySubmissions/{submissionId}",
+    serviceAccount: "gnf-app-9d7e3@appspot.gserviceaccount.com",
+    secrets: [RESEND_API_KEY, SLACK_BOT_TOKEN],
+  },
+  async (event) => {
+    const submissionId = event.params.submissionId;
+    const data = event.data.data();
+    console.log(`Processing form submission: ${submissionId} (${data.formType})`);
+
+    const meta = FORM_META[data.formType];
+    if (!meta) {
+      console.error(`Unknown formType on submission ${submissionId}: ${data.formType}`);
+      return null;
+    }
+    if (!data.chapter) {
+      console.error(`Submission ${submissionId} missing chapter`);
+      return null;
+    }
+
+    // Email and Slack fan out independently — a failure in one shouldn't
+    // suppress the other.
+    try {
+      await sendFormSubmissionEmail(meta, data);
+    } catch (emailErr) {
+      console.error("notifyFormSubmission email failed:", emailErr);
+    }
+
+    try {
+      await postFormSubmissionToSlack(meta, data);
+    } catch (slackErr) {
+      console.error("notifyFormSubmission Slack failed:", slackErr);
+    }
+
+    return null;
+  }
+);
+
+// ───── Chapter LP roster snapshots ─────
+// Two triggers + one onCall backfill keep a JSON snapshot of each chapter's
+// LP roster in Storage at chapter-rosters/{slug}/lps.json. The static chapter
+// pages fetch that JSON directly from the CDN, skipping the Firebase SDK
+// load + 3 Firestore queries that previously gated first paint of the LP grid.
+// See functions/chapterRosterSnapshot.js for the snapshot shape and
+// public/assets/js/chapter-hydration.js for the consumer.
+
+// Rebuild the snapshot for both old and new chapters when the affected user
+// changed chapters; otherwise just the one. Returns silently on errors so a
+// stale snapshot is preferred over a noisy retry loop — the next user write
+// will refresh it.
+async function rebuildSnapshotsForChapters(chapterNames) {
+  const unique = Array.from(new Set(chapterNames.filter(Boolean)));
+  for (const chapterName of unique) {
+    try {
+      const slug = await findChapterSlugByName(chapterName);
+      if (!slug) {
+        console.warn(`rebuildSnapshotsForChapters: no chapter doc for "${chapterName}"`);
+        continue;
+      }
+      await rebuildLpRosterSnapshot(slug);
+    } catch (err) {
+      console.error(`rebuildSnapshotsForChapters failed for "${chapterName}":`, err);
+    }
+  }
+}
+
+exports.refreshLpRosterOnUserWrite = onDocumentWritten(
+  {
+    document: "users/{uid}",
+    serviceAccount: "gnf-app-9d7e3@appspot.gserviceaccount.com",
+  },
+  async (event) => {
+    const before = event.data && event.data.before && event.data.before.exists
+      ? event.data.before.data() : null;
+    const after = event.data && event.data.after && event.data.after.exists
+      ? event.data.after.data() : null;
+
+    // Skip writes that don't touch any roster-relevant field (lastLogin,
+    // email, etc.) — saves a Firestore read + Storage write per noisy update.
+    if (before && after && !rosterRelevantUserChange(before, after)) return null;
+
+    const chapters = [];
+    if (before && before.chapter) chapters.push(before.chapter);
+    if (after && after.chapter) chapters.push(after.chapter);
+    if (chapters.length === 0) return null;
+
+    await rebuildSnapshotsForChapters(chapters);
+    return null;
+  },
+);
+
+exports.refreshLpRosterOnChapterWrite = onDocumentWritten(
+  {
+    document: "chapters/{slug}",
+    serviceAccount: "gnf-app-9d7e3@appspot.gserviceaccount.com",
+  },
+  async (event) => {
+    const slug = event.params.slug;
+    const before = event.data && event.data.before && event.data.before.exists
+      ? event.data.before.data() : null;
+    const after = event.data && event.data.after && event.data.after.exists
+      ? event.data.after.data() : null;
+
+    if (!after) return null; // chapter deleted — nothing to snapshot
+
+    // Only the lpPhotos map and (rare) name change affect the snapshot.
+    // Bail on any other edit so director text-tweak saves don't pay for a
+    // pointless rebuild.
+    const lpPhotosChanged = JSON.stringify((before && before.lpPhotos) || {})
+                          !== JSON.stringify(after.lpPhotos || {});
+    const nameChanged = !before || before.name !== after.name;
+    if (!lpPhotosChanged && !nameChanged) return null;
+
+    try {
+      await rebuildLpRosterSnapshot(slug);
+    } catch (err) {
+      console.error(`refreshLpRosterOnChapterWrite failed for ${slug}:`, err);
+    }
+    return null;
+  },
+);
+
+// One-shot backfill — superAdmin-only. Run after first deploy to seed the
+// snapshot for every chapter, and any time you suspect Storage drifted from
+// Firestore (e.g. a trigger failed silently). With no slug arg, rebuilds all.
+exports.rebuildLpRosterSnapshots = onCall(
+  { serviceAccount: "gnf-app-9d7e3@appspot.gserviceaccount.com" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const callerSnap = await admin.firestore()
+      .collection("users").doc(request.auth.uid).get();
+    if (!callerSnap.exists || callerSnap.data().role !== "superAdmin") {
+      throw new HttpsError("permission-denied", "SuperAdmin only.");
+    }
+
+    const requested = request.data && request.data.chapterSlug;
+    const slugs = requested ? [requested] : await listAllChapterSlugs();
+    const results = [];
+    for (const slug of slugs) {
+      try {
+        const snap = await rebuildLpRosterSnapshot(slug);
+        results.push({ slug, ok: true, lpCount: snap.lps.length });
+      } catch (err) {
+        results.push({ slug, ok: false, error: String(err && err.message || err) });
+      }
+    }
+    return { results };
+  },
+);

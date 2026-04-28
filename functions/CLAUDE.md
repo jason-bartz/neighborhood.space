@@ -26,11 +26,13 @@ Running the emulator imports `../emulator-data` on start and exports on exit —
 |---|---|
 | [index.js](index.js) | All function exports (Slack, Stripe, invites, AI, backfill) |
 | [aiSummary.js](aiSummary.js) | Anthropic client + `generateFounderAbout()` helper |
+| [guestMessageBot.js](guestMessageBot.js) | `gnf_mod` chat bot — question pre-filter, per-user/global rate limit, scoped Anthropic call |
 | [google-sheets-export.js](google-sheets-export.js) | Google Sheets API writer for the pitch archive |
 | [setup-firebase-config.sh](setup-firebase-config.sh) | Scripted `firebase functions:config:set` calls |
 
 Exports (see [index.js](index.js)):
 
+- `respondToGuestMessage` — Firestore `onCreate(guestMessages/{id})` → optional Anthropic reply as `gnf_mod`. Skips non-questions, bot's own messages, and rate-limited authors.
 - `sendPitchToSlack` — Firestore `onCreate(pitches/{id})` → Slack webhook (channel picked by `chapter` field)
 - `sendLPApplicationToSlack` — Firestore `onCreate(lpApplications/{id})` → Slack
 - `generateAboutFromApplication` — `onCall` Anthropic summary for an LP application

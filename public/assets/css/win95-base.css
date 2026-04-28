@@ -1635,7 +1635,9 @@ html { scroll-behavior: smooth; }
   min-width: 160px;
 }
 
-/* Normalize button height to match the 34px selects/inputs in this row. */
+/* Normalize buttons to the same flat 34px chalk box as the selects/inputs
+   in this row. We override the default win95-btn bevel + uppercase here so
+   the row reads as one unit — matches the live review filter bar look. */
 .filter-bar--one-row > button,
 .filter-bar--one-row > .retro-toggle,
 .filter-bar--one-row > .win95-btn {
@@ -1643,7 +1645,55 @@ html { scroll-behavior: smooth; }
   min-height: 34px;
   padding: 0 14px;
   line-height: 1;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  background: var(--mb-chalk);
+  color: var(--mb-ink);
+  border: 2px solid var(--mb-ink);
+  box-shadow: none;
+  transform: none;
+}
+
+.filter-bar--one-row > button:hover,
+.filter-bar--one-row > .retro-toggle:hover,
+.filter-bar--one-row > .win95-btn:hover {
+  background: var(--mb-paper);
+  transform: none;
+  box-shadow: none;
+}
+
+.filter-bar--one-row > .retro-toggle[aria-pressed="true"] {
+  background: var(--mb-magenta);
+  color: var(--mb-chalk);
+  box-shadow: none;
+  transform: none;
+}
+
+.filter-bar--one-row > .retro-toggle[aria-pressed="true"]:hover {
+  background: var(--mb-magenta);
+}
+
+/* Inline counter (e.g. "13 of 277") that sits in the filter bar. Pinned
+   to the right with margin-left:auto so it floats opposite the chapter
+   selector regardless of how the row wraps. */
+.filter-bar__count {
+  margin-left: auto;
+  font-family: var(--font-content);
   font-size: 13px;
+  color: var(--mb-ink-60);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.filter-bar__count strong {
+  font-family: var(--font-numeral);
+  color: var(--mb-ink);
+  font-weight: 700;
+  margin-right: 2px;
 }
 
 /* ── Toolbar (row of action buttons) ── */
@@ -1911,11 +1961,11 @@ html { scroll-behavior: smooth; }
   align-items: center;
   gap: 4px;
   padding: 3px 10px;
-  font-family: var(--font-pixel);
-  font-size: 11px;
+  font-family: var(--font-content);
+  font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  letter-spacing: normal;
+  text-transform: none;
   color: var(--mb-ink);
   background: var(--mb-chalk);
   border: 1.5px solid var(--mb-ink);
@@ -2242,6 +2292,34 @@ html { scroll-behavior: smooth; }
   box-shadow: var(--shadow-hard);
   background: var(--mb-chalk);
   overflow: hidden;
+  font-family: var(--font-content);
+}
+
+/* Shared page frame for top-level LP tabs (Pitch Map, Trophy Case,
+   Statistics, Chapter Members, Resources). Same vocabulary as
+   .social-cards-page but allows internal scroll so long content stays
+   usable inside the desktop window. Each tab stacks an
+   admin-section--hero header on top of one or more admin-section
+   content blocks. */
+.lp-tab-page {
+  margin: 15px;
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  background: var(--mb-chalk);
+  font-family: var(--font-content);
+  overflow: hidden;
+}
+
+/* Margin-only variant: contributes the same outer 15px gutter as
+   `.lp-tab-page` so the Admin Panel aligns with its siblings, but
+   skips the border/shadow/bg because the admin tabstrip + tabpanel
+   already provide their own framing. */
+.lp-tab-page--bare {
+  margin: 15px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  overflow: visible;
   font-family: var(--font-content);
 }
 

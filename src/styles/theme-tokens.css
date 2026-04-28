@@ -1856,10 +1856,10 @@ body::after {
   gap: 6px;
   padding: 8px 14px;
   font-family: var(--font-content);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: normal;
+  text-transform: none;
   color: var(--mb-chalk);
   background: var(--mb-ink);
   border: 2px solid var(--mb-ink);

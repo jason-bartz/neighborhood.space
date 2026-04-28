@@ -20,30 +20,31 @@ export default function ChapterHandbookPDF() {
         eyebrow="Operations · 02"
         number="02"
         title="The Chapter Handbook"
-        summary="Everything you need to launch a Good Neighbor Fund neighborhood — mission, roles, timeline, operations, and the answers to common questions."
+        summary="Everything you need to launch a Good Neighbor Fund neighborhood. Mission, roles, timeline, operations, and the answers to common questions."
         accent="grape"
       />
 
       <Page size="LETTER" style={pdfStyles.page}>
         <Text style={pdfStyles.lede}>
           Welcome. You're here because you're interested in launching a Good
-          Neighbor Fund chapter — or as we call it, a Neighborhood. We're
-          thrilled you've found us.
+          Neighbor Fund chapter, or as we call it, a Neighborhood. We're glad
+          you found us.
         </Text>
 
         <Text style={pdfStyles.h1First}>Introduction</Text>
         <Paragraph>
-          GNF started in Buffalo, NY, with a simple idea: bold, early-stage
-          entrepreneurs — especially those from underrepresented backgrounds
-          — deserve belief, not the bureaucracy they typically encounter
-          with early-stage business organizations. We give out $1,000
-          micro-grants (belief capital) to help founders take that
-          all-important first step.
+          GNF started in Buffalo, NY, with a simple idea. Bold, early-stage
+          entrepreneurs, especially those from underrepresented backgrounds,
+          deserve belief, not the bureaucracy they typically encounter with
+          early-stage business organizations. So we give out $1,000
+          micro-grants (belief capital) to help founders take that first
+          step.
         </Paragraph>
         <Paragraph>
           Since 2023, we've backed dozens of founders, built a grassroots
-          LP community, and crafted a replicable model that blends funding,
-          mentorship, and local pride. Now, we're opening up the playbook.
+          LP community, and put together a replicable model that blends
+          funding, mentorship, and local pride. Now we're opening up the
+          playbook.
         </Paragraph>
 
         <Text style={pdfStyles.h1}>Our Mission</Text>
@@ -72,15 +73,15 @@ export default function ChapterHandbookPDF() {
       <Page size="LETTER" style={pdfStyles.page}>
         <Text style={pdfStyles.h1First}>Starting a Chapter</Text>
 
-        <Text style={pdfStyles.h2}>Step 1 — Say Hi</Text>
+        <Text style={pdfStyles.h2}>Step 1. Say Hi</Text>
         <Paragraph>
-          Fill out our short new-chapter interest form at airtable.com
-          (link in portal).
+          Fill out our short new-chapter interest form at
+          goodneighbor.fund/start-a-chapter.
         </Paragraph>
 
-        <Text style={pdfStyles.h2}>Step 2 — Recruit Your LPs</Text>
+        <Text style={pdfStyles.h2}>Step 2. Recruit Your LPs</Text>
         <Paragraph>
-          You'll need roughly 6–10 founding LPs. Typically, LPs are:
+          You'll need roughly 6 to 10 founding LPs. Typically, LPs are:
         </Paragraph>
         <Bullet>Founders, executives, creatives, or community leaders</Bullet>
         <Bullet>Actively involved in the local entrepreneurial ecosystem</Bullet>
@@ -97,13 +98,13 @@ export default function ChapterHandbookPDF() {
           conversation to help you determine the right fit for your area.
         </Callout>
 
-        <Text style={pdfStyles.h2}>Step 3 — Host Your First Meeting</Text>
+        <Text style={pdfStyles.h2}>Step 3. Host Your First Meeting</Text>
         <Paragraph>Plan your inaugural LP meetup to:</Paragraph>
         <Bullet>Get to know each other</Bullet>
         <Bullet>Review early pitch submissions</Bullet>
         <Bullet>Select your first grantee (or plan when you'll open your first cycle)</Bullet>
         <Paragraph>
-          Make it fun. Restaurants, cafes, rooftops, or breweries — somewhere
+          Make it fun. Restaurants, cafes, rooftops, or breweries. Somewhere
           casual, inspiring, and local.
         </Paragraph>
         <Callout label="Best Practice">
@@ -117,15 +118,13 @@ export default function ChapterHandbookPDF() {
       <Page size="LETTER" style={pdfStyles.page}>
         <Text style={pdfStyles.h1First}>Y2K Energy</Text>
         <Paragraph>
-          Why do we look like your old Windows 98 desktop? Because we're
-          inspired by a time when people just started. The early internet
-          era was raw, open, and full of possibility — exactly how we want
-          our founders to feel.
+          The aesthetic is on purpose. We're inspired by a time when
+          people just started. The early internet era was raw, open, and
+          full of possibility. That's how we want our founders to feel.
         </Paragraph>
         <Paragraph>
-          So yes, we've got pixel hearts and pastel gradients. But more
-          importantly: we back ideas before they're buttoned up. We fund
-          courage, not polish.
+          More importantly: we back ideas before they're buttoned up. We
+          fund courage, not polish.
         </Paragraph>
 
         <Text style={pdfStyles.h1}>How Chapters Operate</Text>
@@ -134,7 +133,7 @@ export default function ChapterHandbookPDF() {
         <Bullet>LPs vote on grant winners based on pitch applications and 60-second videos.</Bullet>
         <Bullet>The Chapter Director facilitates meetings and follows up with grantees.</Bullet>
 
-        <Text style={pdfStyles.h2}>Grant Criteria — What we look for</Text>
+        <Text style={pdfStyles.h2}>Grant Criteria: What we look for</Text>
         <Bullet>Passionate, ideation or early-stage founders</Bullet>
         <Bullet>Clear problem/solution articulation</Bullet>
         <Bullet>Specific, high-impact use of the $1,000 grant</Bullet>
@@ -157,13 +156,13 @@ export default function ChapterHandbookPDF() {
         <Numbered n={4}><Text style={pdfStyles.bold}>Engage on Slack.</Text> Stay active in our private channel and support founders.</Numbered>
         <Numbered n={5}><Text style={pdfStyles.bold}>Optional committees.</Text> Events, founder support, or social media, if desired.</Numbered>
         <Paragraph>
-          LPs are not investors. GNF is not a fund. There is no ROI — only
+          LPs are not investors. GNF is not a fund. There is no ROI. Only
           impact, community, and belief.
         </Paragraph>
 
         <Text style={pdfStyles.h1}>Setting Up Your Chapter</Text>
         <Paragraph>We'll support you with:</Paragraph>
-        <Bullet>A chapter landing page on neighborhoods.space</Bullet>
+        <Bullet>A chapter landing page on goodneighbor.fund</Bullet>
         <Bullet>Access to our LP Portal (submission + review tool)</Bullet>
         <Bullet>A @goodneighbor.fund email address for the Chapter Director</Bullet>
         <Bullet>A private Slack community with a private chapter channel</Bullet>
@@ -172,7 +171,7 @@ export default function ChapterHandbookPDF() {
 
         <Text style={pdfStyles.h2}>Optional support services</Text>
         <Bullet>Additional email address provisions</Bullet>
-        <Bullet>Banking services — online banking + Stripe for recurring memberships</Bullet>
+        <Bullet>Banking services. Online banking plus Stripe for recurring memberships</Bullet>
         <Bullet>Custom GNF Oxford Pennant ordering</Bullet>
         <Bullet>Custom GNF novelty check ordering</Bullet>
 
@@ -204,7 +203,7 @@ export default function ChapterHandbookPDF() {
         <Bullet>Sample posts and outreach copy</Bullet>
         <Bullet>A media kit for local press</Bullet>
 
-        <Text style={pdfStyles.h1}>LP Criteria — For Directors Recruiting LPs</Text>
+        <Text style={pdfStyles.h1}>LP Criteria: For Directors Recruiting LPs</Text>
         <Paragraph>We suggest inviting people who are:</Paragraph>
         <Bullet>Past or present entrepreneurs</Bullet>
         <Bullet>Actively supporting the local business community</Bullet>
@@ -261,7 +260,7 @@ export default function ChapterHandbookPDF() {
       <Page size="LETTER" style={pdfStyles.page}>
         <Text style={pdfStyles.h1First}>From the Founders</Text>
         <Paragraph>
-          Hey there — we're Susan and Jason, co-founders of Good Neighbor
+          Hey there. We're Susan and Jason, co-founders of Good Neighbor
           Fund.
         </Paragraph>
         <Paragraph>

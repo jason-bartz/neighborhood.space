@@ -1,0 +1,103 @@
+/* StatisticsTab — screen + printable report styles.
+ *
+ * Print approach: visibility: hidden across body, then re-show the
+ * print-root and its descendants. Direct-child (`body > *`) selectors
+ * don't work because the print-root is nested deep in the React tree.
+ *
+ * We also force `print-color-adjust: exact` so bar fills, ink accents,
+ * and stat tiles render on paper instead of flattening to gray.
+ */
+.lp-statistics-tab {
+  padding: 16px;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.lp-statistics-tab__scopebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 10px 14px;
+  background: var(--mb-paper-deep, var(--mb-paper));
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+}
+
+.lp-statistics-tab__scopebar__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lp-statistics-tab__scopebar__actions {
+  display: inline-flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media print {
+  /* 1. Reveal only the statistics subtree. visibility: hidden preserves
+     layout on the ancestors while blanking them visually; the
+     descendant-selector then re-reveals just our content. */
+  body * {
+    visibility: hidden !important;
+  }
+  .lp-statistics-print-root,
+  .lp-statistics-print-root * {
+    visibility: visible !important;
+  }
+  /* 2. Lift the print-root to the top-left of the printed page. Without
+     this it sits wherever the sidebar/layout pushed it, wasting the
+     left third of the page. */
+  .lp-statistics-print-root {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    background: #fff !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  /* 3. Keep bar fills, stat tile backgrounds, and SVG strokes in color.
+     Browsers otherwise strip backgrounds to save toner, which collapses
+     the whole design to gray boxes. */
+  .lp-statistics-print-root,
+  .lp-statistics-print-root * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  /* 4. Skip intro animations — we want final-state widths immediately,
+     not mid-transition snapshots. */
+  .lp-statistics-print-root *,
+  .lp-statistics-print-root *::before,
+  .lp-statistics-print-root *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  /* 5. Hide the filter/print buttons themselves. */
+  .lp-statistics-tab__scopebar__actions {
+    display: none !important;
+  }
+  .lp-statistics-tab__scopebar {
+    box-shadow: none !important;
+    margin-bottom: 12px;
+  }
+  /* 6. Keep section cards from splitting across pages when possible. */
+  .lp-statistics-tab section {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  /* 7. Collapse horizontal scrollers (charts) so they render fully on page. */
+  .lp-statistics-tab [style*="overflow-x: auto"],
+  .lp-statistics-tab [style*="overflowX:auto"] {
+    overflow: visible !important;
+  }
+  @page {
+    margin: 0.5in;
+  }
+}

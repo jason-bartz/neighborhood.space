@@ -9,30 +9,32 @@ import {
 } from '@react-pdf/renderer';
 
 // ---------- Font registration ---------------------------------------------
-// We pull woff2 files from Google Fonts' raw CDN so react-pdf can embed them.
-// Only weights actually used below are registered to keep bundle small.
+// react-pdf's fontkit can't parse Google's modern woff2 variable fonts, so
+// we pull the legacy static .ttf files (served when requested with an older
+// UA). If Google rotates these URLs again, the failing fetch surfaces in
+// the toolbar's error banner. Refresh them via the legacy-UA CSS feed.
 
 Font.register({
   family: 'Inter',
   fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1ZL7.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa2JL7SUc.woff2', fontWeight: 600 },
-    { src: 'https://fonts.gstatic.com/s/inter/v13/UcC73FwrK3iLTeHuS_fvQtMwCp50KnMa1pL7SUc.woff2', fontWeight: 700 },
+    { src: 'https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfMZg.ttf', fontWeight: 400 },
+    { src: 'https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuGKYMZg.ttf', fontWeight: 600 },
+    { src: 'https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYMZg.ttf', fontWeight: 700 },
   ],
 });
 
 Font.register({
   family: 'Instrument Serif',
   fonts: [
-    { src: 'https://fonts.gstatic.com/s/instrumentserif/v6/jizDREVItHgc8qDIbSTKq4XIRfQ7q-wxLHo.woff2', fontWeight: 400 },
+    { src: 'https://fonts.gstatic.com/s/instrumentserif/v5/jizBRFtNs2ka5fXjeivQ4LroWlx-2zI.ttf', fontWeight: 400 },
   ],
 });
 
 Font.register({
   family: 'JetBrains Mono',
   fonts: [
-    { src: 'https://fonts.gstatic.com/s/jetbrainsmono/v20/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPVmUsaaDhw.woff2', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/jetbrainsmono/v20/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPVmUsaaDhw.woff2', fontWeight: 700 },
+    { src: 'https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPQ.ttf', fontWeight: 400 },
+    { src: 'https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8L6tjPQ.ttf', fontWeight: 700 },
   ],
 });
 
@@ -404,7 +406,7 @@ export function Paragraph({ children, style }) {
   return <Text style={[pdfStyles.p, style]}>{children}</Text>;
 }
 
-// Reusable wrapper — takes a cover + a set of section pages.
+// Reusable wrapper. Takes a cover plus a set of section pages.
 export function PDFShell({ cover, children, docTitle }) {
   return (
     <Document title={docTitle} author="Good Neighbor Fund">

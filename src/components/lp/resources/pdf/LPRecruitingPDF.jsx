@@ -40,7 +40,7 @@ export default function LPRecruitingPDF() {
 
         <Text style={pdfStyles.h1First}>Why LPs Say Yes</Text>
         <Paragraph>
-          LPs don't join for ROI — there isn't one. They join for a
+          LPs don't join for ROI. There isn't one. They join for a
           feeling: that they're doing something unambiguously good, that
           they're connected to the most interesting people in town, and
           that the money actually reaches a founder who needed it. Lead
@@ -48,14 +48,14 @@ export default function LPRecruitingPDF() {
         </Paragraph>
 
         <Callout label="The One-Liner">
-          "It's $500 a year. We pool it with 8–10 neighbors, give $1,000
+          "It's $500 a year. We pool it with 8 to 10 LPs, give $1,000
           grants to local founders we pick together, and it's the most fun
           quarterly meeting on your calendar."
         </Callout>
 
         <Text style={pdfStyles.h1}>Who to Invite</Text>
         <Paragraph>
-          Target people who are already doing the thing — not people
+          Target people who are already doing the thing, not people
           looking for an excuse to be seen.
         </Paragraph>
 
@@ -78,35 +78,35 @@ export default function LPRecruitingPDF() {
       <Page size="LETTER" style={pdfStyles.page}>
         <Text style={pdfStyles.h1First}>The Outreach Playbook</Text>
 
-        <Text style={pdfStyles.h2}>Step 1 — Start with 10 warm asks</Text>
+        <Text style={pdfStyles.h2}>Step 1. Start with 10 warm asks</Text>
         <Paragraph>
           Your first LPs should be people you'd text about dinner, not
           people you cold-DM on LinkedIn. Make a list of 20 and aim to
           close 10.
         </Paragraph>
 
-        <Text style={pdfStyles.h2}>Step 2 — Coffee, not pitch deck</Text>
+        <Text style={pdfStyles.h2}>Step 2. Coffee, not pitch deck</Text>
         <Paragraph>
           Meet in person if you can. 20 minutes. Tell them the story: why
           GNF exists, why you're starting a chapter, why they specifically
           came to mind.
         </Paragraph>
 
-        <Text style={pdfStyles.h2}>Step 3 — Name the ask clearly</Text>
+        <Text style={pdfStyles.h2}>Step 3. Name the ask clearly</Text>
         <Paragraph>
           "I'd love to have you as a founding LP. It's $500 a year, four
           meetings, and you get to give away $4,000 in grants to founders
           you pick. Want in?" Clear beats clever.
         </Paragraph>
 
-        <Text style={pdfStyles.h2}>Step 4 — Send the one-pager within 24 hours</Text>
+        <Text style={pdfStyles.h2}>Step 4. Send the one-pager within 24 hours</Text>
         <Paragraph>
           Attach the Chapter Handbook PDF and a link to the chapter
           landing page. One email, two links, a payment link when they're
           ready.
         </Paragraph>
 
-        <Text style={pdfStyles.h2}>Step 5 — Close fast</Text>
+        <Text style={pdfStyles.h2}>Step 5. Close fast</Text>
         <Paragraph>
           Momentum matters. If someone says yes, get them paid and in the
           Slack channel within a week. Waiting turns a casual yes into a
@@ -121,22 +121,23 @@ export default function LPRecruitingPDF() {
 
         <Text style={pdfStyles.h2}>"I don't really know enough about startups."</Text>
         <Paragraph>
-          Perfect. LPs aren't supposed to be investors — they're supposed
-          to be neighbors. You rate pitches on gut, kindness, and local
-          knowledge, not term sheets.
+          Good. LPs aren't supposed to be investors. They're supposed to
+          be people with local knowledge and taste. You rate pitches on
+          gut, kindness, and what your city needs, not term sheets.
         </Paragraph>
 
         <Text style={pdfStyles.h2}>"Is this tax-deductible?"</Text>
         <Paragraph>
-          No. GNF isn't a nonprofit or a fund. Think of it like buying a
-          round for a friend who's starting something — it's a gift, not
-          an investment.
+          Yes. GNF operates under a 501(c)(3) fiscal sponsor, so LP
+          contributions are tax-deductible. You'll get a receipt for your
+          records. It's still a gift, not an investment, and there's no
+          equity or expected return.
         </Paragraph>
 
         <Text style={pdfStyles.h2}>"Why only $500? Why not more?"</Text>
         <Paragraph>
           $500 keeps the door wide open. We want LPs from every income
-          level — the point is community, not capital.
+          level. The point is community, not capital.
         </Paragraph>
 
         <Text style={pdfStyles.h2}>"I'm too busy."</Text>
@@ -157,15 +158,15 @@ export default function LPRecruitingPDF() {
             Subject: A weird little thing I'm starting in [city]
           </Text>
           <Text style={{ fontSize: 10, lineHeight: 1.5 }}>
-            Hey [name] —{'\n\n'}
-            I'm starting a local chapter of Good Neighbor Fund — it's a
+            Hey [name],{'\n\n'}
+            I'm starting a local chapter of Good Neighbor Fund. It's a
             community group of ~10 people who pool $500/year and give out
             $1,000 grants to early-stage founders every quarter. No
             equity, no paperwork, just belief capital for people taking
             their first swing.{'\n\n'}
-            You came to mind because [specific reason]. I'd love to tell
-            you more over coffee. 20 minutes, on me. This Thursday or
-            next?{'\n\n'}
+            You came to mind because of [specific reason]. I'd love to
+            tell you more over coffee. 20 minutes, on me. This Thursday
+            or next?{'\n\n'}
             [signature]
           </Text>
         </View>
@@ -173,17 +174,17 @@ export default function LPRecruitingPDF() {
         <Text style={pdfStyles.h2}>Follow-up after coffee</Text>
         <View style={templateStyle}>
           <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 10, marginBottom: 6 }}>
-            Subject: Official ask — GNF [city]
+            Subject: Official ask: GNF [city]
           </Text>
           <Text style={{ fontSize: 10, lineHeight: 1.5 }}>
-            [name] —{'\n\n'}
+            [name],{'\n\n'}
             Great catching up yesterday. As promised, the Chapter Handbook
             is attached and the chapter page is live at [link].{'\n\n'}
             Formal ask: would you come on as a founding LP? $500 for the
             first year, four meetings, ~1 hour/month of pitch review.
             Payment link: [link]. If you're in, reply here and I'll send
             you the Slack invite and first meeting date.{'\n\n'}
-            No pressure either way — and thanks for hearing me out.{'\n\n'}
+            No pressure either way, and thanks for hearing me out.{'\n\n'}
             [signature]
           </Text>
         </View>
@@ -192,7 +193,7 @@ export default function LPRecruitingPDF() {
       </Page>
 
       <Page size="LETTER" style={pdfStyles.page}>
-        <Text style={pdfStyles.h1First}>Retention — Keeping LPs for Year Two</Text>
+        <Text style={pdfStyles.h1First}>Retention: Keeping LPs for Year Two</Text>
         <Paragraph>
           Year one is exciting. Year two is the cliff. Here's what keeps
           people around:
@@ -205,8 +206,8 @@ export default function LPRecruitingPDF() {
 
         <Callout label="Stuck?">
           If recruiting stalls, ping the national Slack. Other Chapter
-          Directors have been through the same wall — you don't have to
-          figure this out alone.
+          Directors have been through the same wall, and you don't have to
+          figure it out alone.
         </Callout>
 
         <PageFooter docTitle={DOC_TITLE} />

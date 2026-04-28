@@ -21,12 +21,14 @@ import { BADGES } from "../../data/badgeDefinitions";
 import { getChapterMembershipLinks } from "../../data/chapterConfig";
 import BadgeIcon from "../icons/BadgeIcon";
 import ReviewRatingIcon from "../icons/ReviewRatingIcon";
+import StatusIcon from "../icons/StatusIcon";
 import PitchMap from "../pitch/PitchMap";
 import {
   trackReviewSubmission,
   initializeUserStats,
   calculateRetroactiveStats,
   updateWinnerPredictions,
+  reverseWinnerPredictions,
   calculateChapterRankings,
   getCurrentQuarter
 } from "../../services/statsTracking";
@@ -44,14 +46,27 @@ import {
   ratingTonePill,
   dashIfEmpty,
 } from "../../helpers/labels";
+import {
+  resolveAwardAmount,
+  sumAwarded,
+  chaptersByNameMap,
+} from "../../helpers/awardAmount";
+import { isLMIZip, LMI_THRESHOLD, LMI_ACS_YEAR } from "../../helpers/lmiZips";
 import ResourceLibrary from "./resources/ResourceLibrary";
+import FormsLibrary from "./forms-library/FormsLibrary";
+import AssetsLibrary from "./assets-library/AssetsLibrary";
+import StatisticsTab from "./statistics/StatisticsTab";
+import LiveReviewPane from "./review/LiveReviewPane";
+import "./review/live-review.css";
 
 // --- Constants ---
 const provider = new GoogleAuthProvider();
 const ratingEmojis = { Favorite: "⭐", Consideration: "💡", Pass: "❌", Ineligible: "🚫" };
 const VALID_ROLES = ['lp', 'chapter_director', 'superAdmin'];
 const APP_NAME = "Neighborhood OS";
-const CHAPTERS = ['Western New York', 'Upstate New York', 'Capital Region', 'Denver'];
+const CHAPTERS = ['Western New York', 'Central New York', 'Capital Region', 'Denver'];
+// Mirrors PITCH_CATEGORIES in functions/aiSummary.js — keep in sync.
+const PITCH_CATEGORIES = ['Food & Drink', 'Products', 'Wellness', 'Arts & Media', 'Education', 'Services', 'Tech', 'Civic & Impact'];
 // Admin-only LP rating weights. Shown in the admin review summary so we can rank pitches,
 // deliberately NOT exposed on the public review page so reviewers aren't anchored by prior votes.
 const LP_RATING_WEIGHTS = { Favorite: 2, Consideration: 1, Pass: 0, Ineligible: -2 };
@@ -186,6 +201,7 @@ const [reviewSearchTerm, setReviewSearchTerm] = useState("");
 const [reviewFilter, setReviewFilter] = useState("all");
 const [reviewChapterFilter, setReviewChapterFilter] = useState(""); // State for review pitches chapter filter
 const [reviewQuarterFilter, setReviewQuarterFilter] = useState([]); // Multi-select quarter filter for review pitches
+const [reviewCategoryFilter, setReviewCategoryFilter] = useState(""); // AI-generated category filter for review pitches
 const [adminPitches, setAdminPitches] = useState([]);
 const [users, setUsers] = useState([]);
 const [chapterMembers, setChapterMembers] = useState([]);
@@ -195,8 +211,23 @@ const [adminChapterFilter, setAdminChapterFilter] = useState("");
 const [adminQuarterFilter, setAdminQuarterFilter] = useState([]);
 const [adminSearch, setAdminSearch] = useState("");
 const [adminHidePassed, setAdminHidePassed] = useState(false); // State for admin hide passed filter
-const [adminFavoriteFilterMode, setAdminFavoriteFilterMode] = useState("all");
+const [adminFavoriteFilterMode, setAdminFavoriteFilterMode] = useState("all"); // all | favsOnly | favsAndCons | shortlisted
 const [adminSortMode, setAdminSortMode] = useState("newest"); // newest | oldest | avgDesc | avgAsc | sumDesc | sumAsc | mostReviews
+// Admin discussion notes. Flat list, grouped by pitchId at render. Loaded
+// once with the rest of the admin data and refreshed after every create/edit/delete.
+const [adminNotes, setAdminNotes] = useState([]);
+// Draft composer state keyed by pitchId so each expanded card keeps its own draft.
+const [adminNoteDrafts, setAdminNoteDrafts] = useState({});
+// Edit state — which note is being edited, and the in-flight text for that edit.
+const [editingAdminNoteId, setEditingAdminNoteId] = useState(null);
+const [editingAdminNoteText, setEditingAdminNoteText] = useState("");
+const [adminNoteSavingId, setAdminNoteSavingId] = useState(null);
+const [shortlistTogglingId, setShortlistTogglingId] = useState(null);
+// Live Review focus: which pitch the right pane is showing. Distinct from
+// expandedPitchId, which remains List-mode-only.
+const [focusedPitchId, setFocusedPitchId] = useState(null);
+const [keyboardHelpOpen, setKeyboardHelpOpen] = useState(false);
+const [detailsDrawerOpen, setDetailsDrawerOpen] = useState(false);
 const [aboutById, setAboutById] = useState({});
 const [websiteById, setWebsiteById] = useState({});
 const [winnerChapterFilter, setWinnerChapterFilter] = useState("");
@@ -238,6 +269,7 @@ const [chapterFormData, setChapterFormData] = useState({
   pageSlug: '',
   tagline: '',
   foundedYear: '',
+  foundedDate: '',
   emailAlias: '',
   slackChannel: '',
   lpSlackChannel: '',
@@ -254,9 +286,12 @@ const [chapterFormData, setChapterFormData] = useState({
   poweredByText: '',
   galleryPhotos: [],
   showLPs: true,
-  showGallery: true
+  showGallery: true,
+  showImpact: true
 });
 const [isAddingChapter, setIsAddingChapter] = useState(false);
+// Active tab inside the chapter edit panel. Values: 'identity' | 'content' | 'photos' | 'visibility'.
+const [chapterFormTab, setChapterFormTab] = useState('content');
 
 // Message board state
 const [bulletinMessages, setBulletinMessages] = useState([]);
@@ -521,6 +556,7 @@ useEffect(() => {
       setReviewFormData({});
       setUsers([]);
       setAllReviewsData([]);
+      setAdminNotes([]);
       setChapterMembers([]); // Clear chapter members on logout
       setActiveTab("reviewPitches"); // Reset to default tab on logout
       setActiveAdminTab("userManagement");
@@ -719,7 +755,7 @@ const loadAdminData = useCallback(async () => {
   // Admin users MUST have a chapter unless they are SuperAdmin
   if (!chapterForAdminQuery && !isSuperAdmin) {
     console.warn(`LPPortal: Skipping Admin data load: No chapter assigned for Admin user ${user.email}`);
-    setAdminPitches([]); setUsers([]); setAllReviewsData([]);
+    setAdminPitches([]); setUsers([]); setAllReviewsData([]); setAdminNotes([]);
     // showAppAlert("Cannot load admin panel data: Your admin account needs a chapter assigned.");
     return;
   }
@@ -780,10 +816,12 @@ const loadAdminData = useCallback(async () => {
     showAppAlert(`Error loading users list: ${error.message}. Check Firestore Rules.`);
   }
 
-  // Load All Reviews (Needed for admin summary, not filtered by chapter here, filter in UI if needed)
+  // Load Reviews for admin summary (chapter-scoped for Admins, all for SuperAdmin)
   try {
-    console.log("LPPortal: Querying all reviews...");
-    const allReviewsQuery = query(collection(db, "reviews"), orderBy("submittedAt", "desc"));
+    console.log("LPPortal: Querying reviews for admin summary...");
+    const allReviewsQuery = chapterForAdminQuery
+      ? query(collection(db, "reviews"), where("chapter", "==", chapterForAdminQuery), orderBy("submittedAt", "desc"))
+      : query(collection(db, "reviews"), orderBy("submittedAt", "desc"));
     const allReviewsSnap = await getDocs(allReviewsQuery);
     const allReviewsList = allReviewsSnap.docs.map(d => ({ reviewId: d.id, ...d.data(), submittedAt: d.data().submittedAt /* Store raw */ }));
     setAllReviewsData(allReviewsList); // Update the allReviewsData state
@@ -792,6 +830,22 @@ const loadAdminData = useCallback(async () => {
     console.error(`LPPortal: Error loading ALL reviews summary:`, error.code, error.message);
     setAllReviewsData([]); success = false;
     showAppAlert(`Error loading reviews summary: ${error.message}. Check Firestore Rules.`);
+  }
+
+  // Load admin discussion notes (chapter-scoped for chapter directors, all for SuperAdmin).
+  try {
+    console.log("LPPortal: Querying admin notes...");
+    const adminNotesQuery = chapterForAdminQuery
+      ? query(collection(db, "adminNotes"), where("chapter", "==", chapterForAdminQuery), orderBy("createdAt", "desc"))
+      : query(collection(db, "adminNotes"), orderBy("createdAt", "desc"));
+    const adminNotesSnap = await getDocs(adminNotesQuery);
+    const adminNotesList = adminNotesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    setAdminNotes(adminNotesList);
+    console.log(`LPPortal: Admin notes loaded (${adminNotesList.length}).`);
+  } catch (error) {
+    console.error(`LPPortal: Error loading admin notes:`, error.code, error.message);
+    setAdminNotes([]);
+    // Non-fatal — admin panel should still function if notes fail to load.
   }
 
   if (success) {
@@ -944,6 +998,7 @@ useEffect(() => {
     setReviewFormData({});
     setUsers([]);
     setAllReviewsData([]);
+    setAdminNotes([]);
     setChapterMembers([]);
     setBulletinMessages([]);
   }
@@ -1172,7 +1227,7 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
 // All four cards are 1080×1080 PNGs rendered to a hidden <canvas> and
 // downloaded via canvas.toBlob. They share a Millennium Bug aesthetic:
 // flat MB-palette blocks (no gradients), 3px ink borders with hard-offset
-// shadows, Instrument Serif display, Inter body, Pixelify Sans eyebrows,
+// shadows, Instrument Serif display, Inter body, Silkscreen eyebrows,
 // JetBrains Mono numerals. The colorful gnf logo and emoji accents are
 // the only image-based content; everything else is typographic.
 
@@ -1201,7 +1256,7 @@ const MB_COLORS = {
 const CARD_FONTS = {
   display:  '"Instrument Serif", "Times New Roman", Georgia, serif',
   content:  '"Inter", "Helvetica Neue", Arial, sans-serif',
-  pixel:    '"Pixelify Sans", "Courier New", monospace',
+  pixel:    '"Silkscreen", "Courier New", monospace',
   numeral:  '"JetBrains Mono", "Menlo", "Courier New", monospace',
 };
 
@@ -1234,7 +1289,7 @@ const loadBadgeIconImage = (badgeId, size = 96) => new Promise((resolve) => {
   }
 });
 
-// Await web-font readiness so Instrument Serif / Pixelify Sans actually
+// Await web-font readiness so Instrument Serif / Silkscreen actually
 // render on the canvas instead of silently falling back to serif/Courier.
 const waitForCardFonts = async () => {
   if (typeof document === 'undefined' || !document.fonts) return;
@@ -1245,7 +1300,7 @@ const waitForCardFonts = async () => {
       document.fonts.load('400 48px "Instrument Serif"'),
       document.fonts.load('700 32px "Inter"'),
       document.fonts.load('400 24px "Inter"'),
-      document.fonts.load('700 18px "Pixelify Sans"'),
+      document.fonts.load('700 18px "Silkscreen"'),
       document.fonts.load('700 120px "JetBrains Mono"'),
     ]);
     await document.fonts.ready;
@@ -1273,9 +1328,9 @@ const drawMasthead = (ctx, subtitle) => {
   ctx.fillText('GOOD NEIGHBOR FUND', 540, 50);
 
   ctx.fillStyle = MB_COLORS.butter;
-  ctx.font = `700 14px ${CARD_FONTS.pixel}`;
+  ctx.font = `700 18px ${CARD_FONTS.pixel}`;
   ctx.letterSpacing = '3px';
-  ctx.fillText(subtitle.toUpperCase(), 540, 82);
+  ctx.fillText(subtitle.toUpperCase(), 540, 84);
 
   ctx.letterSpacing = '0px';
   ctx.textBaseline = 'alphabetic';
@@ -1385,14 +1440,14 @@ const drawWelcomeCard = async (canvas) => {
   // Eyebrow + name
   ctx.textAlign = 'center';
   ctx.fillStyle = MB_COLORS.magenta;
-  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.font = `700 20px ${CARD_FONTS.pixel}`;
   ctx.letterSpacing = '3px';
   ctx.fillText(`LIMITED PARTNER · ${(user?.chapter || 'CHAPTER').toUpperCase()}`, 540, 470);
   ctx.letterSpacing = '0px';
 
   ctx.fillStyle = MB_COLORS.ink;
   ctx.font = `400 64px ${CARD_FONTS.display}`;
-  ctx.fillText(user?.name || 'New Neighbor', 540, 540);
+  ctx.fillText(user?.name || 'New Neighbor', 540, 545);
 
   // Editorial headline
   ctx.fillStyle = MB_COLORS.ink;
@@ -1409,18 +1464,19 @@ const drawWelcomeCard = async (canvas) => {
 
   // Tag row
   const tags = ['Belief Capital', 'Since 2023', 'Volunteer-Led'];
-  let tagX = 540 - ((tags.length * 160 + (tags.length - 1) * 14) / 2);
+  const tagW = 180;
+  const tagH = 50;
+  let tagX = 540 - ((tags.length * tagW + (tags.length - 1) * 14) / 2);
   tags.forEach((t) => {
-    const w = 160;
-    drawShadowRect(ctx, tagX, 830, w, 44, MB_COLORS.chalk, 4);
+    drawShadowRect(ctx, tagX, 830, tagW, tagH, MB_COLORS.chalk, 4);
     ctx.fillStyle = MB_COLORS.ink;
-    ctx.font = `700 12px ${CARD_FONTS.pixel}`;
+    ctx.font = `700 15px ${CARD_FONTS.pixel}`;
     ctx.letterSpacing = '2px';
     ctx.textBaseline = 'middle';
-    ctx.fillText(t.toUpperCase(), tagX + w / 2, 852);
+    ctx.fillText(t.toUpperCase(), tagX + tagW / 2, 855);
     ctx.textBaseline = 'alphabetic';
     ctx.letterSpacing = '0px';
-    tagX += w + 14;
+    tagX += tagW + 14;
   });
 
   drawFooter(ctx, logoImg);
@@ -1447,14 +1503,14 @@ const drawBadgeCard = async (canvas) => {
 
   ctx.textAlign = 'left';
   ctx.fillStyle = MB_COLORS.butter;
-  ctx.font = `700 14px ${CARD_FONTS.pixel}`;
+  ctx.font = `700 18px ${CARD_FONTS.pixel}`;
   ctx.letterSpacing = '3px';
-  ctx.fillText('LIMITED PARTNER', 280, 195);
+  ctx.fillText('LIMITED PARTNER', 280, 192);
   ctx.letterSpacing = '0px';
 
   ctx.fillStyle = MB_COLORS.chalk;
   ctx.font = `400 52px ${CARD_FONTS.display}`;
-  ctx.fillText(user?.name || 'Achievement Hunter', 280, 250);
+  ctx.fillText(user?.name || 'Achievement Hunter', 280, 252);
 
   // Big numeral: badge count
   ctx.textAlign = 'center';
@@ -1463,9 +1519,9 @@ const drawBadgeCard = async (canvas) => {
   ctx.fillText(String(userBadges.length), 540, 470);
 
   ctx.fillStyle = MB_COLORS.chalk;
-  ctx.font = `700 18px ${CARD_FONTS.pixel}`;
+  ctx.font = `700 22px ${CARD_FONTS.pixel}`;
   ctx.letterSpacing = '4px';
-  ctx.fillText('BADGES UNLOCKED', 540, 510);
+  ctx.fillText('BADGES UNLOCKED', 540, 514);
   ctx.letterSpacing = '0px';
 
   // Recent-badges grid (up to 4 badges, 2×2, on a chalk card with ink shadow)
@@ -1490,9 +1546,9 @@ const drawBadgeCard = async (canvas) => {
     // Eyebrow on card
     ctx.textAlign = 'left';
     ctx.fillStyle = MB_COLORS.magenta;
-    ctx.font = `700 14px ${CARD_FONTS.pixel}`;
+    ctx.font = `700 18px ${CARD_FONTS.pixel}`;
     ctx.letterSpacing = '3px';
-    ctx.fillText('RECENTLY EARNED', gridX + 24, gridY + 36);
+    ctx.fillText('RECENTLY EARNED', gridX + 24, gridY + 38);
     ctx.letterSpacing = '0px';
 
     const cell = { w: 180, h: 130, gapX: 24, gapY: 18 };
@@ -1575,9 +1631,9 @@ const drawChapterStatsCard = async (canvas) => {
   // Eyebrow + chapter name
   ctx.textAlign = 'center';
   ctx.fillStyle = MB_COLORS.magenta;
-  ctx.font = `700 18px ${CARD_FONTS.pixel}`;
+  ctx.font = `700 24px ${CARD_FONTS.pixel}`;
   ctx.letterSpacing = '4px';
-  ctx.fillText('CHAPTER IMPACT · SINCE 2023', 540, 200);
+  ctx.fillText('CHAPTER IMPACT · SINCE 2023', 540, 204);
   ctx.letterSpacing = '0px';
 
   ctx.fillStyle = MB_COLORS.ink;
@@ -1594,10 +1650,10 @@ const drawChapterStatsCard = async (canvas) => {
   // Left: grants count (magenta)
   drawShadowRect(ctx, leftX, statsY, cardW, cardH, MB_COLORS.magenta, 8);
   ctx.fillStyle = MB_COLORS.chalk;
-  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.font = `700 20px ${CARD_FONTS.pixel}`;
   ctx.letterSpacing = '3px';
   ctx.textAlign = 'left';
-  ctx.fillText('BUSINESSES FUNDED', leftX + 24, statsY + 44);
+  ctx.fillText('BUSINESSES FUNDED', leftX + 24, statsY + 48);
   ctx.letterSpacing = '0px';
   ctx.fillStyle = MB_COLORS.butter;
   ctx.font = `700 140px ${CARD_FONTS.numeral}`;
@@ -1607,10 +1663,10 @@ const drawChapterStatsCard = async (canvas) => {
   // Right: dollars awarded (aqua)
   drawShadowRect(ctx, rightX, statsY, cardW, cardH, MB_COLORS.aqua, 8);
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.font = `700 20px ${CARD_FONTS.pixel}`;
   ctx.letterSpacing = '3px';
   ctx.textAlign = 'left';
-  ctx.fillText('AWARDED IN GRANTS', rightX + 24, statsY + 44);
+  ctx.fillText('AWARDED IN GRANTS', rightX + 24, statsY + 48);
   ctx.letterSpacing = '0px';
   ctx.fillStyle = MB_COLORS.ink;
   ctx.font = `700 120px ${CARD_FONTS.numeral}`;
@@ -1627,12 +1683,12 @@ const drawChapterStatsCard = async (canvas) => {
   // CTA bar (magenta)
   drawShadowRect(ctx, 80, 770, 920, 120, MB_COLORS.magenta, 8);
   ctx.fillStyle = MB_COLORS.chalk;
-  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.font = `700 20px ${CARD_FONTS.pixel}`;
   ctx.letterSpacing = '3px';
-  ctx.fillText('GOT AN IDEA?', 540, 810);
+  ctx.fillText('GOT AN IDEA?', 540, 814);
   ctx.letterSpacing = '0px';
   ctx.font = `700 36px ${CARD_FONTS.content}`;
-  ctx.fillText('Apply for a $1,000 micro-grant today.', 540, 860);
+  ctx.fillText('Apply for a $1,000 micro-grant today.', 540, 862);
 
   drawFooter(ctx, logoImg);
 };
@@ -1658,14 +1714,14 @@ const drawRecruitmentCard = async (canvas) => {
 
   ctx.textAlign = 'center';
   ctx.fillStyle = MB_COLORS.butter;
-  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.font = `700 20px ${CARD_FONTS.pixel}`;
   ctx.letterSpacing = '3px';
   ctx.fillText(`LIMITED PARTNER · ${(user?.chapter || 'CHAPTER').toUpperCase()}`, 540, 475);
   ctx.letterSpacing = '0px';
 
   ctx.fillStyle = MB_COLORS.chalk;
   ctx.font = `400 60px ${CARD_FONTS.display}`;
-  ctx.fillText(user?.name || 'LP Name', 540, 545);
+  ctx.fillText(user?.name || 'LP Name', 540, 550);
 
   // Editorial headline
   ctx.font = `400 52px ${CARD_FONTS.display}`;
@@ -1677,25 +1733,269 @@ const drawRecruitmentCard = async (canvas) => {
   // CTA — butter rect with ink text
   drawShadowRect(ctx, 90, 770, 900, 140, MB_COLORS.butter, 8);
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.font = `700 20px ${CARD_FONTS.pixel}`;
   ctx.letterSpacing = '3px';
-  ctx.fillText('WANT IN?', 540, 810);
+  ctx.fillText('WANT IN?', 540, 814);
   ctx.letterSpacing = '0px';
   ctx.font = `700 34px ${CARD_FONTS.content}`;
-  ctx.fillText("DM me — we're looking for neighbors like you.", 540, 870);
+  ctx.fillText("DM me — we're looking for neighbors like you.", 540, 872);
+
+  drawFooter(ctx, logoImg);
+};
+
+// ---------- Win95 chrome helpers (shared by approval + application cards) ----------
+const drawWindowChrome = (ctx, x, y, w, h, titleText) => {
+  // Outer paper window with hard ink shadow
+  drawShadowRect(ctx, x, y, w, h, MB_COLORS.chalk, 10);
+
+  // Titlebar band
+  const tbH = 60;
+  ctx.fillStyle = MB_COLORS.paperDeep;
+  ctx.fillRect(x, y, w, tbH);
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.fillRect(x, y + tbH - 2, w, 2);
+
+  // Titlebar text
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `700 22px ${CARD_FONTS.content}`;
+  ctx.fillText(titleText, x + 36, y + tbH / 2);
+
+  // Faux window-control buttons (right-aligned: _ □ ×)
+  const symbols = ['_', '□', '×'];
+  const btnW = 28; const btnH = 26; const gap = 6;
+  const totalW = symbols.length * btnW + (symbols.length - 1) * gap;
+  let bx = x + w - 24 - totalW;
+  const by = y + (tbH - btnH) / 2;
+  symbols.forEach((sym) => {
+    ctx.fillStyle = MB_COLORS.paper;
+    ctx.fillRect(bx, by, btnW, btnH);
+    ctx.strokeStyle = MB_COLORS.ink;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bx, by, btnW, btnH);
+    ctx.fillStyle = MB_COLORS.ink;
+    ctx.font = `700 16px ${CARD_FONTS.content}`;
+    ctx.textAlign = 'center';
+    ctx.fillText(sym, bx + btnW / 2, by + btnH / 2 + 1);
+    bx += btnW + gap;
+  });
+
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+};
+
+// ---------- 5. Approval Dialog Card — Win95 "grant approved" notification ----------
+const drawApprovalDialogCard = async (canvas) => {
+  await waitForCardFonts();
+  const ctx = canvas.getContext('2d');
+
+  // Soft pink desktop field
+  ctx.fillStyle = MB_COLORS.magentaSoft;
+  ctx.fillRect(0, 0, 1080, 1080);
+
+  drawMasthead(ctx, 'Belief, in writing');
+
+  const [photoImg, logoImg] = await Promise.all([
+    lpSlug(user?.name) ? loadImage(`/assets/lps/${lpSlug(user.name)}.png`) : Promise.resolve(null),
+    loadImage('/assets/gnf-logo.png'),
+  ]);
+
+  // Dialog window
+  const winX = 60, winY = 200, winW = 960, winH = 700;
+  drawWindowChrome(ctx, winX, winY, winW, winH, 'Good Neighbor Fund — Notification');
+
+  // Award icon (butter trophy block) on the left
+  drawShadowRect(ctx, 130, 320, 140, 140, MB_COLORS.butter, 8);
+  ctx.strokeStyle = MB_COLORS.ink;
+  ctx.lineWidth = 12;
+  ctx.lineJoin = 'miter';
+  ctx.beginPath();
+  ctx.moveTo(160, 395);
+  ctx.lineTo(195, 432);
+  ctx.lineTo(255, 360);
+  ctx.stroke();
+
+  // Eyebrow
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MB_COLORS.magentaDeep;
+  ctx.font = `700 18px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '4px';
+  ctx.fillText('GRANT APPROVED  ·  SYSTEM MESSAGE', 320, 345);
+  ctx.letterSpacing = '0px';
+
+  // Editorial headline — split into roman + italic-magenta + roman
+  const hLineY1 = 440;
+  const hLineY2 = 540;
+  const hSize = 88;
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 ${hSize}px ${CARD_FONTS.display}`;
+  ctx.fillText('$1,000 ', 320, hLineY1);
+  const part1W = ctx.measureText('$1,000 ').width;
+  ctx.font = `italic 400 ${hSize}px ${CARD_FONTS.display}`;
+  ctx.fillStyle = MB_COLORS.magenta;
+  ctx.fillText('for your', 320 + part1W, hLineY1);
+  ctx.font = `400 ${hSize}px ${CARD_FONTS.display}`;
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.fillText('big idea.', 320, hLineY2);
+
+  // Subhead
+  ctx.fillStyle = MB_COLORS.ink60;
+  ctx.font = `400 26px ${CARD_FONTS.content}`;
+  ctx.fillText('no pitch deck.  no equity.  just belief.', 320, 610);
+
+  // LP byline (portrait + name + chapter) — anchors the card to the sharer
+  const bylineY = 730;
+  drawPortrait(ctx, 165, bylineY, 38, photoImg, user?.name);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MB_COLORS.magentaDeep;
+  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '3px';
+  ctx.fillText('SHARED BY', 220, bylineY - 14);
+  ctx.letterSpacing = '0px';
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 28px ${CARD_FONTS.display}`;
+  ctx.fillText(user?.name || 'A Limited Partner', 220, bylineY + 14);
+  ctx.fillStyle = MB_COLORS.ink60;
+  ctx.font = `400 18px ${CARD_FONTS.content}`;
+  ctx.fillText(`${user?.chapter || 'GNF'} · LP`, 220, bylineY + 40);
+
+  // Button row (right-aligned inside dialog)
+  const btnY = 800;
+  drawShadowRect(ctx, 600, btnY, 170, 60, MB_COLORS.paper, 4);
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `700 16px ${CARD_FONTS.content}`;
+  ctx.textAlign = 'center';
+  ctx.letterSpacing = '2px';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('CLOSE', 600 + 85, btnY + 30);
+
+  drawShadowRect(ctx, 790, btnY, 200, 60, MB_COLORS.magenta, 4);
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.fillText('APPLY NOW →', 790 + 100, btnY + 30);
+  ctx.letterSpacing = '0px';
+  ctx.textBaseline = 'alphabetic';
+
+  drawFooter(ctx, logoImg);
+};
+
+// ---------- 6. Application Form Card — Win95 "step 1 of 3" form ----------
+const drawApplicationFormCard = async (canvas) => {
+  await waitForCardFonts();
+  const ctx = canvas.getContext('2d');
+
+  // Soft aqua desktop field
+  ctx.fillStyle = MB_COLORS.aquaSoft;
+  ctx.fillRect(0, 0, 1080, 1080);
+
+  drawMasthead(ctx, 'Apply in one sentence');
+
+  const [photoImg, logoImg] = await Promise.all([
+    lpSlug(user?.name) ? loadImage(`/assets/lps/${lpSlug(user.name)}.png`) : Promise.resolve(null),
+    loadImage('/assets/gnf-logo.png'),
+  ]);
+
+  const winX = 60, winY = 200, winW = 960, winH = 700;
+  drawWindowChrome(ctx, winX, winY, winW, winH, 'GNF Application — Step 1 of 3');
+
+  // Step bar — left label
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MB_COLORS.ink60;
+  ctx.font = `700 18px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '4px';
+  ctx.fillText('STEP 1 OF 3  ·  THE IDEA', 130, 320);
+  ctx.letterSpacing = '0px';
+
+  // Progress dots (right)
+  const dotSize = 18;
+  const dotGap = 10;
+  const dotsRightX = 950;
+  const dotsY = 308;
+  for (let i = 0; i < 3; i++) {
+    const dx = dotsRightX - (3 - i) * (dotSize + dotGap);
+    ctx.fillStyle = i === 0 ? MB_COLORS.magenta : MB_COLORS.paper;
+    ctx.fillRect(dx, dotsY, dotSize, dotSize);
+    ctx.strokeStyle = MB_COLORS.ink;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(dx, dotsY, dotSize, dotSize);
+  }
+
+  // Editorial label: "What's your big idea?"
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 88px ${CARD_FONTS.display}`;
+  ctx.fillText('What’s your ', 130, 440);
+  const lblW = ctx.measureText('What’s your ').width;
+  ctx.font = `italic 400 88px ${CARD_FONTS.display}`;
+  ctx.fillStyle = MB_COLORS.magenta;
+  ctx.fillText('big idea?', 130 + lblW, 440);
+
+  // Sunken input field with typed example + cursor
+  drawShadowRect(ctx, 130, 510, 820, 110, MB_COLORS.paper, 6);
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 30px ${CARD_FONTS.content}`;
+  ctx.textBaseline = 'middle';
+  const fillText = 'I want to start a mobile bike-repair shop';
+  ctx.fillText(fillText, 156, 565);
+  // Solid cursor (rendered statically — safe for canvas export)
+  const cursorX = 156 + ctx.measureText(fillText).width + 6;
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.fillRect(cursorX, 542, 4, 46);
+  ctx.textBaseline = 'alphabetic';
+
+  // Helper text + counter
+  ctx.fillStyle = MB_COLORS.ink60;
+  ctx.font = `400 22px ${CARD_FONTS.content}`;
+  ctx.fillText('no pitch deck required.  no equity.  just belief.', 130, 660);
+  ctx.textAlign = 'right';
+  ctx.font = `400 18px ${CARD_FONTS.numeral}`;
+  ctx.fillText('1 / 1 sentence', 950, 660);
+
+  // LP byline (left) + buttons (right) on the same row
+  const btnY = 800;
+  const bylineCY = btnY + 30;
+  drawPortrait(ctx, 170, bylineCY, 36, photoImg, user?.name);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MB_COLORS.magentaDeep;
+  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '3px';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText('SHARED BY', 220, bylineCY - 14);
+  ctx.letterSpacing = '0px';
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 22px ${CARD_FONTS.display}`;
+  ctx.fillText(`${user?.name || 'A Limited Partner'} — ${user?.chapter || 'GNF'} LP`, 220, bylineCY + 14);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  drawShadowRect(ctx, 620, btnY, 150, 60, MB_COLORS.paper, 4);
+  ctx.fillStyle = MB_COLORS.ink60;
+  ctx.font = `700 16px ${CARD_FONTS.content}`;
+  ctx.letterSpacing = '2px';
+  ctx.fillText('← BACK', 620 + 75, btnY + 30);
+
+  drawShadowRect(ctx, 790, btnY, 200, 60, MB_COLORS.magenta, 4);
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.fillText('NEXT →', 790 + 100, btnY + 30);
+  ctx.letterSpacing = '0px';
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
 
   drawFooter(ctx, logoImg);
 };
 
 const downloadCard = async (type) => {
-  const canvasId = type === 'welcome' ? 'welcome-canvas' : 
-                   type === 'badge' ? 'badge-canvas' : 
-                   type === 'stats' ? 'stats-canvas' : 'recruitment-canvas';
+  const canvasId =
+    type === 'welcome' ? 'welcome-canvas' :
+    type === 'badge' ? 'badge-canvas' :
+    type === 'stats' ? 'stats-canvas' :
+    type === 'recruitment' ? 'recruitment-canvas' :
+    type === 'approval' ? 'approval-canvas' :
+    'application-canvas';
   const canvas = document.getElementById(canvasId);
-  
+
   if (!canvas) return;
-  
-  // Draw the appropriate card
+
   if (type === 'welcome') {
     await drawWelcomeCard(canvas);
   } else if (type === 'badge') {
@@ -1704,9 +2004,12 @@ const downloadCard = async (type) => {
     await drawChapterStatsCard(canvas);
   } else if (type === 'recruitment') {
     await drawRecruitmentCard(canvas);
+  } else if (type === 'approval') {
+    await drawApprovalDialogCard(canvas);
+  } else if (type === 'application') {
+    await drawApplicationFormCard(canvas);
   }
-  
-  // Download the image
+
   canvas.toBlob((blob) => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1727,11 +2030,15 @@ useEffect(() => {
       const badgeCanvas = document.getElementById('badge-canvas');
       const statsCanvas = document.getElementById('stats-canvas');
       const recruitmentCanvas = document.getElementById('recruitment-canvas');
-      
+      const approvalCanvas = document.getElementById('approval-canvas');
+      const applicationCanvas = document.getElementById('application-canvas');
+
       if (welcomeCanvas) await drawWelcomeCard(welcomeCanvas);
       if (badgeCanvas) await drawBadgeCard(badgeCanvas);
       if (statsCanvas) await drawChapterStatsCard(statsCanvas);
       if (recruitmentCanvas) await drawRecruitmentCard(recruitmentCanvas);
+      if (approvalCanvas) await drawApprovalDialogCard(approvalCanvas);
+      if (applicationCanvas) await drawApplicationFormCard(applicationCanvas);
     }, 100);
   }
 }, [activeTab, user, userStats, userBadges, adminPitches]);
@@ -1752,6 +2059,9 @@ const getNextUnreviewedPitch = () => {
     // Filter by Quarter (multi-select)
     const matchesQuarter = reviewQuarterFilter.length === 0 || reviewQuarterFilter.includes(p.quarter);
     if (!matchesQuarter) return false;
+
+    // Filter by Category
+    if (reviewCategoryFilter && p.category !== reviewCategoryFilter) return false;
 
     // Filter by Review Status Dropdown
     if (reviewFilter === "reviewed" && !review) return false;
@@ -2213,7 +2523,7 @@ const navButtonStyle = (tabName) => {
 
 const NavigationItems = () => (
   <>
-    <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--gnf-border-pink)', borderBottomStyle: 'solid' }}>
+    <div style={{ padding: '10px 12px', borderBottom: '1px solid var(--mb-ink-15)' }}>
       <div style={{
         fontSize: '11px',
         fontWeight: 'bold',
@@ -2295,6 +2605,23 @@ const NavigationItems = () => (
         }
       }}>
       Trophy Case
+    </button>
+
+    {/* Statistics */}
+    <button
+      onClick={() => handleTabChange('statistics')}
+      style={navButtonStyle('statistics')}
+      onMouseEnter={(e) => {
+        if (activeTab !== 'statistics') {
+          e.currentTarget.style.background = 'var(--mb-paper-deep)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (activeTab !== 'statistics') {
+          e.currentTarget.style.background = 'transparent';
+        }
+      }}>
+      Statistics
     </button>
 
     {/* Chapter Members */}
@@ -3073,16 +3400,43 @@ const handleMemberPhotoUpload = async (targetUser, file) => {
 };
 
 // ───── Chapter hero + gallery photo uploads ─────
-// Path: chapter-photos/{chapterSlug}/{kind}-{ts}.{ext}
+// Hero path:    chapter-photos/{chapterSlug}/hero      (stable, no extension)
+// Gallery path: chapter-photos/{chapterSlug}/gallery-{ts}.{ext}
+//
+// Hero uploads use a STABLE path so the static chapter HTML can hardcode the
+// download URL — visitors get the latest upload on first paint with no
+// Firestore round-trip and no flash. Each new upload overwrites the same
+// object; Cache-Control: max-age=300 means the change is visible to visitors
+// within 5 min. URL is the canonical token-less Firebase Storage REST URL,
+// which works because storage.rules grants public read on chapter-photos/*.
+//
+// Gallery photos remain timestamped — they're a list, so each upload is a
+// new URL. The 24h cache there is fine because URLs rotate.
+//
 // Writes to storage, then persists the URL back to the /chapters/{slug} doc
 // immediately so the form doesn't need a separate Save click to retain the
 // upload. Storage rules allow this for superAdmin or the chapter's director.
 const uploadChapterPhoto = async (chapterSlug, file, kind) => {
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-  const path = `chapter-photos/${chapterSlug}/${kind}-${Date.now()}.${ext}`;
+  const path = kind === 'hero'
+    ? `chapter-photos/${chapterSlug}/hero`
+    : `chapter-photos/${chapterSlug}/${kind}-${Date.now()}.${ext}`;
   const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, file, { contentType: file.type });
-  const url = await getDownloadURL(storageRef);
+  const metadata = {
+    contentType: file.type,
+    cacheControl: kind === 'hero'
+      ? 'public, max-age=300, must-revalidate'
+      : 'public, max-age=86400',
+  };
+  await uploadBytes(storageRef, file, metadata);
+  const url = kind === 'hero'
+    // Canonical token-less URL — stable across uploads, governed by storage.rules.
+    // Bucket is hardcoded (matches firebaseConfig.js) to avoid runtime SDK
+    // version dependence on storage.app.options.storageBucket.
+    ? `https://firebasestorage.googleapis.com/v0/b/gnf-app-9d7e3.firebasestorage.app/o/${encodeURIComponent(path)}?alt=media`
+    // Token-bearing URL — needed for timestamped paths since each upload is a
+    // new object and a stable URL would 404 once the file is replaced.
+    : await getDownloadURL(storageRef);
   return { url, storagePath: path };
 };
 
@@ -3322,12 +3676,18 @@ const slugifyChapter = (value) => (value || '')
 
 // Blank form template, shared by reset paths.
 const emptyChapterForm = {
-  slug: '', name: '', pageSlug: '', tagline: '', foundedYear: '',
+  slug: '', name: '', pageSlug: '', tagline: '', foundedYear: '', foundedDate: '',
   emailAlias: '', slackChannel: '', lpSlackChannel: '', active: true, order: 0,
   heroTitle: '', heroTagline: '', heroImage: '', heroImageCaption: '',
   servingTitle: '', servingText: '',
   counties: [], poweredByText: '', galleryPhotos: [],
-  showLPs: true, showGallery: true
+  showLPs: true, showGallery: true, showImpact: true,
+  // Grant Awardees grid is opt-in per chapter (off by default) — it's a
+  // heavier section that only makes sense once a chapter has picked winners.
+  showAwardees: false,
+  // Dollar value used by the Statistics tab when a winner doc has no explicit
+  // awardAmount. Empty/null cascades to HISTORICAL_DEFAULT_GRANT in awardAmount.js.
+  defaultGrantAmount: ''
 };
 
 // Normalizes a counties value from the form (array OR newline/comma-separated
@@ -3385,6 +3745,20 @@ const handleSaveChapter = async () => {
       poweredByText: (f.poweredByText || '').trim(),
       showLPs: f.showLPs !== false,
       showGallery: f.showGallery !== false,
+      // Defaults to true (matching ChapterPage's destructured default and the
+      // static HTML where the impact section starts visible) — so only an
+      // explicit toggle to false hides it.
+      showImpact: f.showImpact !== false,
+      // Strict === true so absence/null defaults to hidden, matching the
+      // ChapterPage default and the static-HTML section's initial display:none.
+      showAwardees: f.showAwardees === true,
+      // Per-chapter default grant size for the Statistics tab fallback chain.
+      // null on blank input so the resolver cascades to HISTORICAL_DEFAULT_GRANT.
+      defaultGrantAmount: f.defaultGrantAmount === '' || f.defaultGrantAmount == null
+        ? null
+        : (Number.isFinite(Number(f.defaultGrantAmount)) && Number(f.defaultGrantAmount) > 0
+            ? Math.round(Number(f.defaultGrantAmount))
+            : null),
       updatedAt: Timestamp.now()
     };
     // heroImage and galleryPhotos are saved immediately by the upload handlers
@@ -3403,6 +3777,14 @@ const handleSaveChapter = async () => {
         foundedYear: f.foundedYear === '' || f.foundedYear == null
           ? null
           : (Number.isFinite(Number(f.foundedYear)) ? Number(f.foundedYear) : null),
+        // Full founding date drives Founding Member badge eligibility (1-year window).
+        // foundedYear stays as a coarse fallback for legacy chapters that haven't set this.
+        foundedDate: (() => {
+          const v = (f.foundedDate || '').trim();
+          if (!v) return null;
+          const parsed = new Date(v);
+          return isNaN(parsed.getTime()) ? null : Timestamp.fromDate(parsed);
+        })(),
         emailAlias: (f.emailAlias || '').trim(),
         slackChannel: (f.slackChannel || '').trim(),
         lpSlackChannel: (f.lpSlackChannel || '').trim(),
@@ -3468,6 +3850,7 @@ const handleSeedLegacyChapters = async () => {
       slug: 'wny', pageSlug: 'wny', name: 'Western New York',
       tagline: 'Where it all started, serving Buffalo and the surrounding 8 counties.',
       foundedYear: 2023,
+      foundedDate: Timestamp.fromDate(new Date('2023-10-01')),
       emailAlias: 'wny@goodneighbor.fund', slackChannel: 'C04V14N4W83', lpSlackChannel: 'C04K9G2L29L', order: 1,
       heroTitle: '$1,000 Micro-Grants for Buffalo Business Ideas',
       heroTagline: 'No pitch deck required. No equity taken. Just belief in your vision and potential.',
@@ -3481,6 +3864,7 @@ const handleSeedLegacyChapters = async () => {
       slug: 'denver', pageSlug: 'denver', name: 'Denver',
       tagline: 'Serving the greater Denver metropolitan area.',
       foundedYear: 2023,
+      foundedDate: Timestamp.fromDate(new Date('2024-01-01')),
       emailAlias: 'denver@goodneighbor.fund', slackChannel: 'C04ULN7FPB9', lpSlackChannel: 'C04K9G4PVML', order: 2,
       heroTitle: '$1,000 Micro-Grants for Denver Business Ideas',
       heroTagline: 'No pitch deck required. No equity taken. Just belief in your vision and potential.',
@@ -3491,22 +3875,24 @@ const handleSeedLegacyChapters = async () => {
       showLPs: true, showGallery: true
     },
     {
-      slug: 'upstate', pageSlug: 'upstate', name: 'Upstate New York',
-      tagline: 'Bringing belief capital to founders across Central and Upstate New York — Syracuse, Ithaca, Binghamton, Utica and beyond.',
+      slug: 'upstate', pageSlug: 'central', name: 'Central New York',
+      tagline: 'Bringing belief capital to founders across Central New York — Syracuse, Ithaca, Binghamton, Utica and beyond.',
       foundedYear: 2026,
-      emailAlias: 'upstateny@goodneighbor.fund', slackChannel: 'C0AUSSA9DGW', lpSlackChannel: 'C0AUUTAB2BC', order: 3,
-      heroTitle: '$1,000 Micro-Grants for Upstate NY Business Ideas',
+      foundedDate: Timestamp.fromDate(new Date('2026-05-26')),
+      emailAlias: 'cny@goodneighbor.fund', slackChannel: 'C0AUSSA9DGW', lpSlackChannel: 'C0AUUTAB2BC', order: 3,
+      heroTitle: '$1,000 Micro-Grants for Central NY Business Ideas',
       heroTagline: 'No pitch deck required. No equity taken. Just belief in your vision and potential.',
-      servingTitle: 'Serving Central & Upstate New York',
-      servingText: "Good Neighbor Fund Upstate NY supports entrepreneurs across Central and Upstate New York — from Syracuse to Ithaca, Binghamton to Utica. Wherever you're building, we believe in your potential.",
+      servingTitle: 'Serving Central New York',
+      servingText: "Good Neighbor Fund Central NY supports entrepreneurs across Central New York — from Syracuse to Ithaca, Binghamton to Utica. Wherever you're building, we believe in your potential.",
       counties: ['Onondaga County', 'Tompkins County', 'Broome County', 'Oneida County', 'Madison County', 'Cortland County', 'Tioga County', 'Chemung County'],
-      poweredByText: "Good Neighbor Fund is a collective giving organization. Our funding comes from Limited Partners (LPs) — local founders, operators, and community members who pool their own capital each quarter to fund the boldest new ideas in Upstate NY. No overhead. No bureaucracy. Just neighbors investing in neighbors.",
+      poweredByText: "Good Neighbor Fund is a collective giving organization. Our funding comes from Limited Partners (LPs) — local founders, operators, and community members who pool their own capital each quarter to fund the boldest new ideas in Central NY. No overhead. No bureaucracy. Just neighbors investing in neighbors.",
       showLPs: false, showGallery: false
     },
     {
       slug: 'capital-region', pageSlug: 'capital-region', name: 'Capital Region',
       tagline: "Supporting bold ideas across New York's Capital Region — Albany, Schenectady, Troy and the surrounding area.",
       foundedYear: 2026,
+      foundedDate: Timestamp.fromDate(new Date('2026-05-26')),
       emailAlias: 'capitalregion@goodneighbor.fund', slackChannel: 'C0B096U4KK2', lpSlackChannel: 'C0AV7QJS1TK', order: 4,
       heroTitle: '$1,000 Micro-Grants for Capital Region Business Ideas',
       heroTagline: 'No pitch deck required. No equity taken. Just belief in your vision and potential.',
@@ -3556,26 +3942,48 @@ const handleSeedLegacyChapters = async () => {
 };
 
 const handleAssignAnniversaryBadges = async () => {
-  if (!showAppConfirm('This will check all users and assign OG Neighbor and Year Club badges to those who qualify based on their join dates. Continue?')) {
+  if (!showAppConfirm('This will check all users and assign Founding Member and Year Club badges to those who qualify based on their join dates. Continue?')) {
     return;
   }
-  
+
   try {
     showAppAlert('Starting anniversary badge assignment...');
-    
+
+    // Load chapter founding dates so the Founding Member check is chapter-aware.
+    // Falls back to Jan 1 of foundedYear when foundedDate isn't set on a chapter.
+    const chaptersSnapshot = await getDocs(collection(db, "chapters"));
+    const chapterFoundingByName = {};
+    chaptersSnapshot.forEach((cDoc) => {
+      const c = cDoc.data();
+      let founding = null;
+      if (c.foundedDate) {
+        founding = c.foundedDate.toDate ? c.foundedDate.toDate() : new Date(c.foundedDate);
+      } else if (typeof c.foundedYear === 'number') {
+        founding = new Date(Date.UTC(c.foundedYear, 0, 1));
+      }
+      if (founding && !isNaN(founding.getTime()) && c.name) {
+        chapterFoundingByName[c.name] = founding;
+      }
+    });
+
     // Get all users
     const usersSnapshot = await getDocs(collection(db, "users"));
     let processedCount = 0;
     let badgesAddedCount = 0;
-    
-    // Anniversary badge definitions
+
+    // Anniversary badge definitions. og_neighbor takes (joinDate, foundingDate);
+    // year-club badges only need joinDate.
     const ANNIVERSARY_BADGES = {
       og_neighbor: {
         id: 'og_neighbor',
-        name: '🏛️ OG Neighbor',
-        description: 'LP who joined in 2023',
+        name: '🏛️ Founding Member',
+        description: "LP who joined within their chapter's first year",
         category: 'general',
-        checkFunction: (joinDate) => joinDate.getFullYear() === 2023
+        checkFunction: (joinDate, foundingDate) => {
+          if (!foundingDate) return false;
+          const daysDiff = (joinDate.getTime() - foundingDate.getTime()) / (24 * 60 * 60 * 1000);
+          return daysDiff >= 0 && daysDiff <= 365;
+        }
       },
       two_year_club: {
         id: 'two_year_club',
@@ -3634,11 +4042,13 @@ const handleAssignAnniversaryBadges = async () => {
       const joinDate = userData.anniversary.toDate ? userData.anniversary.toDate() : new Date(userData.anniversary);
       console.log(`User ${userData.email || userDoc.id} joined on ${joinDate.toLocaleDateString()}`);
       
-      // Check which badges they should have
+      // Check which badges they should have. og_neighbor needs the chapter's
+      // founding date; year-club badges ignore the second arg.
       const newBadges = [];
-      
+      const userFoundingDate = chapterFoundingByName[userData.chapter] || null;
+
       for (const [badgeId, badge] of Object.entries(ANNIVERSARY_BADGES)) {
-        if (!currentBadgeIds.includes(badgeId) && badge.checkFunction(joinDate)) {
+        if (!currentBadgeIds.includes(badgeId) && badge.checkFunction(joinDate, userFoundingDate)) {
           newBadges.push({
             badgeId: badge.id,
             earnedDate: new Date(),
@@ -3674,9 +4084,128 @@ const handleAssignAnniversaryBadges = async () => {
   }
 };
 
+// Toggle the group "shortlist" flag on a pitch. Used by chapter directors during
+// the live review meeting to bookmark candidates for deeper discussion. The flag
+// lives directly on the pitch doc; only admins can toggle it (rules allow admin
+// updates on any pitch field).
+const handleToggleShortlist = async (pitchId, currentShortlisted) => {
+  if (!isAdmin) return;
+  setShortlistTogglingId(pitchId);
+  const nextValue = !currentShortlisted;
+  try {
+    await updateDoc(doc(db, "pitches", pitchId), {
+      shortlisted: nextValue,
+      shortlistedAt: nextValue ? serverTimestamp() : null,
+      shortlistedBy: nextValue ? (user.name || user.email || user.uid) : null,
+    });
+    // Optimistic local update so the UI reflects the change before the next reload.
+    setAdminPitches(prev => prev.map(p => p.id === pitchId
+      ? { ...p, shortlisted: nextValue, shortlistedBy: nextValue ? (user.name || user.email || user.uid) : null }
+      : p
+    ));
+  } catch (error) {
+    console.error(`LPPortal: Shortlist toggle failed for pitch ${pitchId}:`, error);
+    showAppAlert(`Could not update shortlist: ${error.message}`);
+  } finally {
+    setShortlistTogglingId(null);
+  }
+};
+
+// Admin notes CRUD. Notes are stored in /adminNotes and attributed to the signed-in
+// admin. Each note carries enough scoping metadata (pitchId, chapter, quarter) to
+// support chapter-scoped list queries and future export.
+const handleAddAdminNote = async (pitch) => {
+  if (!isAdmin || !pitch?.id) return;
+  const draft = (adminNoteDrafts[pitch.id] || "").trim();
+  if (!draft) return;
+  setAdminNoteSavingId(pitch.id);
+  try {
+    const docRef = await addDoc(collection(db, "adminNotes"), {
+      pitchId: pitch.id,
+      pitchBusinessName: pitch.businessName || "",
+      chapter: pitch.chapter || userChapter || "",
+      quarter: pitch.quarter || "",
+      authorId: user.uid,
+      authorName: user.name || user.email || "",
+      text: draft,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      editCount: 0,
+    });
+    // Optimistic: prepend the new note so it shows up instantly.
+    setAdminNotes(prev => [{
+      id: docRef.id,
+      pitchId: pitch.id,
+      pitchBusinessName: pitch.businessName || "",
+      chapter: pitch.chapter || userChapter || "",
+      quarter: pitch.quarter || "",
+      authorId: user.uid,
+      authorName: user.name || user.email || "",
+      text: draft,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      editCount: 0,
+    }, ...prev]);
+    setAdminNoteDrafts(prev => ({ ...prev, [pitch.id]: "" }));
+  } catch (error) {
+    console.error(`LPPortal: Add admin note failed for pitch ${pitch.id}:`, error);
+    showAppAlert(`Could not save note: ${error.message}`);
+  } finally {
+    setAdminNoteSavingId(null);
+  }
+};
+
+const handleStartEditAdminNote = (note) => {
+  setEditingAdminNoteId(note.id);
+  setEditingAdminNoteText(note.text || "");
+};
+
+const handleCancelEditAdminNote = () => {
+  setEditingAdminNoteId(null);
+  setEditingAdminNoteText("");
+};
+
+const handleSaveEditAdminNote = async (noteId) => {
+  const trimmed = editingAdminNoteText.trim();
+  if (!trimmed) return;
+  const note = adminNotes.find(n => n.id === noteId);
+  if (!note) return;
+  setAdminNoteSavingId(noteId);
+  try {
+    await updateDoc(doc(db, "adminNotes", noteId), {
+      text: trimmed,
+      updatedAt: serverTimestamp(),
+      editCount: (note.editCount || 0) + 1,
+    });
+    setAdminNotes(prev => prev.map(n => n.id === noteId
+      ? { ...n, text: trimmed, updatedAt: new Date(), editCount: (n.editCount || 0) + 1 }
+      : n
+    ));
+    handleCancelEditAdminNote();
+  } catch (error) {
+    console.error(`LPPortal: Edit admin note failed for ${noteId}:`, error);
+    showAppAlert(`Could not update note: ${error.message}`);
+  } finally {
+    setAdminNoteSavingId(null);
+  }
+};
+
+const handleDeleteAdminNote = async (noteId) => {
+  if (!showAppConfirm("Delete this note? This cannot be undone.")) return;
+  setAdminNoteSavingId(noteId);
+  try {
+    await deleteDoc(doc(db, "adminNotes", noteId));
+    setAdminNotes(prev => prev.filter(n => n.id !== noteId));
+    if (editingAdminNoteId === noteId) handleCancelEditAdminNote();
+  } catch (error) {
+    console.error(`LPPortal: Delete admin note failed for ${noteId}:`, error);
+    showAppAlert(`Could not delete note: ${error.message}`);
+  } finally {
+    setAdminNoteSavingId(null);
+  }
+};
+
 const handleAssignWinner = async (pitchId, currentWinnerStatus) => {
-  const action = currentWinnerStatus ? "Remove Winner" : "Assign Winner";
-  // Find the pitch data from the currently loaded admin pitches
   const pitchToUpdate = adminPitches.find(p => p.id === pitchId);
   if (!pitchToUpdate) {
     console.error(`LPPortal: Assign Winner failed - Pitch ${pitchId} not found in adminPitches state.`);
@@ -3684,33 +4213,73 @@ const handleAssignWinner = async (pitchId, currentWinnerStatus) => {
     return;
   }
 
-  if (showAppConfirm(`Are you sure you want to ${action.toLowerCase()} status for pitch "${pitchToUpdate.businessName || 'Unknown'}" (ID: ${pitchId})?`)) {
+  // Per-chapter grant default, falling back to the historical $1,000 when no
+  // chapter-level override is set. Pitch-level awardAmount always wins over both.
+  const chapterDoc = chapters.find(c => c.name === pitchToUpdate.chapter);
+  const chapterDefault = Number.isFinite(chapterDoc?.defaultGrantAmount) && chapterDoc.defaultGrantAmount > 0
+    ? chapterDoc.defaultGrantAmount
+    : 1000;
+
+  if (!currentWinnerStatus) {
+    // Promoting to winner — capture award amount (blank accepts the chapter default).
+    const input = window.prompt(
+      `Enter grant amount for "${pitchToUpdate.businessName || 'this pitch'}" in dollars.\nLeave blank to use the chapter default ($${chapterDefault.toLocaleString()}).`,
+      ''
+    );
+    if (input === null) return; // user cancelled prompt
+    const trimmed = input.trim();
+    const parsed = trimmed === '' ? chapterDefault : Number(trimmed.replace(/[$,]/g, ''));
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      showAppAlert('Award amount must be a positive number.');
+      return;
+    }
+    const amount = Math.round(parsed);
     try {
-      console.log(`LPPortal: Updating pitch /pitches/${pitchId} - setting isWinner to ${!currentWinnerStatus}...`);
+      // Newly-assigned winners default to hidden — chapters publish from the
+      // Grant Winners tab when they're ready to announce. Existing winners
+      // (no field) read as published; only docs explicitly set to false hide.
       await updateDoc(doc(db, "pitches", pitchId), {
-        isWinner: !currentWinnerStatus
+        isWinner: true,
+        awardAmount: amount,
+        awardedAt: serverTimestamp(),
+        winnerPublished: false
       });
-      console.log(`LPPortal: Pitch winner status updated successfully.`);
-      
-      // Update accuracy stats for all LPs who reviewed this pitch
-      if (!currentWinnerStatus) {
-        // Marking as winner - update stats for LPs who picked Favorite or Consideration
-        console.log(`LPPortal: Updating accuracy stats for pitch ${pitchId}...`);
-        await updateWinnerPredictions(pitchId, pitchToUpdate);
-      }
-      
-      showAppAlert(`Pitch "${pitchToUpdate.businessName}" marked as ${!currentWinnerStatus ? 'Winner ✅' : 'Not Winner'}.`); // Added emoji
-      // Refresh both LP and Admin data as winner status affects both views
+      await updateWinnerPredictions(pitchId, pitchToUpdate);
+      showAppAlert(`Winner marked: "${pitchToUpdate.businessName}" — $${amount.toLocaleString()}. Not yet live on the website — toggle "Live on website" in the Grant Winners tab to publish.`);
       loadLPData();
       loadAdminData();
     } catch (error) {
       console.error(`LPPortal: Assign Winner Error for pitch ${pitchId}:`, error);
-      if (error.code === 'permission-denied' || error.message.includes('permission-denied')) {
+      if (error.code === 'permission-denied' || (error.message || '').includes('permission-denied')) {
         showAppAlert(`Update failed: Permission Denied. Check Firestore rules for updating pitch winner status.`);
-        console.error(`LPPortal: PERMISSION DENIED updating /pitches/${pitchId} by admin ${user.email}`);
       } else {
         showAppAlert(`Update failed: ${error.message}. Check Firestore Rules.`);
       }
+    }
+    return;
+  }
+
+  // Un-marking an existing winner.
+  if (!showAppConfirm(`Remove winner status for "${pitchToUpdate.businessName || 'Unknown'}"?\nThis also clears the award amount and adjusts LP prediction stats.`)) return;
+  try {
+    await updateDoc(doc(db, "pitches", pitchId), {
+      isWinner: false,
+      awardAmount: deleteField(),
+      awardedAt: deleteField(),
+      winnerPublished: deleteField()
+    });
+    // Reverse the stat bumps updateWinnerPredictions applied when this pitch was marked.
+    // Prior behavior left these stale on un-mark.
+    await reverseWinnerPredictions(pitchId);
+    showAppAlert(`"${pitchToUpdate.businessName}" is no longer marked as a winner.`);
+    loadLPData();
+    loadAdminData();
+  } catch (error) {
+    console.error(`LPPortal: Remove Winner Error for pitch ${pitchId}:`, error);
+    if (error.code === 'permission-denied' || (error.message || '').includes('permission-denied')) {
+      showAppAlert(`Update failed: Permission Denied. Check Firestore rules for updating pitch winner status.`);
+    } else {
+      showAppAlert(`Update failed: ${error.message}. Check Firestore Rules.`);
     }
   }
 };
@@ -3854,6 +4423,9 @@ const lpFilteredPitches = useMemo(() => {
     const matchesQuarter = reviewQuarterFilter.length === 0 || reviewQuarterFilter.includes(p.quarter);
     if (!matchesQuarter) return false;
 
+    // Filter by Category
+    if (reviewCategoryFilter && p.category !== reviewCategoryFilter) return false;
+
     // Filter by Review Status Dropdown
     if (reviewFilter === "reviewed" && !review) return false; // Show only reviewed, but this one isn't
     if (reviewFilter === "notReviewed" && review) return false; // Show only not reviewed, but this one is
@@ -3867,7 +4439,7 @@ const lpFilteredPitches = useMemo(() => {
     // If it passed all filters, include it
     return true;
   });
-}, [lpPitches, reviews, reviewSearchTerm, reviewFilter, reviewChapterFilter, reviewQuarterFilter, hidePassedReviews]); // Added reviewQuarterFilter dependency
+}, [lpPitches, reviews, reviewSearchTerm, reviewFilter, reviewChapterFilter, reviewQuarterFilter, reviewCategoryFilter, hidePassedReviews]);
 
 
 // Memoized function to group reviews for a specific pitch in the admin view
@@ -3944,6 +4516,27 @@ const getGroupedReviewsForAdmin = useCallback((pitchId) => {
   };
 }, [allReviewsData, users]); // Depend on the full reviews list and the users list
 
+// Group admin notes by pitchId for render. Sorted newest-first within each pitch
+// so the live discussion always shows the most recent thought at the top.
+const adminNotesByPitch = useMemo(() => {
+  const grouped = {};
+  for (const note of adminNotes) {
+    if (!note?.pitchId) continue;
+    if (!grouped[note.pitchId]) grouped[note.pitchId] = [];
+    grouped[note.pitchId].push(note);
+  }
+  const getTime = (ts) => {
+    if (!ts) return 0;
+    if (typeof ts.toDate === 'function') return ts.toDate().getTime();
+    if (ts instanceof Date) return ts.getTime();
+    return 0;
+  };
+  Object.values(grouped).forEach(list => {
+    list.sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
+  });
+  return grouped;
+}, [adminNotes]);
+
 // Memoized list of Admin pitches filtered AND sorted by current UI settings
 const adminFilteredSortedPitches = useMemo(() => {
   if (!Array.isArray(adminPitches)) return [];
@@ -3984,6 +4577,9 @@ const adminFilteredSortedPitches = useMemo(() => {
     }
     if (adminFavoriteFilterMode === 'favsAndCons' && favoriteCount === 0 && considerationCount === 0) {
       return false; // Hide if filtering by favs+cons and it has neither
+    }
+    if (adminFavoriteFilterMode === 'shortlisted' && !p.shortlisted) {
+      return false; // Hide if filtering by shortlist and this pitch isn't on it
     }
 
     // Passed all admin filters
@@ -4534,9 +5130,19 @@ return (
           totalGrantWinners: (() => {
             // Use adminPitches for admin/superadmin, lpPitches for regular LPs
             const pitchesToUse = isAdmin ? adminPitches : lpPitches;
-            return user.chapter 
+            return user.chapter
               ? pitchesToUse.filter(p => p.isWinner && p.chapter === user.chapter).length
               : pitchesToUse.filter(p => p.isWinner).length;
+          })(),
+          // Resolved dollar sum: respects per-pitch awardAmount overrides and
+          // per-chapter defaults, falling back to the historical $1,000 only for
+          // winners that predate both. Replaces the hardcoded count × $1,000 default.
+          totalDollarsAwarded: (() => {
+            const pitchesToUse = isAdmin ? adminPitches : lpPitches;
+            const scopedWinners = (user.chapter
+              ? pitchesToUse.filter(p => p.isWinner && p.chapter === user.chapter)
+              : pitchesToUse.filter(p => p.isWinner));
+            return sumAwarded(scopedWinners, chaptersByNameMap(chapters));
           })()
         }}
       />
@@ -4555,21 +5161,20 @@ return (
       <div style={{
         width: '200px',
         background: 'var(--mb-paper)',
-        borderRight: '2px solid',
-        borderColor: 'var(--gnf-border-pink)',
+        borderRight: '2px solid var(--mb-ink)',
         display: 'flex',
         flexDirection: 'column',
         flexShrink: 0
       }} className="desktop-sidebar">
         <NavigationItems />
       </div>
-      
+
       {/* Mobile Sidebar */}
       <div className="mobile-sidebar" style={{
         display: 'none',
         width: '200px',
         background: 'var(--mb-paper)',
-        borderRight: '2px solid var(--gnf-border-pink)',
+        borderRight: '2px solid var(--mb-ink)',
         flexDirection: 'column',
         flexShrink: 0
       }}>
@@ -4621,6 +5226,17 @@ return (
                   placeholder="All Quarters"
                 />
                 <select
+                  aria-label="Filter by category"
+                  value={reviewCategoryFilter}
+                  onChange={(e) => setReviewCategoryFilter(e.target.value)}
+                  style={{ minWidth: 150 }}
+                >
+                  <option value="">All Categories</option>
+                  {PITCH_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <select
                   aria-label="Filter by review status"
                   value={reviewFilter}
                   onChange={(e) => setReviewFilter(e.target.value)}
@@ -4658,7 +5274,7 @@ return (
                   />
                 ) : lpPitches.length === 0 ? (
                   <EmptyState
-                    icon="📬"
+                    icon={null}
                     title="No pitches yet this quarter"
                     description={
                       <>
@@ -4669,7 +5285,7 @@ return (
                   />
                 ) : (
                   <EmptyState
-                    icon="🔍"
+                    icon={null}
                     title="No pitches match"
                     description="Try clearing a filter or widening your search."
                   />
@@ -4689,9 +5305,11 @@ return (
                       ? 'var(--mb-magenta)'
                       : isFavorite
                         ? 'var(--mb-butter-deep)'
-                        : isPassedOrIneligible
-                          ? 'var(--mb-ink-15)'
-                          : 'var(--mb-aqua-deep)';
+                        : rating === "Ineligible"
+                          ? 'var(--mb-butter)'
+                          : rating === "Pass"
+                            ? 'var(--mb-ink-15)'
+                            : 'var(--mb-aqua-deep)';
 
                     // --- USE ROBUST FORMATTING FOR DATE ---
                     const formattedDate = formatDate(p.createdAt || p.createdDate);
@@ -4715,7 +5333,7 @@ return (
                             </div>
                             <div className="lp-pitch-card__tags">
                               {p.isContest && <RetroPill tone="purple">🏆 Contest Submission</RetroPill>}
-                              {p.isWinner && <RetroPill tone="green">✅ Grant Winner</RetroPill>}
+                              {p.isWinner && <RetroPill tone="green" icon={<StatusIcon type="trophy" size={14} />}>Grant Winner</RetroPill>}
                             </div>
                           </div>
                           <div className="lp-pitch-card__status">
@@ -4733,7 +5351,6 @@ return (
                           {p.aiSummary ? (
                             <>
                               <div className="lp-pitch-card__ai-tag">
-                                <span className="lp-pitch-card__ai-badge" aria-hidden="true">AI</span>
                                 <span>AI-generated overview</span>
                               </div>
                               <div className="lp-pitch-card__summary-body">{p.aiSummary}</div>
@@ -4752,6 +5369,8 @@ return (
                           <span>{p.chapter || 'N/A'}</span>
                           <span className="lp-pitch-card__meta-sep" aria-hidden="true">·</span>
                           <span style={{ fontFamily: 'var(--font-numeral)' }}>{p.quarter || 'N/A'}</span>
+                          <span className="lp-pitch-card__meta-sep" aria-hidden="true">·</span>
+                          <span>Category: {p.category || 'N/A'}</span>
                         </div>
                       </div>
                     );
@@ -4784,13 +5403,16 @@ return (
                           <span className="pr-chip pr-chip--contest">🏆 Contest Submission</span>
                         )}
                         {selectedPitch.isWinner && (
-                          <span className="pr-chip pr-chip--winner">✅ Grant Winner</span>
+                          <span className="pr-chip pr-chip--winner">
+                            <StatusIcon type="trophy" size={14} />
+                            Grant Winner
+                          </span>
                         )}
                       </div>
                     )}
                   </div>
 
-                  {/* Founder + email inline */}
+                  {/* Founder + email + zip inline */}
                   <div className="pr-identity">
                     <span className="pr-identity__item">
                       <span className="pr-identity__label">Founder</span>
@@ -4802,6 +5424,18 @@ return (
                         <a href={`mailto:${selectedPitch.email}`}>{selectedPitch.email}</a>
                       </span>
                     )}
+                    <span className="pr-identity__item">
+                      <span className="pr-identity__label">Zip</span>
+                      <span className="pr-identity__value">{selectedPitch.zipCode || "N/A"}</span>
+                      {isLMIZip(selectedPitch.zipCode) && (
+                        <span
+                          className="pr-identity__lmi"
+                          title={`ZIP median household income ≤ $${LMI_THRESHOLD.toLocaleString()} (ACS ${LMI_ACS_YEAR} 5-Year)`}
+                        >
+                          LMI
+                        </span>
+                      )}
+                    </span>
                   </div>
 
                   {/* Action buttons — left-aligned row */}
@@ -4832,10 +5466,15 @@ return (
                     </div>
                   )}
 
-                  {selectedPitch.aiSummary && (
+                  {(selectedPitch.aiSummary || selectedPitch.category) && (
                     <div className="pr-ai">
                       <div className="pr-eyebrow">AI Summary</div>
-                      <div className="pr-ai__body">{selectedPitch.aiSummary}</div>
+                      {selectedPitch.aiSummary && (
+                        <div className="pr-ai__body">{selectedPitch.aiSummary}</div>
+                      )}
+                      {selectedPitch.category && (
+                        <div className="pr-ai__category">Category: {selectedPitch.category}</div>
+                      )}
                     </div>
                   )}
 
@@ -4874,11 +5513,6 @@ return (
                   </div>
 
                   <div className="pr-section">
-                    <div className="pr-field pr-field--inline">
-                      <span className="pr-field__label">Zip Code</span>
-                      <span className="pr-field__value">{selectedPitch.zipCode || "N/A"}</span>
-                    </div>
-
                     <div className="pr-field">
                       <span className="pr-field__label">Self Identification Tags</span>
                       <div className="pr-field__value">{selectedPitch.selfIdentification?.join(", ") || "N/A"}</div>
@@ -5115,6 +5749,20 @@ return (
                 description="Rally new LPs into the network."
                 onDownload={() => downloadCard('recruitment')}
               />
+              <SocialCardTile
+                canvasId="approval-canvas"
+                title="Approval Dialog"
+                eyebrow="Card 05"
+                description="Belief, in writing — Win95 grant-approved notification."
+                onDownload={() => downloadCard('approval')}
+              />
+              <SocialCardTile
+                canvasId="application-canvas"
+                title="Application Form"
+                eyebrow="Card 06"
+                description="Apply in one sentence — “What&rsquo;s your big idea?”"
+                onDownload={() => downloadCard('application')}
+              />
             </div>
           </section>
         </div>
@@ -5136,20 +5784,18 @@ return (
               { key: 'pitchesAndReviews', label: 'Reviews' },
               { key: 'grantWinners', label: 'Grant Winners' },
               { key: 'userManagement', label: 'Users' },
+              // Chapter directors get the Chapter tab too, but the tab's
+              // render branch scopes the list + form to their own chapter.
+              ...(isSuperAdmin || isChapterDirector
+                ? [{ key: 'chaptersManagement', label: 'Chapter' }]
+                : []),
+              ...(isSuperAdmin
+                ? [{ key: 'resourcesManagement', label: 'Resources' }]
+                : []),
               { key: 'createUser', label: 'Create User' },
               ...(isSuperAdmin
-                ? [
-                    { key: 'superAdminTools', label: 'Super Admin Tools' },
-                    { key: 'chaptersManagement', label: 'Chapters' },
-                    { key: 'resourcesManagement', label: 'Resources' },
-                  ]
-                : isChapterDirector
-                  ? [
-                      // Chapter directors get the Chapters tab too, but the tab's
-                      // render branch scopes the list + form to their own chapter.
-                      { key: 'chaptersManagement', label: 'Chapter' },
-                    ]
-                  : []),
+                ? [{ key: 'superAdminTools', label: 'Super Admin Tools' }]
+                : []),
             ]}
           />
           <div className="admin-tabpanel">
@@ -5161,6 +5807,76 @@ return (
             const totalPitches = adminFilteredSortedPitches.length;
             const totalReviews = allReviewsData.length;
             const reviewedByMe = Object.keys(reviews || {}).length;
+            // Mobile coerces to List — Live Review is a desktop/projector workflow
+            // (two-pane queue + detail layout doesn't work below tablet width).
+            const effectiveMode = isMobile() ? 'list' : 'live';
+            if (effectiveMode === 'live') {
+              return (
+                <>
+                  <section className="admin-section admin-section--hero admin-section--hero-compact admin-section--paper">
+                    <div className="admin-section-head">
+                      <span className="admin-section-head__eyebrow">Reviews · Live</span>
+                      <h2 className="admin-section-head__title admin-section-head__title--sm">
+                        Live <em>Review</em>
+                      </h2>
+                      <p className="admin-section-head__lede">
+                        Two-pane meeting view. Cycle the queue, rate, leave comments, and capture discussion notes.
+                      </p>
+                    </div>
+                  </section>
+                  <LiveReviewPane
+                    pitches={adminFilteredSortedPitches}
+                    focusedPitchId={focusedPitchId}
+                    setFocusedPitchId={setFocusedPitchId}
+                    detailsDrawerOpen={detailsDrawerOpen}
+                    setDetailsDrawerOpen={setDetailsDrawerOpen}
+                    keyboardHelpOpen={keyboardHelpOpen}
+                    setKeyboardHelpOpen={setKeyboardHelpOpen}
+                    formatDate={formatDate}
+                    getGroupedReviewsForAdmin={getGroupedReviewsForAdmin}
+                    actionProps={{
+                      handleToggleShortlist,
+                      handleAssignWinner,
+                      shortlistTogglingId,
+                    }}
+                    notesProps={{
+                      user,
+                      isSuperAdmin,
+                      adminNotesByPitch,
+                      adminNoteDrafts,
+                      setAdminNoteDrafts,
+                      editingAdminNoteId,
+                      editingAdminNoteText,
+                      setEditingAdminNoteText,
+                      adminNoteSavingId,
+                      handleAddAdminNote,
+                      handleStartEditAdminNote,
+                      handleSaveEditAdminNote,
+                      handleCancelEditAdminNote,
+                      handleDeleteAdminNote,
+                    }}
+                    filtersProps={{
+                      isSuperAdmin,
+                      adminPitches,
+                      adminChapterFilter,
+                      setAdminChapterFilter,
+                      adminQuarterFilter,
+                      setAdminQuarterFilter,
+                      adminFavoriteFilterMode,
+                      setAdminFavoriteFilterMode,
+                      adminSortMode,
+                      setAdminSortMode,
+                      adminSearch,
+                      setAdminSearch,
+                      adminHidePassed,
+                      setAdminHidePassed,
+                      handleAdminPitchExport,
+                      MultiSelectDropdown,
+                    }}
+                  />
+                </>
+              );
+            }
             return (
             <>
               <section className="admin-section admin-section--hero admin-section--paper">
@@ -5223,6 +5939,7 @@ return (
                   <option value="all">All Ratings</option>
                   <option value="favsOnly">Favorites Only</option>
                   <option value="favsAndCons">Favs &amp; Considerations</option>
+                  <option value="shortlisted">Shortlisted Only</option>
                 </select>
                 <select
                   aria-label="Sort order"
@@ -5265,7 +5982,7 @@ return (
               {/* Admin Pitches List - Uses adminFilteredSortedPitches */}
               {adminFilteredSortedPitches.length === 0 && (
                 <EmptyState
-                  icon="📭"
+                  icon={null}
                   title="No pitches match"
                   description="Try clearing a filter or widening your search."
                 />
@@ -5296,11 +6013,25 @@ return (
                         </div>
                         <div className="admin-pitch-card__tags">
                           {p.isContest && <RetroPill tone="purple">🎉 Contest Submission</RetroPill>}
-                          {p.isWinner && <RetroPill tone="green">🏆 Grant Winner</RetroPill>}
+                          {p.isWinner && <RetroPill tone="green" icon={<StatusIcon type="trophy" size={14} />}>Grant Winner</RetroPill>}
+                          {p.shortlisted && (
+                            <RetroPill tone="yellow" title={p.shortlistedBy ? `Shortlisted by ${p.shortlistedBy}` : 'On the group shortlist'}>
+                              Shortlisted
+                            </RetroPill>
+                          )}
                         </div>
                       </div>
                       {/* Action */}
-                      <div className="admin-pitch-card__actions">
+                      <div className="admin-pitch-card__actions" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <RetroButton
+                          size="sm"
+                          variant={p.shortlisted ? 'primary' : 'default'}
+                          onClick={() => handleToggleShortlist(p.id, p.shortlisted)}
+                          disabled={shortlistTogglingId === p.id}
+                          title={p.shortlisted ? 'Remove from the group shortlist' : 'Add to the group shortlist for discussion'}
+                        >
+                          {p.shortlisted ? 'Shortlisted' : 'Shortlist'}
+                        </RetroButton>
                         <RetroButton
                           size="sm"
                           onClick={() => setExpandedPitchId(expandedPitchId === p.id ? null : p.id)}
@@ -5500,6 +6231,127 @@ return (
                                 <p style={{ fontStyle: 'italic', color: '#999', textAlign: 'center', padding: '20px' }}>No comments provided in reviews.</p>
                             )}
                           </div>
+
+                          {/* Admin discussion notes — visible only to chapter directors and
+                              superAdmins. Captures follow-ups and live discussion during the
+                              quarterly review meeting. Anyone with admin access can add notes
+                              under their own name; authors can edit or delete their own. */}
+                          {(() => {
+                            const notesForPitch = adminNotesByPitch[p.id] || [];
+                            return (
+                              <div style={{ marginTop: 14 }}>
+                                <h5 style={{ margin: '0 0 8px 0', color: 'var(--mb-ink)', fontSize: '14px', fontWeight: 'bold' }}>
+                                  Admin Discussion Notes ({notesForPitch.length})
+                                </h5>
+                                <div style={{ padding: '20px', background: 'var(--gnf-bg)', border: '1px solid #e0e0e0' }}>
+                                  {notesForPitch.length > 0 ? (
+                                    notesForPitch.map((note, index) => {
+                                      const isAuthor = note.authorId === user.uid;
+                                      const canManage = isAuthor || isSuperAdmin;
+                                      const isEditing = editingAdminNoteId === note.id;
+                                      const timestampLabel = formatDate(note.createdAt);
+                                      const edited = (note.editCount || 0) > 0 ? ' · edited' : '';
+                                      return (
+                                        <div key={note.id} style={{
+                                          padding: '12px 0',
+                                          borderBottom: index < notesForPitch.length - 1 ? '1px solid #f0f0f0' : 'none',
+                                        }}>
+                                          <div style={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'baseline',
+                                            gap: 8,
+                                            marginBottom: 4,
+                                          }}>
+                                            <div style={{
+                                              fontSize: '11px',
+                                              fontWeight: '600',
+                                              color: '#999',
+                                              textTransform: 'uppercase',
+                                              letterSpacing: '0.3px',
+                                            }}>
+                                              {note.authorName || 'Admin'} <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 'normal' }}>· {timestampLabel}{edited}</span>
+                                            </div>
+                                            {canManage && !isEditing && (
+                                              <div style={{ display: 'flex', gap: 6 }}>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleStartEditAdminNote(note)}
+                                                  style={{ background: 'transparent', border: 'none', color: 'var(--mb-ink-60)', fontSize: 11, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                                                >
+                                                  Edit
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  onClick={() => handleDeleteAdminNote(note.id)}
+                                                  disabled={adminNoteSavingId === note.id}
+                                                  style={{ background: 'transparent', border: 'none', color: 'var(--mb-ink-60)', fontSize: 11, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                                                >
+                                                  Delete
+                                                </button>
+                                              </div>
+                                            )}
+                                          </div>
+                                          {isEditing ? (
+                                            <div>
+                                              <textarea
+                                                value={editingAdminNoteText}
+                                                onChange={(e) => setEditingAdminNoteText(e.target.value)}
+                                                rows={3}
+                                                style={{ width: '100%', fontFamily: 'inherit', fontSize: 14, padding: 8, boxSizing: 'border-box' }}
+                                                aria-label="Edit note"
+                                              />
+                                              <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                                                <RetroButton
+                                                  size="sm"
+                                                  variant="primary"
+                                                  onClick={() => handleSaveEditAdminNote(note.id)}
+                                                  disabled={adminNoteSavingId === note.id || !editingAdminNoteText.trim()}
+                                                >
+                                                  {adminNoteSavingId === note.id ? 'Saving…' : 'Save'}
+                                                </RetroButton>
+                                                <RetroButton size="sm" onClick={handleCancelEditAdminNote}>
+                                                  Cancel
+                                                </RetroButton>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#333', whiteSpace: 'pre-wrap' }}>
+                                              {note.text}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })
+                                  ) : (
+                                    <p style={{ fontStyle: 'italic', color: '#999', textAlign: 'center', padding: '8px 0 16px', margin: 0 }}>
+                                      No notes yet. Capture anything that comes up during discussion.
+                                    </p>
+                                  )}
+                                  <div style={{ marginTop: notesForPitch.length > 0 ? 12 : 0, paddingTop: notesForPitch.length > 0 ? 12 : 0, borderTop: notesForPitch.length > 0 ? '1px solid #f0f0f0' : 'none' }}>
+                                    <textarea
+                                      value={adminNoteDrafts[p.id] || ''}
+                                      onChange={(e) => setAdminNoteDrafts(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                      placeholder="Add a note from the discussion — follow-ups, questions, a quote you want to remember."
+                                      rows={3}
+                                      style={{ width: '100%', fontFamily: 'inherit', fontSize: 14, padding: 8, boxSizing: 'border-box' }}
+                                      aria-label="Add admin note"
+                                    />
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
+                                      <RetroButton
+                                        size="sm"
+                                        variant="primary"
+                                        onClick={() => handleAddAdminNote(p)}
+                                        disabled={adminNoteSavingId === p.id || !(adminNoteDrafts[p.id] || '').trim()}
+                                      >
+                                        {adminNoteSavingId === p.id ? 'Saving…' : 'Add Note'}
+                                      </RetroButton>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                         </div>
                       </div>
@@ -5620,6 +6472,21 @@ return (
               }
             };
 
+            // Toggle whether a winner is live on the public site (awardees grid,
+            // founder map, mobile landing, public pitch detail). Missing field
+            // reads as published — only docs explicitly set to false are hidden.
+            const handleTogglePublished = async (pitchId, nextPublished) => {
+              try {
+                await updateDoc(doc(db, "pitches", pitchId), {
+                  winnerPublished: nextPublished
+                });
+                loadAdminData();
+              } catch (err) {
+                console.error('Toggle publish error:', err);
+                showAppAlert(`Failed to update visibility: ${err.message}`);
+              }
+            };
+
             const handleSaveAllChanges = async (pitchId) => {
               const changes = pendingChanges[pitchId] || {};
               if (Object.keys(changes).length === 0) {
@@ -5655,7 +6522,11 @@ return (
 
             const winnerCount = winnerPitches.length;
             const shownCount = filteredWinners.length;
-            const totalAwarded = winnerCount * 1000; // $1,000 each
+            // Sum actual awardAmount per winner, falling back to chapter default
+            // then to the historical $1,000. Replaces the prior hardcoded constant
+            // that ignored variable grants.
+            const chaptersLookup = chaptersByNameMap(chapters);
+            const totalAwarded = sumAwarded(winnerPitches, chaptersLookup);
             return (
               <>
                 <section className="admin-section admin-section--hero admin-section--grape">
@@ -5665,7 +6536,7 @@ return (
                       The <em>founders</em> we funded.
                     </h2>
                     <p className="admin-section-head__lede">
-                      Edit public-facing info for grant winners. Updates power the Founder Map and Neighborhood Navigator.
+                      Edit public-facing info for grant winners. New winners stay hidden until you flip the "Live on website" switch — useful for staging an announcement.
                     </p>
                   </div>
                   <div className="admin-hero-stats">
@@ -5708,51 +6579,135 @@ return (
 
                 {filteredWinners.length === 0 && (
                   <EmptyState
-                    icon="🏆"
+                    icon={null}
                     title="No grant winners match"
                     description="Try clearing a filter. Winners appear here after an admin marks a pitch as winning from the Reviews tab."
                   />
                 )}
 
-                {filteredWinners.map((p) => (
+                {filteredWinners.map((p) => {
+                  const pendingAmount = pendingChanges[p.id]?.awardAmount;
+                  const currentAmount = pendingAmount !== undefined
+                    ? pendingAmount
+                    : (Number.isFinite(Number(p.awardAmount)) && Number(p.awardAmount) > 0 ? Number(p.awardAmount) : '');
+                  const resolvedDisplay = resolveAwardAmount(p, chaptersLookup);
+                  // Missing field = published (preserves pre-toggle behavior for
+                  // existing winners). Only explicit false hides from public site.
+                  const isPublished = p.winnerPublished !== false;
+                  return (
                   <div key={p.id} style={{ marginBottom: '15px', padding: '15px', border: '2px solid', borderColor: 'var(--mb-ink)', boxShadow: 'var(--shadow-hard-sm)', background: 'var(--mb-paper-deep)' }}>
-                    <h5 style={{ marginTop: 0 }}>{p.businessName} <span style={{ color: '#666', fontWeight: 'normal' }}>by {p.founderName}</span></h5>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                      <h5 style={{ marginTop: 0, marginBottom: 0 }}>
+                        {p.businessName} <span style={{ color: '#666', fontWeight: 'normal' }}>by {p.founderName}</span>
+                        {!isPublished && (
+                          <span style={{
+                            marginLeft: 8,
+                            padding: '2px 8px',
+                            fontSize: '0.7em',
+                            fontFamily: 'var(--font-pixel)',
+                            letterSpacing: '0.1em',
+                            textTransform: 'uppercase',
+                            background: 'var(--mb-ink)',
+                            color: 'var(--mb-chalk)',
+                            border: '2px solid var(--mb-ink)'
+                          }}>Hidden</span>
+                        )}
+                      </h5>
+                      <label style={{ display: 'inline-flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: '0.85em', userSelect: 'none' }}>
+                        <span className="win95-toggle">
+                          <input
+                            type="checkbox"
+                            role="switch"
+                            checked={isPublished}
+                            onChange={(e) => handleTogglePublished(p.id, e.target.checked)}
+                          />
+                          <span className="win95-toggle__track" />
+                          <span className="win95-toggle__thumb" />
+                        </span>
+                        <strong>Live on website</strong>
+                      </label>
+                    </div>
                     <p style={{ fontSize: '0.85em', color: '#555', margin: '5px 0' }}>
                       Chapter: {p.chapter} | Quarter: {p.quarter} | Zip Code: {p.zipCode}
                     </p>
 
+                    {/* Award Amount — feeds Statistics tab dollar totals. Blank defers
+                        to the chapter default; resolvedDisplay shows the effective value. */}
+                    <div style={{ margin: '10px 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <label htmlFor={`awardAmount-${p.id}`} style={{ minWidth: 100 }}>
+                        <strong>Award Amount:</strong>
+                      </label>
+                      <span style={{ fontSize: '0.9em' }}>$</span>
+                      <input
+                        id={`awardAmount-${p.id}`}
+                        type="number"
+                        min="0"
+                        step="1"
+                        inputMode="numeric"
+                        value={currentAmount}
+                        placeholder={`${resolvedDisplay}`}
+                        onChange={(e) => {
+                          const raw = e.target.value;
+                          setPendingChanges(prev => {
+                            const next = { ...prev };
+                            const pitchChanges = { ...(next[p.id] || {}) };
+                            if (raw === '') {
+                              // Blank clears any pending amount edit. Persisted value stays what it is;
+                              // to reset to chapter default, admins re-mark the winner (deleteField path).
+                              delete pitchChanges.awardAmount;
+                            } else {
+                              const parsed = Number(raw);
+                              if (Number.isFinite(parsed) && parsed > 0) {
+                                pitchChanges.awardAmount = Math.round(parsed);
+                              }
+                            }
+                            if (Object.keys(pitchChanges).length === 0) delete next[p.id];
+                            else next[p.id] = pitchChanges;
+                            return next;
+                          });
+                        }}
+                        style={{ width: 110, padding: '8px 10px', fontFamily: 'inherit', border: '2px solid var(--mb-ink)', boxShadow: 'var(--shadow-hard-sm)', background: 'var(--mb-chalk)' }}
+                      />
+                      <span style={{ fontSize: '0.8em', color: 'var(--mb-ink-60, #666)' }}>
+                        Effective: ${resolvedDisplay.toLocaleString()}
+                        {!Number.isFinite(Number(p.awardAmount)) || Number(p.awardAmount) <= 0
+                          ? ' (chapter default)'
+                          : ''}
+                      </span>
+                    </div>
+
                     {/* Website */}
                     <div style={{ margin: '10px 0' }}>
-                      <label><strong>Website:</strong></label><br />
+                      <label><strong>Website:</strong></label>
                       <input
                         type="text"
                         value={websiteById[p.id] ?? p.website ?? ""}
                         onChange={(e) => handleFieldChange(p.id, "website", e.target.value)}
                         placeholder="https://..."
-                        style={{ width: '100%', padding: '6px', fontFamily: 'inherit' }}
+                        style={{ display: 'block', width: '100%', maxWidth: 600, marginTop: 4, padding: '8px 10px', fontFamily: 'inherit', border: '2px solid var(--mb-ink)', boxShadow: 'var(--shadow-hard-sm)', background: 'var(--mb-chalk)' }}
                       />
                     </div>
 
                     {/* About Section */}
                     <div style={{ margin: '10px 0' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <label><strong>About Section:</strong></label>
-                        <button
-                          type="button"
-                          onClick={() => handleGenerateAbout(p.id)}
-                          disabled={generatingAboutId === p.id}
-                          style={{ padding: '4px 10px', fontSize: '0.85em', cursor: generatingAboutId === p.id ? 'wait' : 'pointer' }}
-                        >
-                          {generatingAboutId === p.id ? "Generating..." : "Generate from Application"}
-                        </button>
-                      </div>
+                      <label><strong>About Section:</strong></label>
                       <textarea
                         rows={4}
                         value={aboutById[p.id] ?? p.about ?? ""}
                         onChange={(e) => handleFieldChange(p.id, "about", e.target.value)}
-                        style={{ width: '100%', padding: '6px', fontFamily: 'inherit', fontSize: '0.95em' }}
+                        style={{ display: 'block', width: '100%', maxWidth: 600, marginTop: 4, padding: '8px 10px', fontFamily: 'inherit', fontSize: '0.95em', border: '2px solid var(--mb-ink)', boxShadow: 'var(--shadow-hard-sm)', background: 'var(--mb-chalk)' }}
                         placeholder="Write a short public description about this founder or business..."
                       />
+                      <div style={{ marginTop: 8 }}>
+                        <RetroButton
+                          size="sm"
+                          onClick={() => handleGenerateAbout(p.id)}
+                          disabled={generatingAboutId === p.id}
+                          style={{ textTransform: 'none' }}
+                        >
+                          {generatingAboutId === p.id ? "Generating..." : "Generate from Application"}
+                        </RetroButton>
+                      </div>
                     </div>
 
                     {/* Pitch Photo: direct upload to pitch-photos/ in Firebase Storage. */}
@@ -5794,7 +6749,7 @@ return (
                                   if (file) handlePhotoUpload(p.id, file);
                                   e.target.value = '';
                                 }}
-                                style={{ fontFamily: 'inherit', fontSize: 12 }}
+                                style={{ fontFamily: 'inherit', fontSize: 12, padding: 6, border: '2px solid var(--mb-ink)', boxShadow: 'var(--shadow-hard-sm)', background: 'var(--mb-chalk)' }}
                               />
                               <div style={{ fontSize: 11, color: 'var(--mb-ink-60, #666)' }}>
                                 {isUploading
@@ -5808,21 +6763,17 @@ return (
                     </div>
 
                     {/* Single Save Button */}
-                    <RetroButton 
+                    <RetroButton
+                      variant={pendingChanges[p.id] ? 'primary' : 'default'}
                       onClick={() => handleSaveAllChanges(p.id)}
-                      style={{ 
-                        marginTop: '15px',
-                        padding: '6px 12px',
-                        fontSize: '0.9em',
-                        background: pendingChanges[p.id] ? '#d4edda' : '#e0e0e0',
-                        border: pendingChanges[p.id] ? '1px solid #c3e6cb' : '1px solid #aaa'
-                      }}
+                      style={{ marginTop: '15px', textTransform: 'none' }}
                       disabled={!pendingChanges[p.id]}
                     >
                       Save All Changes
                     </RetroButton>
                   </div>
-                ))}
+                  );
+                })}
                 </section>
               </>
             );
@@ -5846,7 +6797,7 @@ return (
                     Everyone on your <em>bench</em>.
                   </h2>
                   <p className="admin-section-head__lede">
-                    Manage profiles, roles, and chapter assignments. Edits sync to the LP directory instantly.
+                    Manage profiles and roles. Edits sync to the LP directory instantly.
                   </p>
                 </div>
                 <div className="admin-hero-stats">
@@ -5869,7 +6820,7 @@ return (
               <h5>Registered User Accounts</h5>
               {(!Array.isArray(sortedUsers) || sortedUsers.length === 0) ? (
                 <EmptyState
-                  icon="👥"
+                  icon={null}
                   title="No registered user accounts"
                   description="Users will appear here once they accept an invitation or sign in for the first time."
                 />
@@ -5918,10 +6869,9 @@ return (
                                       <img
                                         src={rowPhotoUrl}
                                         alt=""
+                                        className="member-photo"
                                         style={{
-                                          width: 32, height: 32, objectFit: 'cover', flexShrink: 0,
-                                          border: '2px solid var(--gnf-border-pink-light, #FFD6EC)',
-                                          background: '#fff'
+                                          width: 32, height: 32, objectFit: 'cover', flexShrink: 0
                                         }}
                                         onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
                                       />
@@ -6052,10 +7002,10 @@ return (
                                               <img
                                                 src={previewUrl}
                                                 alt={u.name || u.email}
+                                                className="member-photo"
                                                 style={{
                                                   width: 72, height: 72, objectFit: 'cover',
-                                                  border: '3px solid var(--gnf-border-pink-light, #FFD6EC)',
-                                                  background: '#fff', display: 'block'
+                                                  display: 'block'
                                                 }}
                                                 onError={(e) => {
                                                   // Hide a broken legacy fallback (member with no
@@ -6231,7 +7181,7 @@ return (
                     Invite a new <em>LP</em>.
                   </h2>
                   <p className="admin-section-head__lede">
-                    Fill out the form and click <strong>Send invite</strong>. We&rsquo;ll create their account and email them a one-tap magic-link to sign in &mdash; no passwords, no Firebase Console trips.
+                    Fill out the form and click <strong>Send invite</strong>. We&rsquo;ll create their account and email them a one-tap magic-link to sign in.
                   </p>
                 </div>
               </section>
@@ -6380,9 +7330,6 @@ return (
                   <h2 className="admin-section-head__title">
                     The <em>dangerous</em> stuff.
                   </h2>
-                  <p className="admin-section-head__lede">
-                    One-time migrations, badge runs, and stat recalculations. Most are safe to re-run &mdash; each card says so.
-                  </p>
                 </div>
               </section>
 
@@ -6452,14 +7399,6 @@ return (
                   }
                 />
               </div>
-
-              <div className="retro-empty" style={{ marginTop: 24 }}>
-                <div className="retro-empty-icon" aria-hidden="true">🧰</div>
-                <div className="retro-empty-title">Coming soon</div>
-                <div className="retro-empty-body">
-                  More super admin tools for managing chapters, global settings, and analytics.
-                </div>
-              </div>
               </section>
             </>
           )}
@@ -6470,227 +7409,43 @@ return (
             const visibleChapters = isSuperAdmin
               ? chapters
               : chapters.filter(c => c.name === userChapter);
-            const totalChapters = chapters.length;
-            const activeChapters = chapters.filter(c => c.active !== false).length;
-            return (
-            <>
-              <section className="admin-section admin-section--hero admin-section--tangerine-soft">
-                <div className="admin-section-head">
-                  <span className="admin-section-head__eyebrow">
-                    {isSuperAdmin ? 'Chapters · Directory' : 'Your Chapter · Landing page'}
-                  </span>
-                  <h2 className="admin-section-head__title">
-                    {isSuperAdmin
-                      ? <>Where the <em>neighborhoods</em> live.</>
-                      : <>Your chapter&rsquo;s <em>front door</em>.</>}
-                  </h2>
-                  <p className="admin-section-head__lede">
-                    {isSuperAdmin
-                      ? <>The <code>/chapters</code> collection powers every chapter dropdown, hydrates the public <code>/&lt;slug&gt;</code> landing pages, and scopes role-based access across the portal.</>
-                      : <>Edit the content on your chapter&rsquo;s public landing page at <code>/{(visibleChapters[0]?.pageSlug || visibleChapters[0]?.id || 'your-chapter')}</code> — hero tagline, counties, &ldquo;Serving&hellip;&rdquo; text, and section toggles.</>}
-                  </p>
-                </div>
-                {isSuperAdmin && (
-                  <div className="admin-hero-stats">
-                    <div className="admin-hero-stat">
-                      <span className="admin-hero-stat__num">{totalChapters}</span>
-                      <span className="admin-hero-stat__label">Total chapters</span>
-                    </div>
-                    <div className="admin-hero-stat">
-                      <span className="admin-hero-stat__num">{activeChapters}</span>
-                      <span className="admin-hero-stat__label">Active</span>
-                    </div>
-                  </div>
-                )}
-              </section>
-
-              <section className="admin-section admin-section--chalk">
-              {isSuperAdmin && (
-                <div className="retro-hint" style={{ marginBottom: 20 }}>
-                  <strong>Chapter directors</strong> are derived, not stored — assign a user <em>Chapter Director</em> in the Users tab and their chapter. They&rsquo;ll appear here automatically.
-                  <br />
-                  <span style={{ color: 'var(--mb-tangerine-deep)', fontWeight: 600 }}>Heads-up:</span> Slack notifications and LP application emails still use hardcoded maps in <code>functions/index.js</code>. Adding a new chapter here won&rsquo;t fully wire notifications until those are updated.
-                </div>
-              )}
-
-              {isSuperAdmin && (() => {
-                const legacySlugs = ['wny', 'denver', 'upstate', 'capital-region'];
-                const missingSlugs = legacySlugs.filter(s => !chapters.some(c => c.id === s));
-                if (missingSlugs.length === 0) return null;
-                const isFreshSetup = chapters.length === 0;
-                return (
-                  <div className="admin-tool-card" style={{ marginBottom: 20 }}>
-                    <div className="admin-tool-card__eyebrow">Setup</div>
-                    <h5 className="admin-tool-card__title">
-                      {isFreshSetup ? 'No chapters yet' : `Missing ${missingSlugs.length} chapter${missingSlugs.length === 1 ? '' : 's'}`}
-                    </h5>
-                    <div className="admin-tool-card__body">
-                      {isFreshSetup ? (
-                        <>Seed the collection with the 4 legacy chapters using the Slack channel and email values currently in <code>functions/index.js</code>.</>
-                      ) : (
-                        <>
-                          Missing: <code>{missingSlugs.join(', ')}</code>. Seeding creates any missing chapters and fills in only empty fields on existing ones — it will never overwrite values you&rsquo;ve already edited.
-                        </>
-                      )}
-                    </div>
-                    <div className="admin-tool-card__action">
-                      <RetroButton onClick={handleSeedLegacyChapters} variant="primary">
-                        {isFreshSetup ? 'Seed Legacy Chapters' : 'Seed Missing Chapters'}
-                      </RetroButton>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {visibleChapters.length > 0 && (
-                <div className="retro-table-wrap" style={{ marginBottom: 20 }}>
-                  <table className="retro-table">
-                    <thead>
-                      <tr>
-                        {isSuperAdmin && <th style={{ width: '40px' }}>#</th>}
-                        <th>Chapter</th>
-                        {isSuperAdmin && <th>Public page</th>}
-                        {isSuperAdmin && <th>Contact</th>}
-                        {isSuperAdmin && <th>Director(s)</th>}
-                        <th style={{ textAlign: 'center', width: '130px' }}>Sections</th>
-                        {isSuperAdmin && <th style={{ textAlign: 'center', width: '80px' }}>Status</th>}
-                        <th style={{ width: '140px' }}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibleChapters.map(c => {
-                        // Directors are DERIVED, not stored. Any user with role=chapter_director
-                        // and chapter matching this chapter's display name is a director.
-                        const directors = users.filter(u => u.role === 'chapter_director' && u.chapter === c.name);
-                        const pageSlug = c.pageSlug || c.id;
-                        const contactLines = [c.emailAlias, c.slackChannel && `pitch: ${c.slackChannel}`, c.lpSlackChannel && `lp: ${c.lpSlackChannel}`].filter(Boolean);
-                        return (
-                          <tr key={c.id} className={c.active === false ? 'is-inactive' : ''}>
-                            {isSuperAdmin && <td style={{ color: 'var(--mb-ink-60)', fontFamily: 'var(--font-numeral)' }}>{c.order ?? '—'}</td>}
-                            <td>
-                              <div style={{ fontWeight: 700 }}>{c.name || <span style={{ color: 'var(--mb-magenta-deep)' }}>(no name)</span>}</div>
-                              {isSuperAdmin && <div style={{ fontFamily: 'var(--font-numeral)', fontSize: '11px', color: 'var(--mb-ink-60)', marginTop: 2 }}>{c.id}</div>}
-                            </td>
-                            {isSuperAdmin && (
-                              <td>
-                                <a href={`/${pageSlug}`} target="_blank" rel="noreferrer" style={{ fontFamily: 'var(--font-numeral)', fontSize: 12 }}>
-                                  /{pageSlug} ↗
-                                </a>
-                              </td>
-                            )}
-                            {isSuperAdmin && (
-                              <td style={{ fontSize: 12, lineHeight: 1.4 }}>
-                                {contactLines.length === 0
-                                  ? <span style={{ color: 'var(--mb-ink-60)' }}>—</span>
-                                  : contactLines.map((line, i) => <div key={i} style={{ fontFamily: i === 0 ? 'var(--font-content)' : 'var(--font-numeral)' }}>{line}</div>)}
-                              </td>
-                            )}
-                            {isSuperAdmin && (
-                              <td style={{ fontSize: 13 }}>
-                                {directors.length === 0 ? (
-                                  <span style={{ color: 'var(--mb-ink-60)' }} title="Assign a user role 'Chapter Director' with this chapter in the Users tab.">none</span>
-                                ) : (
-                                  directors.map(d => d.name || d.email || d.uid).join(', ')
-                                )}
-                              </td>
-                            )}
-                            <td style={{ textAlign: 'center', fontSize: 12, whiteSpace: 'nowrap' }}>
-                              <span title="LP grid" style={{ marginRight: 8 }}>LPs {c.showLPs === false ? '🚫' : '✅'}</span>
-                              <span title="Community gallery">Gallery {c.showGallery === false ? '🚫' : '✅'}</span>
-                            </td>
-                            {isSuperAdmin && (
-                              <td style={{ textAlign: 'center' }}>{c.active === false ? '🚫' : '✅'}</td>
-                            )}
-                            <td className="actions">
-                              <RetroButton
-                                size="sm"
-                                onClick={() => {
-                                  setEditingChapterId(c.id);
-                                  setIsAddingChapter(false);
-                                  setChapterFormData({
-                                    slug: c.id,
-                                    name: c.name || '',
-                                    pageSlug: c.pageSlug || '',
-                                    tagline: c.tagline || '',
-                                    foundedYear: typeof c.foundedYear === 'number' ? c.foundedYear : '',
-                                    emailAlias: c.emailAlias || '',
-                                    slackChannel: c.slackChannel || '',
-                                    lpSlackChannel: c.lpSlackChannel || '',
-                                    active: c.active !== false,
-                                    order: typeof c.order === 'number' ? c.order : 0,
-                                    heroTitle: c.heroTitle || '',
-                                    heroTagline: c.heroTagline || '',
-                                    heroImage: c.heroImage || '',
-                                    heroImageCaption: c.heroImageCaption || '',
-                                    servingTitle: c.servingTitle || '',
-                                    servingText: c.servingText || '',
-                                    counties: Array.isArray(c.counties) ? c.counties : [],
-                                    poweredByText: c.poweredByText || '',
-                                    galleryPhotos: Array.isArray(c.galleryPhotos) ? c.galleryPhotos : [],
-                                    showLPs: c.showLPs !== false,
-                                    showGallery: c.showGallery !== false,
-                                  });
-                                }}
-                              >
-                                Edit
-                              </RetroButton>
-                              {isSuperAdmin && (
-                                <RetroButton
-                                  size="sm"
-                                  variant="danger"
-                                  onClick={() => handleDeleteChapter(c.id, c.name || c.id)}
-                                  ariaLabel={`Delete chapter ${c.name || c.id}`}
-                                >
-                                  🗑️
-                                </RetroButton>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {isSuperAdmin && !isAddingChapter && !editingChapterId && (
-                <RetroButton
-                  onClick={() => {
-                    setIsAddingChapter(true);
-                    setEditingChapterId(null);
-                    setChapterFormData({ ...emptyChapterForm, order: chapters.length + 1 });
-                  }}
-                  variant="primary"
-                  style={{ marginBottom: '20px' }}
-                >
-                  + Add Chapter
-                </RetroButton>
-              )}
-
-              {(isAddingChapter || editingChapterId) && (() => {
+            const chapterColSpan = isSuperAdmin ? 8 : 3;
+            const renderChapterForm = () => {
                 // Minimal local styles — grid layout only. Label / input typography
                 // comes from `.mb-form-shell` via theme-tokens.css, which auto-themes
                 // every input/textarea/select/label inside the form container.
                 const fieldWrapStyle = { display: 'flex', flexDirection: 'column' };
-                const gridTwoCol = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' };
-                const gridThreeCol = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '16px' };
-                const subCardStyle = {
-                  background: 'var(--mb-chalk)',
-                  border: '2px solid var(--mb-ink)',
-                  boxShadow: 'var(--shadow-hard-sm)',
-                  padding: '18px 20px 14px',
-                  marginBottom: '18px',
+                const gridTwoCol = { display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: '36px', rowGap: '24px', marginBottom: '24px' };
+                const gridThreeCol = { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', columnGap: '32px', rowGap: '24px', marginBottom: '24px' };
+                const tabIntroStyle = {
+                  margin: '0 0 18px 0',
+                  padding: '0 0 12px 0',
+                  borderBottom: '1px dashed var(--mb-ink-15)',
                 };
-                const subCardTitleStyle = {
-                  margin: '0 0 14px 0',
-                  padding: '0 0 8px 0',
+                const tabEyebrowStyle = {
+                  display: 'block',
                   fontFamily: 'var(--font-pixel)',
-                  fontSize: '11px',
+                  fontSize: '10px',
                   fontWeight: 600,
-                  color: 'var(--mb-ink)',
+                  color: 'var(--mb-magenta)',
                   textTransform: 'uppercase',
-                  letterSpacing: '0.14em',
-                  borderBottom: '1px solid var(--mb-ink-15)',
+                  letterSpacing: '0.18em',
+                  marginBottom: '4px',
+                };
+                const tabHeadingStyle = {
+                  margin: 0,
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: '18px',
+                  letterSpacing: '-0.01em',
+                  color: 'var(--mb-ink)',
+                };
+                const tabHelpStyle = {
+                  display: 'block',
+                  marginTop: '6px',
+                  fontFamily: 'var(--font-content)',
+                  fontSize: '12px',
+                  color: 'var(--mb-ink-60)',
+                  lineHeight: 1.5,
                 };
                 const helpStyle = {
                   display: 'block',
@@ -6700,25 +7455,40 @@ return (
                   color: 'var(--mb-ink-60)',
                   lineHeight: 1.5,
                 };
-                // Empty objects so inline styles don't override .mb-form-shell rules.
-                const labelStyle = {};
-                const inputStyle = { width: '100%' };
-                const monoInputStyle = { width: '100%', fontFamily: 'var(--font-numeral)', fontSize: 13 };
+                // Compact input overrides — tighter than the default `.mb-form-shell`
+                // so dense admin forms don't feel as chunky as marketing-page fields.
+                const labelStyle = { fontSize: '10px', letterSpacing: '0.14em' };
+                const inputStyle = { width: '100%', padding: '7px 10px', fontSize: '13px', minHeight: 0, lineHeight: 1.3 };
+                const monoInputStyle = { width: '100%', padding: '7px 10px', fontSize: '12px', minHeight: 0, lineHeight: 1.3, fontFamily: 'var(--font-numeral)' };
+                const textareaStyle = { width: '100%', padding: '8px 10px', fontSize: '13px', lineHeight: 1.4, resize: 'vertical' };
 
                 const countyList = Array.isArray(chapterFormData.counties)
                   ? chapterFormData.counties.map(s => String(s).trim()).filter(Boolean)
                   : [];
+                const galleryList = Array.isArray(chapterFormData.galleryPhotos) ? chapterFormData.galleryPhotos : [];
+                const heroBusy = !!uploadingPhotoFor[`hero:${editingChapterId}`];
+                const galleryBusy = !!uploadingPhotoFor[`gallery:${editingChapterId}`];
+
+                // Tab strip config. Chapter directors don't see Identity. The add-chapter
+                // flow is Identity-only — Content/Photos/Visibility need a saved doc first.
+                const tabs = [];
+                if (isSuperAdmin) tabs.push({ key: 'identity', label: 'Identity' });
+                if (!isAddingChapter) {
+                  tabs.push({ key: 'content',    label: 'Content' });
+                  tabs.push({ key: 'photos',     label: 'Photos' });
+                  tabs.push({ key: 'visibility', label: 'Visibility' });
+                }
+                const activeTabKey = tabs.some(t => t.key === chapterFormTab) ? chapterFormTab : (tabs[0]?.key || 'content');
 
                 return (
                 <div
                   className="mb-form-shell"
                   style={{
                     width: '100%',
-                    maxWidth: '980px',
                     background: 'var(--mb-paper)',
                     border: '2px solid var(--mb-ink)',
                     boxShadow: 'var(--shadow-hard)',
-                    marginBottom: '24px',
+                    marginBottom: 0,
                   }}
                 >
                   {/* Ink titlebar, matching the portal chrome */}
@@ -6729,7 +7499,7 @@ return (
                     gap: '12px',
                     background: 'var(--mb-ink)',
                     color: 'var(--mb-chalk)',
-                    padding: '10px 14px',
+                    padding: '14px 32px',
                     fontFamily: 'var(--font-pixel)',
                     fontSize: '11px',
                     letterSpacing: '0.14em',
@@ -6757,11 +7527,57 @@ return (
                     )}
                   </div>
 
-                  <div style={{ padding: '20px 22px 12px' }}>
+                  {/* Tab strip — flat ink-backed segment control, no bevel overlap. */}
+                  {tabs.length > 1 && (
+                    <div
+                      role="tablist"
+                      aria-label="Chapter edit sections"
+                      style={{
+                        display: 'flex',
+                        background: 'var(--mb-chalk)',
+                        borderBottom: '2px solid var(--mb-ink)',
+                      }}
+                    >
+                      {tabs.map((t, i) => {
+                        const isActive = activeTabKey === t.key;
+                        const isLast = i === tabs.length - 1;
+                        return (
+                          <button
+                            key={t.key}
+                            type="button"
+                            role="tab"
+                            aria-selected={isActive}
+                            onClick={() => setChapterFormTab(t.key)}
+                            style={{
+                              padding: '14px 24px',
+                              fontFamily: 'var(--font-pixel)',
+                              fontSize: '11px',
+                              fontWeight: 600,
+                              letterSpacing: '0.14em',
+                              textTransform: 'uppercase',
+                              color: isActive ? 'var(--mb-chalk)' : 'var(--mb-ink-60)',
+                              background: isActive ? 'var(--mb-ink)' : 'transparent',
+                              border: 'none',
+                              borderRight: isLast ? 'none' : '1px solid var(--mb-ink-15)',
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {t.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div style={{ padding: '28px 32px 18px', maxWidth: '720px' }}>
                     {/* ─── Identity & Admin ─── superAdmin only */}
-                    {isSuperAdmin && (
-                      <section style={subCardStyle}>
-                        <h6 style={subCardTitleStyle}>Identity &amp; Admin</h6>
+                    {activeTabKey === 'identity' && isSuperAdmin && (
+                      <section>
+                        <div style={tabIntroStyle}>
+                          <span style={tabEyebrowStyle}>Identity · Admin</span>
+                          <h3 style={tabHeadingStyle}>Chapter identity &amp; routing</h3>
+                          <small style={tabHelpStyle}>Display name, slug, contact email, Slack channel IDs. These drive notifications and access control.</small>
+                        </div>
 
                         <div style={gridTwoCol}>
                           <div style={fieldWrapStyle}>
@@ -6822,7 +7638,7 @@ return (
                             onChange={(e) => setChapterFormData({ ...chapterFormData, tagline: e.target.value })}
                             placeholder="e.g. Serving Buffalo and the surrounding 8 counties."
                             rows={2}
-                            style={{ ...inputStyle, minHeight: '48px', resize: 'vertical' }}
+                            style={textareaStyle}
                           />
                           <small style={helpStyle}>Shown on the chapter list and the dynamic chapter page fallback.</small>
                         </div>
@@ -6850,7 +7666,11 @@ return (
                           </div>
                         </div>
 
-                        <div style={{ ...gridThreeCol, marginBottom: '4px' }}>
+                        {/* Year, founding date & order. Founded date drives the Founding Member
+                             badge: any LP joining within 1 year of this date earns it
+                             automatically. Active lives on its own row below as a dedicated
+                             toggle — a boolean doesn't belong next to numeric fields. */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 160px) minmax(0, 200px) minmax(0, 120px)', columnGap: '32px', rowGap: '24px', marginBottom: '24px', alignItems: 'start' }}>
                           <div style={fieldWrapStyle}>
                             <label style={labelStyle}>Founded year</label>
                             <input
@@ -6862,6 +7682,16 @@ return (
                             />
                           </div>
                           <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>Founded date</label>
+                            <input
+                              type="date"
+                              value={chapterFormData.foundedDate}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, foundedDate: e.target.value })}
+                              style={inputStyle}
+                            />
+                            <small style={helpStyle}>Drives Founding Member badge.</small>
+                          </div>
+                          <div style={fieldWrapStyle}>
                             <label style={labelStyle}>Order</label>
                             <input
                               type="number"
@@ -6870,30 +7700,52 @@ return (
                               style={inputStyle}
                             />
                           </div>
-                          <div style={fieldWrapStyle}>
-                            <label style={labelStyle}>Active</label>
-                            <select
-                              value={chapterFormData.active ? 'true' : 'false'}
-                              onChange={(e) => setChapterFormData({ ...chapterFormData, active: e.target.value === 'true' })}
-                              style={inputStyle}
-                            >
-                              <option value="true">✅ Active (appears in dropdowns)</option>
-                              <option value="false">🚫 Inactive (hidden)</option>
-                            </select>
-                          </div>
                         </div>
+
+                        {/* Active — dedicated checkbox-style toggle row. */}
+                        <label style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          padding: '8px 14px',
+                          background: chapterFormData.active ? 'var(--mb-chalk)' : 'var(--mb-paper)',
+                          border: '2px solid var(--mb-ink)',
+                          boxShadow: 'var(--shadow-hard-sm)',
+                          cursor: 'pointer',
+                          marginBottom: 0,
+                          fontFamily: 'var(--font-content)',
+                          fontSize: '13px',
+                          textTransform: 'none',
+                          letterSpacing: 0,
+                          fontWeight: 600,
+                          color: 'var(--mb-ink)',
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={chapterFormData.active}
+                            onChange={(e) => setChapterFormData({ ...chapterFormData, active: e.target.checked })}
+                            style={{ width: 16, height: 16, margin: 0, padding: 0, accentColor: 'var(--mb-magenta)' }}
+                          />
+                          <StatusIcon type={chapterFormData.active ? 'check' : 'cross'} size={14} />
+                          <span>{chapterFormData.active ? 'Active' : 'Inactive'}</span>
+                          <span style={{ color: 'var(--mb-ink-60)', fontWeight: 400, marginLeft: 4 }}>
+                            {chapterFormData.active ? '— appears in chapter dropdowns' : '— hidden from dropdowns'}
+                          </span>
+                        </label>
                       </section>
                     )}
 
                     {/* ─── Landing-page content ─── editable by chapter_director + superAdmin */}
-                    {!isAddingChapter && (
-                      <section style={subCardStyle}>
-                        <h6 style={subCardTitleStyle}>Landing-page content</h6>
-                        <p style={{ margin: '-6px 0 14px 0', fontSize: '11px', color: '#666' }}>
-                          Live-edits the public <code>/{chapterFormData.pageSlug || chapterFormData.slug}</code> page. Blank fields fall back to the defaults baked into the HTML.
-                        </p>
+                    {activeTabKey === 'content' && !isAddingChapter && (
+                      <section>
+                        <div style={tabIntroStyle}>
+                          <span style={tabEyebrowStyle}>Content · Public page</span>
+                          <h3 style={tabHeadingStyle}>What visitors read on <code style={{ fontSize: '16px' }}>/{chapterFormData.pageSlug || chapterFormData.slug}</code></h3>
+                          <small style={tabHelpStyle}>Hero copy, &ldquo;Serving&hellip;&rdquo; blurb, counties list, and the closing &ldquo;Powered by People&rdquo; paragraph. Blank fields fall back to defaults baked into the HTML.</small>
+                        </div>
 
-                        <div style={{ ...fieldWrapStyle, marginBottom: '12px' }}>
+                        {/* Hero block — the H1 and its tagline are THE hero, so each gets its own row. */}
+                        <div style={{ ...fieldWrapStyle, marginBottom: '24px' }}>
                           <label style={labelStyle}>Hero title (H1)</label>
                           <input
                             type="text"
@@ -6904,45 +7756,45 @@ return (
                           />
                         </div>
 
-                        <div style={{ ...fieldWrapStyle, marginBottom: '12px' }}>
+                        <div style={{ ...fieldWrapStyle, marginBottom: '24px' }}>
                           <label style={labelStyle}>Hero tagline</label>
                           <textarea
                             value={chapterFormData.heroTagline}
                             onChange={(e) => setChapterFormData({ ...chapterFormData, heroTagline: e.target.value })}
                             placeholder='e.g. "No pitch deck required. No equity taken. Just belief in your vision and potential."'
                             rows={2}
-                            style={{ ...inputStyle, minHeight: '48px', resize: 'vertical' }}
+                            style={{ ...textareaStyle, minHeight: '60px' }}
                           />
                           <small style={helpStyle}>The brand lede (<em>"We back brilliant ideas…"</em>) stays — this is the sentence that follows it.</small>
                         </div>
 
-                        <div style={gridTwoCol}>
-                          <div style={fieldWrapStyle}>
-                            <label style={labelStyle}>"Serving…" heading</label>
-                            <input
-                              type="text"
-                              value={chapterFormData.servingTitle}
-                              onChange={(e) => setChapterFormData({ ...chapterFormData, servingTitle: e.target.value })}
-                              placeholder='e.g. "Serving All of Western New York"'
-                              style={inputStyle}
-                            />
-                          </div>
-                          <div style={fieldWrapStyle}>
-                            <label style={labelStyle}>"Serving…" description</label>
-                            <textarea
-                              value={chapterFormData.servingText}
-                              onChange={(e) => setChapterFormData({ ...chapterFormData, servingText: e.target.value })}
-                              placeholder="One paragraph describing the region."
-                              rows={3}
-                              style={{ ...inputStyle, minHeight: '64px', resize: 'vertical' }}
-                            />
-                          </div>
+                        {/* Serving block — heading + description stacked vertically so heights never mismatch. */}
+                        <div style={{ ...fieldWrapStyle, marginBottom: '24px' }}>
+                          <label style={labelStyle}>"Serving…" heading</label>
+                          <input
+                            type="text"
+                            value={chapterFormData.servingTitle}
+                            onChange={(e) => setChapterFormData({ ...chapterFormData, servingTitle: e.target.value })}
+                            placeholder='e.g. "Serving All of Western New York"'
+                            style={inputStyle}
+                          />
+                        </div>
+                        <div style={{ ...fieldWrapStyle, marginBottom: '24px' }}>
+                          <label style={labelStyle}>"Serving…" description</label>
+                          <textarea
+                            value={chapterFormData.servingText}
+                            onChange={(e) => setChapterFormData({ ...chapterFormData, servingText: e.target.value })}
+                            placeholder="One paragraph describing the region."
+                            rows={3}
+                            style={{ ...textareaStyle, minHeight: '80px' }}
+                          />
                         </div>
 
-                        <div style={{ ...fieldWrapStyle, marginBottom: '12px' }}>
+                        {/* Counties — narrower textarea, one county per line. */}
+                        <div style={{ ...fieldWrapStyle, marginBottom: '24px', maxWidth: '520px' }}>
                           <label style={labelStyle}>
                             Counties
-                            <span style={{ fontWeight: 'normal', color: '#666', marginLeft: '8px' }}>
+                            <span style={{ fontWeight: 'normal', color: 'var(--mb-ink-60)', marginLeft: '8px', textTransform: 'none', letterSpacing: 0, fontSize: 12 }}>
                               {countyList.length} {countyList.length === 1 ? 'county' : 'counties'}
                             </span>
                           </label>
@@ -6951,24 +7803,9 @@ return (
                             onChange={(e) => setChapterFormData({ ...chapterFormData, counties: e.target.value.split('\n') })}
                             placeholder={"Erie County\nNiagara County\nCattaraugus"}
                             rows={6}
-                            style={{ ...inputStyle, minHeight: '110px', resize: 'vertical' }}
+                            style={{ ...textareaStyle, minHeight: '150px', fontFamily: 'var(--font-numeral)', fontSize: '12px' }}
                           />
-                          <small style={helpStyle}>One county per line. Rendered as chips in the "Serving…" section.</small>
-                          {countyList.length > 0 && (
-                            <div style={{
-                              marginTop: 10,
-                              padding: '10px 12px',
-                              background: 'var(--mb-chalk)',
-                              border: '1.5px solid var(--mb-ink)',
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              gap: 6,
-                            }}>
-                              {countyList.map((c, i) => (
-                                <span key={i} className="retro-pill" style={{ fontFamily: 'var(--font-content)', fontSize: 12, letterSpacing: '0.04em', textTransform: 'none' }}>{c}</span>
-                              ))}
-                            </div>
-                          )}
+                          <small style={helpStyle}>One county per line. Rendered as chips in the &ldquo;Serving&hellip;&rdquo; section on the public page.</small>
                         </div>
 
                         <div style={{ ...fieldWrapStyle, marginBottom: 0 }}>
@@ -6978,23 +7815,47 @@ return (
                             onChange={(e) => setChapterFormData({ ...chapterFormData, poweredByText: e.target.value })}
                             placeholder="Describe how your chapter's LPs pool capital to fund local founders."
                             rows={4}
-                            style={{ ...inputStyle, minHeight: '90px', resize: 'vertical' }}
+                            style={{ ...textareaStyle, minHeight: '110px' }}
                           />
+                        </div>
+
+                        <div style={{ ...fieldWrapStyle, marginBottom: '12px' }}>
+                          <label style={labelStyle}>Default grant amount</label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span>$</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              inputMode="numeric"
+                              value={
+                                chapterFormData.defaultGrantAmount === '' || chapterFormData.defaultGrantAmount == null
+                                  ? ''
+                                  : chapterFormData.defaultGrantAmount
+                              }
+                              onChange={(e) => setChapterFormData({
+                                ...chapterFormData,
+                                defaultGrantAmount: e.target.value === '' ? '' : Number(e.target.value)
+                              })}
+                              placeholder="1000"
+                              style={{ ...monoInputStyle, width: 160 }}
+                            />
+                          </div>
+                          <small style={helpStyle}>
+                            Used by the Statistics tab as the dollar value of any winner pitch without an explicit award amount. Blank defers to the historical $1,000 baseline.
+                          </small>
                         </div>
                       </section>
                     )}
 
                     {/* ─── Landing-page photos ─── editable by chapter_director + superAdmin */}
-                    {!isAddingChapter && (() => {
-                      const heroBusy = !!uploadingPhotoFor[`hero:${editingChapterId}`];
-                      const galleryBusy = !!uploadingPhotoFor[`gallery:${editingChapterId}`];
-                      const galleryList = Array.isArray(chapterFormData.galleryPhotos) ? chapterFormData.galleryPhotos : [];
-                      return (
-                        <section style={subCardStyle}>
-                          <h6 style={subCardTitleStyle}>Landing-page photos</h6>
-                          <p style={{ margin: '-6px 0 14px 0', fontSize: '11px', color: '#666' }}>
-                            Uploads save immediately to <code>chapter-photos/{editingChapterId}/</code>. No "Save" click needed.
-                          </p>
+                    {activeTabKey === 'photos' && !isAddingChapter && (
+                      <section>
+                        <div style={tabIntroStyle}>
+                          <span style={tabEyebrowStyle}>Photos · Hero + Gallery</span>
+                          <h3 style={tabHeadingStyle}>Imagery for the public page</h3>
+                          <small style={tabHelpStyle}>Uploads save immediately to <code>chapter-photos/{editingChapterId}/</code> &mdash; no &ldquo;Save&rdquo; click needed for photos.</small>
+                        </div>
 
                           {/* Hero image */}
                           <div style={{ ...fieldWrapStyle, marginBottom: '16px' }}>
@@ -7030,10 +7891,10 @@ return (
                                   </span>
                                 )}
                               </div>
-                              <div style={{ flex: 1, minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                              <div style={{ flex: 1, minWidth: '220px', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '10px' }}>
                                 <label
                                   className="win95-btn win95-btn-primary"
-                                  style={{ display: 'inline-block', textAlign: 'center', cursor: heroBusy ? 'wait' : 'pointer', opacity: heroBusy ? 0.6 : 1 }}
+                                  style={{ display: 'inline-block', textAlign: 'center', cursor: heroBusy ? 'wait' : 'pointer', opacity: heroBusy ? 0.6 : 1, padding: '5px 12px', fontSize: '12px' }}
                                 >
                                   {heroBusy ? 'Uploading…' : chapterFormData.heroImage ? 'Replace hero image' : 'Upload hero image'}
                                   <input
@@ -7150,40 +8011,87 @@ return (
                                 />
                               </label>
                             </div>
-                            <small style={helpStyle}>Photos render in a grid under "Building &lt;Chapter&gt;'s Entrepreneurial Community." Toggle the whole grid on/off via "Show community gallery" below.</small>
-                          </div>
-                        </section>
-                      );
-                    })()}
+                          <small style={helpStyle}>Photos render in a grid under "Building &lt;Chapter&gt;'s Entrepreneurial Community." Toggle the whole grid on/off via "Show community gallery" below.</small>
+                        </div>
+                      </section>
+                    )}
 
                     {/* ─── Section visibility ─── */}
-                    {!isAddingChapter && (
-                      <section style={subCardStyle}>
-                        <h6 style={subCardTitleStyle}>Section visibility</h6>
+                    {activeTabKey === 'visibility' && !isAddingChapter && (
+                      <section>
+                        <div style={tabIntroStyle}>
+                          <span style={tabEyebrowStyle}>Visibility · Public page</span>
+                          <h3 style={tabHeadingStyle}>Which sections appear on the landing page</h3>
+                          <small style={tabHelpStyle}>Toggle whole blocks of the public <code>/{chapterFormData.pageSlug || chapterFormData.slug}</code> page on or off. Changes take effect immediately on save.</small>
+                        </div>
                         <div style={{ ...gridTwoCol, marginBottom: 0 }}>
                           <div style={fieldWrapStyle}>
-                            <label style={labelStyle}>Show LP grid</label>
+                            <label style={labelStyle}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                <StatusIcon type={chapterFormData.showLPs ? 'check' : 'cross'} size={14} />
+                                Show LP grid
+                              </span>
+                            </label>
                             <select
                               value={chapterFormData.showLPs ? 'true' : 'false'}
                               onChange={(e) => setChapterFormData({ ...chapterFormData, showLPs: e.target.value === 'true' })}
                               style={inputStyle}
                             >
-                              <option value="true">✅ Shown on public page</option>
-                              <option value="false">🚫 Hidden</option>
+                              <option value="true">Shown on public page</option>
+                              <option value="false">Hidden</option>
                             </select>
                             <small style={helpStyle}>Toggles the "Chapter LPs" section on the landing page.</small>
                           </div>
                           <div style={fieldWrapStyle}>
-                            <label style={labelStyle}>Show community gallery</label>
+                            <label style={labelStyle}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                <StatusIcon type={chapterFormData.showImpact !== false ? 'check' : 'cross'} size={14} />
+                                Show impact stats
+                              </span>
+                            </label>
+                            <select
+                              value={chapterFormData.showImpact !== false ? 'true' : 'false'}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, showImpact: e.target.value === 'true' })}
+                              style={inputStyle}
+                            >
+                              <option value="true">Shown on public page</option>
+                              <option value="false">Hidden</option>
+                            </select>
+                            <small style={helpStyle}>Toggles the "Our Impact Since YYYY" section. Numbers are auto-calculated from this chapter's grant winners (count, women-owned %, BIPOC-owned %, total awarded).</small>
+                          </div>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                <StatusIcon type={chapterFormData.showGallery ? 'check' : 'cross'} size={14} />
+                                Show community gallery
+                              </span>
+                            </label>
                             <select
                               value={chapterFormData.showGallery ? 'true' : 'false'}
                               onChange={(e) => setChapterFormData({ ...chapterFormData, showGallery: e.target.value === 'true' })}
                               style={inputStyle}
                             >
-                              <option value="true">✅ Shown on public page</option>
-                              <option value="false">🚫 Hidden</option>
+                              <option value="true">Shown on public page</option>
+                              <option value="false">Hidden</option>
                             </select>
                             <small style={helpStyle}>Toggles the photo grid at the bottom of the page.</small>
+                          </div>
+                          <div style={fieldWrapStyle}>
+                            <label style={labelStyle}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                                <StatusIcon type={chapterFormData.showAwardees === true ? 'check' : 'cross'} size={14} />
+                                Show grant awardees
+                              </span>
+                            </label>
+                            <select
+                              value={chapterFormData.showAwardees === true ? 'true' : 'false'}
+                              onChange={(e) => setChapterFormData({ ...chapterFormData, showAwardees: e.target.value === 'true' })}
+                              style={inputStyle}
+                            >
+                              <option value="false">Hidden</option>
+                              <option value="true">Shown on public page</option>
+                            </select>
+                            <small style={helpStyle}>Adds a searchable, sortable grid of this chapter's past grant awardees to the landing page. Off by default.</small>
                           </div>
                         </div>
                       </section>
@@ -7195,14 +8103,15 @@ return (
                     display: 'flex',
                     gap: 10,
                     justifyContent: 'flex-end',
-                    padding: '14px 20px',
+                    padding: '16px 32px',
                     background: 'var(--mb-chalk)',
-                    borderTop: '1px solid var(--mb-ink-15)',
+                    borderTop: '2px solid var(--mb-ink)',
                   }}>
                     <RetroButton
                       onClick={() => {
                         setIsAddingChapter(false);
                         setEditingChapterId(null);
+                        setChapterFormTab('content');
                         setChapterFormData({ ...emptyChapterForm });
                       }}
                     >
@@ -7214,7 +8123,222 @@ return (
                   </div>
                 </div>
                 );
+              };
+            return (
+            <>
+              <section className="admin-section admin-section--hero admin-section--tangerine-soft">
+                <div className="admin-section-head">
+                  <span className="admin-section-head__eyebrow">Chapter</span>
+                  <h2 className="admin-section-head__title">
+                    Where your <em>neighborhood</em> lives.
+                  </h2>
+                  <p className="admin-section-head__lede">
+                    Manage your chapter&rsquo;s landing page — the hero, the story, and everything you want the world to see.
+                  </p>
+                </div>
+              </section>
+
+              <section className="admin-section admin-section--chalk">
+              {isSuperAdmin && (() => {
+                const legacySlugs = ['wny', 'denver', 'upstate', 'capital-region'];
+                const missingSlugs = legacySlugs.filter(s => !chapters.some(c => c.id === s));
+                if (missingSlugs.length === 0) return null;
+                const isFreshSetup = chapters.length === 0;
+                return (
+                  <div className="admin-tool-card" style={{ marginBottom: 20 }}>
+                    <div className="admin-tool-card__eyebrow">Setup</div>
+                    <h5 className="admin-tool-card__title">
+                      {isFreshSetup ? 'No chapters yet' : `Missing ${missingSlugs.length} chapter${missingSlugs.length === 1 ? '' : 's'}`}
+                    </h5>
+                    <div className="admin-tool-card__body">
+                      {isFreshSetup ? (
+                        <>Seed the collection with the 4 legacy chapters using the Slack channel and email values currently in <code>functions/index.js</code>.</>
+                      ) : (
+                        <>
+                          Missing: <code>{missingSlugs.join(', ')}</code>. Seeding creates any missing chapters and fills in only empty fields on existing ones — it will never overwrite values you&rsquo;ve already edited.
+                        </>
+                      )}
+                    </div>
+                    <div className="admin-tool-card__action">
+                      <RetroButton onClick={handleSeedLegacyChapters} variant="primary">
+                        {isFreshSetup ? 'Seed Legacy Chapters' : 'Seed Missing Chapters'}
+                      </RetroButton>
+                    </div>
+                  </div>
+                );
               })()}
+
+              {visibleChapters.length > 0 && (
+                <div className="retro-table-wrap" style={{ marginBottom: 20 }}>
+                  <table className="retro-table">
+                    <thead>
+                      <tr>
+                        {isSuperAdmin && <th style={{ width: '40px' }}>#</th>}
+                        <th>Chapter</th>
+                        {isSuperAdmin && <th>Public page</th>}
+                        {isSuperAdmin && <th>Contact</th>}
+                        {isSuperAdmin && <th>Director(s)</th>}
+                        <th style={{ textAlign: 'center', width: '130px' }}>Sections</th>
+                        {isSuperAdmin && <th style={{ textAlign: 'center', width: '80px' }}>Status</th>}
+                        <th style={{ width: '140px' }}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleChapters.map(c => {
+                        // Directors are DERIVED, not stored. Any user with role=chapter_director
+                        // OR chapterRole=chapter_director (the presentation-only tag for
+                        // superAdmins who also serve as directors) and chapter matching this
+                        // chapter's display name is a director.
+                        const directors = users.filter(u =>
+                          u.chapter === c.name &&
+                          (u.role === 'chapter_director' || u.chapterRole === 'chapter_director')
+                        );
+                        const pageSlug = c.pageSlug || c.id;
+                        const contactLines = [c.emailAlias, c.slackChannel && `pitch: ${c.slackChannel}`, c.lpSlackChannel && `lp: ${c.lpSlackChannel}`].filter(Boolean);
+                        const isEditingThis = editingChapterId === c.id && !isAddingChapter;
+                        return (
+                          <React.Fragment key={c.id}>
+                          <tr className={`${c.active === false ? 'is-inactive ' : ''}${isEditingThis ? 'is-editing' : ''}`}>
+                            {isSuperAdmin && <td style={{ color: 'var(--mb-ink-60)', fontFamily: 'var(--font-numeral)' }}>{c.order ?? '—'}</td>}
+                            <td>
+                              <div style={{ fontWeight: 700 }}>{c.name || <span style={{ color: 'var(--mb-magenta-deep)' }}>(no name)</span>}</div>
+                              {isSuperAdmin && <div style={{ fontFamily: 'var(--font-numeral)', fontSize: '11px', color: 'var(--mb-ink-60)', marginTop: 2 }}>{c.id}</div>}
+                            </td>
+                            {isSuperAdmin && (
+                              <td>
+                                <a href={`/${pageSlug}`} target="_blank" rel="noreferrer" style={{ fontFamily: 'var(--font-numeral)', fontSize: 12 }}>
+                                  /{pageSlug} ↗
+                                </a>
+                              </td>
+                            )}
+                            {isSuperAdmin && (
+                              <td style={{ fontSize: 12, lineHeight: 1.4 }}>
+                                {contactLines.length === 0
+                                  ? <span style={{ color: 'var(--mb-ink-60)' }}>—</span>
+                                  : contactLines.map((line, i) => <div key={i} style={{ fontFamily: i === 0 ? 'var(--font-content)' : 'var(--font-numeral)' }}>{line}</div>)}
+                              </td>
+                            )}
+                            {isSuperAdmin && (
+                              <td style={{ fontSize: 13 }}>
+                                {directors.length === 0 ? (
+                                  <span style={{ color: 'var(--mb-ink-60)' }} title="Assign a user role 'Chapter Director' with this chapter in the Users tab.">none</span>
+                                ) : (
+                                  directors.map(d => d.name || d.email || d.uid).join(', ')
+                                )}
+                              </td>
+                            )}
+                            <td style={{ textAlign: 'center', fontSize: 12, whiteSpace: 'nowrap' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 10 }}>
+                                LPs <StatusIcon type={c.showLPs === false ? 'cross' : 'check'} size={14} title={c.showLPs === false ? 'LP grid hidden' : 'LP grid shown'} />
+                              </span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 10 }}>
+                                Impact <StatusIcon type={c.showImpact === false ? 'cross' : 'check'} size={14} title={c.showImpact === false ? 'Impact stats hidden' : 'Impact stats shown'} />
+                              </span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginRight: 10 }}>
+                                Gallery <StatusIcon type={c.showGallery === false ? 'cross' : 'check'} size={14} title={c.showGallery === false ? 'Gallery hidden' : 'Gallery shown'} />
+                              </span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                Awardees <StatusIcon type={c.showAwardees === true ? 'check' : 'cross'} size={14} title={c.showAwardees === true ? 'Awardees shown' : 'Awardees hidden'} />
+                              </span>
+                            </td>
+                            {isSuperAdmin && (
+                              <td style={{ textAlign: 'center' }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  <StatusIcon type={c.active === false ? 'cross' : 'check'} size={16} title={c.active === false ? 'Inactive' : 'Active'} />
+                                </span>
+                              </td>
+                            )}
+                            <td className="actions">
+                              <div style={{ display: 'inline-flex', gap: 6, alignItems: 'stretch' }}>
+                              <RetroButton
+                                size="sm"
+                                style={{ minHeight: 28, minWidth: 56, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+                                onClick={() => {
+                                  setEditingChapterId(c.id);
+                                  setIsAddingChapter(false);
+                                  setChapterFormTab('identity');
+                                  setChapterFormData({
+                                    slug: c.id,
+                                    name: c.name || '',
+                                    pageSlug: c.pageSlug || '',
+                                    tagline: c.tagline || '',
+                                    foundedYear: typeof c.foundedYear === 'number' ? c.foundedYear : '',
+                                    foundedDate: c.foundedDate
+                                      ? (c.foundedDate.toDate ? c.foundedDate.toDate() : new Date(c.foundedDate))
+                                          .toISOString().split('T')[0]
+                                      : '',
+                                    emailAlias: c.emailAlias || '',
+                                    slackChannel: c.slackChannel || '',
+                                    lpSlackChannel: c.lpSlackChannel || '',
+                                    active: c.active !== false,
+                                    order: typeof c.order === 'number' ? c.order : 0,
+                                    heroTitle: c.heroTitle || '',
+                                    heroTagline: c.heroTagline || '',
+                                    heroImage: c.heroImage || '',
+                                    heroImageCaption: c.heroImageCaption || '',
+                                    servingTitle: c.servingTitle || '',
+                                    servingText: c.servingText || '',
+                                    counties: Array.isArray(c.counties) ? c.counties : [],
+                                    poweredByText: c.poweredByText || '',
+                                    galleryPhotos: Array.isArray(c.galleryPhotos) ? c.galleryPhotos : [],
+                                    showLPs: c.showLPs !== false,
+                                    showGallery: c.showGallery !== false,
+                                    showImpact: c.showImpact !== false,
+                                    showAwardees: c.showAwardees === true,
+                                    defaultGrantAmount: Number.isFinite(Number(c.defaultGrantAmount)) && Number(c.defaultGrantAmount) > 0
+                                      ? Number(c.defaultGrantAmount)
+                                      : '',
+                                  });
+                                }}
+                              >
+                                Edit
+                              </RetroButton>
+                              {isSuperAdmin && (
+                                <RetroButton
+                                  size="sm"
+                                  variant="danger"
+                                  onClick={() => handleDeleteChapter(c.id, c.name || c.id)}
+                                  ariaLabel={`Delete chapter ${c.name || c.id}`}
+                                  title={`Delete chapter ${c.name || c.id}`}
+                                  style={{ minHeight: 28, minWidth: 36, padding: '0 10px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', lineHeight: 1 }}
+                                >
+                                  <StatusIcon type="trash" size={14} title="" />
+                                </RetroButton>
+                              )}
+                              </div>
+                            </td>
+                          </tr>
+                          {isEditingThis && (
+                            <tr className="chapter-edit-row">
+                              <td colSpan={chapterColSpan} style={{ padding: 0, background: 'var(--mb-chalk)' }}>
+                                <div style={{ padding: '18px 20px' }}>{renderChapterForm()}</div>
+                              </td>
+                            </tr>
+                          )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {isSuperAdmin && !isAddingChapter && !editingChapterId && (
+                <RetroButton
+                  onClick={() => {
+                    setIsAddingChapter(true);
+                    setEditingChapterId(null);
+                    setChapterFormTab('identity');
+                    setChapterFormData({ ...emptyChapterForm, order: chapters.length + 1 });
+                  }}
+                  variant="primary"
+                  style={{ marginBottom: '20px' }}
+                >
+                  + Add Chapter
+                </RetroButton>
+              )}
+
+              {isAddingChapter && renderChapterForm()}
               </section>
             </>
             );
@@ -7594,14 +8718,14 @@ return (
 
                 {managedResources.length === 0 && (
                   <EmptyState
-                    icon="📚"
+                    icon={null}
                     title="No resources yet"
                     description="Click + Add Resource to create the first one."
                   />
                 )}
                 {managedResources.length > 0 && filteredResources.length === 0 && (
                   <EmptyState
-                    icon="🔎"
+                    icon={null}
                     title="No resources match"
                     description="Try a different filter."
                     action={
@@ -7622,12 +8746,17 @@ return (
       
       {/* --- Badges Tab Content --- */}
       {activeTab === 'badges' && (
-        <TrophyCase 
+        <TrophyCase
           badges={userBadges || []}
           userStats={userStats || {}}
         />
       )}
-      
+
+      {/* --- Statistics Tab Content --- */}
+      {activeTab === 'statistics' && (
+        <StatisticsTab user={user} chaptersFromPortal={chapters} />
+      )}
+
       {/* --- Chapter Members Tab Content --- */}
       {activeTab === 'chapterMembers' && (
         <div style={{ padding: '15px', overflow: 'auto' }}>
@@ -7667,7 +8796,6 @@ return (
                   return (a.name || '').localeCompare(b.name || '');
                 })
                 .map(member => {
-                  // Get member's six most recent badges
                   const memberBadges = (member.badges || [])
                     .filter(badge => badge.earnedAt || badge.earnedDate)
                     .sort((a, b) => {
@@ -7675,7 +8803,7 @@ return (
                       const dateB = new Date(b.earnedAt || b.earnedDate || 0);
                       return dateB - dateA;
                     })
-                    .slice(0, 5);
+                    .slice(0, 8);
                   
                   // Prefer the uploaded photo from /users/{uid}.photoUrl. Fall
                   // back to the legacy /assets/lps/{slug}.png convention so
@@ -7692,14 +8820,14 @@ return (
                     }}>
                       <div style={{ display: 'flex', gap: '15px', alignItems: 'start', marginBottom: '12px' }}>
                         {photoUrl && (
-                          <img 
-                            src={photoUrl} 
+                          <img
+                            src={photoUrl}
                             alt={member.name}
+                            className="member-photo"
                             style={{
                               width: '60px',
                               height: '60px',
-                              objectFit: 'cover',
-                              border: '3px solid #FFD6EC'
+                              objectFit: 'cover'
                             }}
                             onError={(e) => e.target.style.display = 'none'}
                           />
@@ -7708,6 +8836,30 @@ return (
                           <h4 style={{ margin: '0 0 4px 0', fontSize: '16px', color: '#333' }}>
                             {member.name || 'Unknown'}
                           </h4>
+                          {(() => {
+                            const displayRole = member.role === 'superAdmin' ? member.chapterRole : member.role;
+                            const roleTag = {
+                              chapter_director: { label: 'Chapter Director', bg: 'var(--gnf-blue-200)' },
+                              lp: { label: 'Limited Partner', bg: 'var(--gnf-green-100)' },
+                            }[displayRole];
+                            if (!roleTag) return null;
+                            return (
+                              <div style={{
+                                display: 'inline-block',
+                                background: roleTag.bg,
+                                border: '2px solid',
+                                borderColor: 'var(--mb-ink)',
+                                boxShadow: 'var(--shadow-hard-sm)',
+                                padding: '2px 6px',
+                                fontSize: '10px',
+                                fontWeight: 'bold',
+                                color: 'var(--mb-ink)',
+                                marginBottom: '6px',
+                              }}>
+                                {roleTag.label}
+                              </div>
+                            );
+                          })()}
                           {member.professionalRole && (
                             <div style={{ fontSize: '13px', color: '#666', marginBottom: '8px' }}>{member.professionalRole}</div>
                           )}
@@ -7754,41 +8906,48 @@ return (
                         <div style={{
                           borderTop: '1px solid var(--gnf-border-pink-light)',
                           paddingTop: '10px',
-                          display: 'flex',
-                          gap: '6px',
-                          alignItems: 'center',
-                          overflow: 'hidden',
-                          flexWrap: 'wrap',
+                          display: 'grid',
+                          gridTemplateColumns: 'auto 1fr',
+                          columnGap: '6px',
+                          alignItems: 'start',
                           maxWidth: '100%'
                         }}>
-                          <span style={{ fontSize: '10px', color: 'var(--mb-ink-60)', fontWeight: 'bold' }}>Recent:</span>
-                          {memberBadges.map((badge, idx) => {
-                            const badgeId = badge.badgeId || badge.id;
-                            const badgeData = BADGES[badgeId];
-                            if (!badgeData) return null;
+                          <span style={{ fontSize: '10px', color: 'var(--mb-ink-60)', fontWeight: 'bold', paddingTop: '4px' }}>Recent:</span>
+                          <div style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '6px',
+                            alignItems: 'center',
+                            minWidth: 0
+                          }}>
+                            {memberBadges.map((badge, idx) => {
+                              const badgeId = badge.badgeId || badge.id;
+                              const badgeData = BADGES[badgeId];
+                              if (!badgeData) return null;
 
-                            return (
-                              <div key={idx} style={{
-                                background: 'var(--gnf-pink-100)',
-                                border: '2px solid',
-                                borderColor: 'var(--mb-ink)',
-                                boxShadow: 'var(--shadow-hard-sm)',
-                                padding: '2px 6px',
-                                fontSize: '11px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }} title={badgeData.description}>
-                                <BadgeIcon id={badgeId} size={14} />
-                                <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{badgeData.name.split(' ').slice(1).join(' ')}</span>
-                              </div>
-                            );
-                          })}
-                          {member.badges && member.badges.length > 5 && (
-                            <span style={{ fontSize: '10px', color: 'var(--mb-ink-60)', fontWeight: 'bold' }}>
-                              +{member.badges.length - 5} more
-                            </span>
-                          )}
+                              return (
+                                <div key={idx} style={{
+                                  background: 'var(--gnf-pink-100)',
+                                  border: '2px solid',
+                                  borderColor: 'var(--mb-ink)',
+                                  boxShadow: 'var(--shadow-hard-sm)',
+                                  padding: '2px 6px',
+                                  fontSize: '11px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }} title={badgeData.description}>
+                                  <BadgeIcon id={badgeId} size={14} />
+                                  <span style={{ fontSize: '9px', fontWeight: 'bold' }}>{badgeData.name.split(' ').slice(1).join(' ')}</span>
+                                </div>
+                              );
+                            })}
+                            {member.badges && member.badges.length > 8 && (
+                              <span style={{ fontSize: '10px', color: 'var(--mb-ink-60)', fontWeight: 'bold' }}>
+                                +{member.badges.length - 8} more
+                              </span>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -7826,6 +8985,12 @@ return (
       {activeTab === 'resources' && (
         <div style={{ padding: '20px', overflow: 'auto', height: '100%' }}>
           <ResourceLibrary />
+          {(isChapterDirector || isSuperAdmin) && (
+            <>
+              <FormsLibrary user={user} isSuperAdmin={isSuperAdmin} />
+              <AssetsLibrary />
+            </>
+          )}
         </div>
       )}
 

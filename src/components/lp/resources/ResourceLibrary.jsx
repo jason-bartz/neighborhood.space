@@ -49,10 +49,11 @@ export default function ResourceLibrary() {
         <p className="resource-library__eyebrow">Neighborhood Resources</p>
         <h1 className="resource-library__title">The Chapter Library</h1>
         <p className="resource-library__lede">
-          Reference documents for running a Good Neighbor Fund chapter.
-          Everything here is downloadable as a PDF so you can share it with
-          prospective LPs, partners, or press — and keep every neighborhood
-          looking and sounding like us.
+          Everything you need to run a Good Neighbor Fund chapter in one
+          place — reference documents to share with LPs, partners, and
+          press; forms to send to new LPs and grant winners; and
+          print-ready assets like our giant ceremonial checks. All
+          downloadable, all kept up to date here.
         </p>
       </header>
 

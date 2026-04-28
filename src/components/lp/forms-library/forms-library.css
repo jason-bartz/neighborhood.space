@@ -1,0 +1,283 @@
+/* ==========================================================================
+   Forms Library — director-facing admin UI inside the Resources tab.
+   Reuses .resource-card and .resource-grid for the list view; adds detail
+   view chrome (tabs, send/copy/submissions panels) below.
+   ========================================================================== */
+
+.forms-library__heading {
+  margin-top: 48px;
+  padding-top: 36px;
+  border-top: 2px solid var(--mb-ink);
+}
+
+.forms-library__eyebrow {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--mb-grape-deep);
+  margin: 0 0 8px;
+}
+
+.forms-library__title {
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 1;
+  margin: 0 0 12px;
+  font-weight: 400;
+  color: var(--mb-ink);
+}
+
+.forms-library__lede {
+  font-size: 15px;
+  line-height: 1.55;
+  max-width: 640px;
+  margin: 0 0 24px;
+  color: var(--mb-ink);
+}
+
+/* ---------- Detail view ---------- */
+.forms-library__detail {
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  margin-top: 24px;
+}
+
+.forms-library__cover {
+  padding: 36px 40px 28px;
+  border-bottom: 2px solid var(--mb-ink);
+  position: relative;
+}
+
+.forms-library__cover-eyebrow {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+  opacity: 0.85;
+}
+
+.forms-library__cover-title {
+  font-family: var(--font-display);
+  font-size: 44px;
+  line-height: 0.95;
+  margin: 0 0 12px;
+  font-weight: 400;
+}
+
+.forms-library__cover-summary {
+  font-size: 15px;
+  line-height: 1.5;
+  max-width: 620px;
+  margin: 0;
+  opacity: 0.95;
+}
+
+.forms-library__cover-number {
+  position: absolute;
+  top: 28px;
+  right: 36px;
+  font-family: var(--font-numeral);
+  font-size: 40px;
+  font-weight: 700;
+  opacity: 0.4;
+}
+
+.forms-library__tabs {
+  display: flex;
+  gap: 0;
+  background: var(--mb-paper);
+  border-bottom: 2px solid var(--mb-ink);
+}
+
+.forms-library__tab {
+  padding: 12px 20px;
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  background: transparent;
+  border: 0;
+  border-right: 1px solid var(--mb-ink-15);
+  cursor: pointer;
+  color: var(--mb-ink);
+  font-weight: 700;
+}
+
+.forms-library__tab[aria-selected="true"] {
+  background: var(--mb-ink);
+  color: var(--mb-chalk);
+}
+
+.forms-library__panel {
+  padding: 32px 40px;
+}
+
+.forms-library__field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.forms-library__field label {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  color: var(--mb-ink);
+  font-weight: 700;
+}
+
+.forms-library__field input[type="email"],
+.forms-library__field input[type="text"],
+.forms-library__field select {
+  font-family: var(--font-content);
+  font-size: 14px;
+  padding: 10px 12px;
+  border: 2px solid var(--mb-ink);
+  background: var(--mb-chalk);
+  color: var(--mb-ink);
+}
+
+.forms-library__row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.forms-library__row .forms-library__field {
+  flex: 1;
+  margin-bottom: 0;
+  min-width: 240px;
+}
+
+.forms-library__btn {
+  font-family: var(--font-content);
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--mb-ink);
+  color: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  padding: 10px 18px;
+  cursor: pointer;
+  box-shadow: var(--shadow-hard-sm);
+  white-space: nowrap;
+}
+
+.forms-library__btn:hover { background: var(--mb-magenta); border-color: var(--mb-magenta); }
+.forms-library__btn:active { transform: translate(2px, 2px); box-shadow: none; }
+.forms-library__btn[disabled] { opacity: 0.55; cursor: wait; }
+
+.forms-library__btn--ghost {
+  background: transparent;
+  color: var(--mb-ink);
+}
+.forms-library__btn--ghost:hover { background: var(--mb-ink); color: var(--mb-chalk); }
+
+.forms-library__msg {
+  margin-top: 12px;
+  padding: 10px 14px;
+  font-size: 13px;
+  border: 2px solid var(--mb-ink);
+}
+.forms-library__msg--ok { background: var(--mb-aqua-soft); color: var(--mb-aqua-deep); border-color: var(--mb-aqua-deep); }
+.forms-library__msg--err { background: var(--mb-magenta-soft); color: var(--mb-magenta-deep); border-color: var(--mb-magenta-deep); }
+
+.forms-library__link {
+  font-family: var(--font-numeral);
+  font-size: 13px;
+  background: var(--mb-paper);
+  border: 2px solid var(--mb-ink);
+  padding: 10px 14px;
+  word-break: break-all;
+  flex: 1;
+}
+
+/* ---------- Submissions list ---------- */
+.forms-library__submissions {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.forms-library__submission {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--mb-ink-15);
+  align-items: flex-start;
+}
+
+.forms-library__submission:last-child { border-bottom: 0; }
+
+.forms-library__submission-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border: 2px solid var(--mb-ink);
+  flex-shrink: 0;
+  background: var(--mb-paper);
+}
+
+.forms-library__submission-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.forms-library__submission-name {
+  font-family: var(--font-content);
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: var(--mb-ink);
+}
+
+.forms-library__submission-meta {
+  font-family: var(--font-numeral);
+  font-size: 12px;
+  color: var(--mb-ink-60);
+  margin: 0 0 6px;
+}
+
+.forms-library__submission-detail {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--mb-ink);
+  margin: 0;
+}
+
+.forms-library__submission-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.forms-library__submission-actions .forms-library__btn {
+  padding: 6px 10px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.forms-library__empty {
+  padding: 32px;
+  text-align: center;
+  font-size: 14px;
+  color: var(--mb-ink-60);
+  border: 2px dashed var(--mb-ink-15);
+  background: var(--mb-paper);
+}
+
+@media (max-width: 720px) {
+  .forms-library__cover { padding: 28px 24px 22px; }
+  .forms-library__cover-title { font-size: 32px; }
+  .forms-library__cover-number { top: 20px; right: 24px; font-size: 28px; }
+  .forms-library__panel { padding: 24px 24px; }
+  .forms-library__submission { flex-direction: column; }
+  .forms-library__submission-actions { flex-direction: row; flex-wrap: wrap; }
+}

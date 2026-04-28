@@ -1,0 +1,809 @@
+/* ================================================================
+   Live Review mode — chapter director's live LP-review meeting view.
+   Two-pane layout: queue (left) + focused pitch detail (right).
+   Loaded by LiveReviewPane.jsx; do not import elsewhere.
+   ================================================================ */
+
+/* Outer pane wrapper. */
+.win95-live-review {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  /* Contain scroll inside the body so the page itself doesn't double-scroll. */
+  overflow: hidden;
+  /* Anchor the details drawer + its backdrop to this pane so they don't
+     overflow the parent desktop window. */
+  position: relative;
+}
+
+/* Inline filter + sort toolbar above the queue/detail body. Frame the
+   whole strip so the controls read as a real toolbar. The filter bar
+   takes the bulk of the row; the help (?) button sits flush-right. */
+.win95-live-review-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: var(--space-2) var(--space-3);
+  background: var(--mb-paper);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+}
+
+/* Help anchor pinned to the right edge of the toolbar regardless of how
+   the filterbar wraps. */
+.win95-live-review-toolbar > .win95-live-review-filters-anchor {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* Inline filter bar — every control shares one canonical look so the row
+   reads as a single unit:
+     - 34px height (exact, not min-height)
+     - 2px solid ink border
+     - chalk background (magenta when a toggle is active)
+     - 14px font-content, normal case
+     - flat — no box-shadow on any inner control. Toolbar container holds
+       the one shadow.
+   We're deliberately bypassing .mb-form-shell here. That helper applies
+   !important padding and shadow to every input/select, which makes the
+   form fields tower over the buttons. We re-implement the cream styling
+   and the SVG dropdown arrow inline. */
+.win95-live-review-filterbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Shared canonical look for every interactive control in the filterbar. */
+.win95-live-review-filterbar__select,
+.win95-live-review-filterbar__search,
+.win95-live-review-filterbar__btn,
+.win95-live-review-filterbar .multi-select-dropdown > button {
+  height: 34px !important;
+  min-height: 34px !important;
+  line-height: 30px;
+  border: 2px solid var(--mb-ink) !important;
+  background: var(--mb-chalk) !important;
+  color: var(--mb-ink) !important;
+  font-family: var(--font-content) !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  letter-spacing: normal !important;
+  text-transform: none !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  cursor: pointer;
+}
+
+/* Native <select> — replicate the form-shell SVG caret since we dropped
+   mb-form-shell. */
+.win95-live-review-filterbar select.win95-live-review-filterbar__select {
+  flex: 0 1 auto;
+  min-width: 140px;
+  padding: 0 32px 0 10px !important;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12'><path d='M2 4 L6 8 L10 4' fill='none' stroke='%23141419' stroke-width='2' stroke-linecap='square' stroke-linejoin='miter'/></svg>") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 12px center !important;
+  background-size: 12px 12px !important;
+}
+.win95-live-review-filterbar select::-ms-expand { display: none; }
+
+.win95-live-review-filterbar select.win95-live-review-filterbar__select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* MultiSelectDropdown's inline styles set padding/min-width that we want
+   to override so it lines up with the native selects. */
+.win95-live-review-filterbar .multi-select-dropdown {
+  flex: 0 1 auto;
+  min-width: 140px;
+}
+
+.win95-live-review-filterbar .multi-select-dropdown > button {
+  width: 100%;
+  padding: 0 10px !important;
+}
+
+.win95-live-review-filterbar__search {
+  flex: 1 1 180px;
+  min-width: 160px;
+  padding: 0 10px !important;
+  cursor: text;
+}
+
+.win95-live-review-filterbar__search:focus {
+  outline: 2px solid var(--mb-magenta);
+  outline-offset: 1px;
+}
+
+.win95-live-review-filterbar__btn {
+  flex-shrink: 0;
+  padding: 0 14px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.win95-live-review-filterbar__btn:hover {
+  background: var(--mb-paper) !important;
+}
+
+.win95-live-review-filterbar__btn--toggle[aria-pressed="true"] {
+  background: var(--mb-magenta) !important;
+  color: var(--mb-chalk) !important;
+}
+
+.win95-live-review-filterbar__btn--toggle[aria-pressed="true"]:hover {
+  background: var(--mb-magenta) !important;
+}
+
+.win95-live-review-toolbar__help-btn {
+  min-width: 34px;
+  padding: 0 10px !important;
+  font-weight: 700 !important;
+}
+
+/* Anchor used by the help (?) popover so its absolute child lands under
+   the trigger button. */
+.win95-live-review-filters-anchor {
+  position: relative;
+}
+
+/* Two-pane body. The height calc keeps the panes scrolling internally
+   instead of pushing the page. The 320px magic number accounts for the
+   desktop window chrome + LP stats card + admin tabstrip + (compact)
+   admin hero section + this pane's toolbar row. Revisit during QA if it
+   drifts. */
+.win95-live-review-body {
+  display: grid;
+  grid-template-columns: minmax(280px, 32%) 1fr;
+  gap: var(--space-3);
+  height: calc(100vh - 320px);
+  min-height: 520px;
+}
+
+/* Both panes need min-height: 0 to allow internal overflow under grid. */
+.win95-live-review-body > * {
+  min-height: 0;
+}
+
+/* ----- Left rail: queue ----- */
+.win95-live-review-queue {
+  overflow-y: auto;
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  background: var(--mb-chalk);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.win95-live-review-queue__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--mb-paper);
+  border-bottom: 1px solid var(--mb-ink-15);
+  padding: var(--space-2) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.win95-live-review-queue__status {
+  font-family: var(--font-content);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--mb-ink);
+}
+
+.win95-live-review-queue__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.win95-live-review-queue__legend-item {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border: 1px solid var(--mb-ink);
+  color: var(--mb-ink);
+  line-height: 1;
+}
+
+.win95-live-review-queue__list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+.win95-live-review-queue__empty {
+  padding: var(--space-4);
+  font-family: var(--font-content);
+  font-size: var(--text-sm);
+  color: var(--mb-ink-60);
+  font-style: italic;
+  text-align: center;
+}
+
+.win95-live-review-queue-row {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--mb-ink-15);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: transparent;
+  border-left: 3px solid transparent;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+}
+
+.win95-live-review-queue-row:hover {
+  background: var(--mb-paper);
+}
+
+.win95-live-review-queue-row--active {
+  background: var(--mb-paper);
+  border-left-color: var(--mb-magenta);
+  border-left-width: 4px;
+}
+
+.win95-live-review-queue-row__title-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.win95-live-review-queue-row__title {
+  font-family: var(--font-content);
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--mb-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.win95-live-review-queue-row__shortlist-dot {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  background: #ffd84d;
+  border: 1px solid var(--mb-ink);
+}
+
+.win95-live-review-queue-row__by {
+  font-family: var(--font-content);
+  font-size: var(--text-sm);
+  color: var(--mb-ink-60);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.win95-live-review-queue-row__meta {
+  font-family: var(--font-content);
+  font-size: var(--text-xs);
+  color: var(--mb-ink-60);
+  margin-top: 2px;
+}
+
+.win95-live-review-queue-row__chips {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.win95-live-review-queue-row__chip {
+  font-family: var(--font-numeral);
+  font-size: 10px;
+  font-weight: 700;
+  width: auto;
+  min-width: 18px;
+  height: 16px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--mb-ink);
+  color: var(--mb-ink);
+  line-height: 1;
+}
+
+.win95-live-review-queue-row__chip--favorite { background: #c8e6c9; }
+.win95-live-review-queue-row__chip--consideration { background: #fff3a8; }
+.win95-live-review-queue-row__chip--pass { background: #e0e0e0; }
+.win95-live-review-queue-row__chip--ineligible { background: #ffcdd2; }
+.win95-live-review-queue-row__chip--norating { background: var(--mb-chalk); }
+
+/* ----- Right pane: detail ----- */
+.win95-live-review-detail {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-right: 4px;
+}
+
+.win95-live-review-detail__empty {
+  padding: var(--space-6);
+  font-family: var(--font-content);
+  font-size: var(--text-base);
+  color: var(--mb-ink-60);
+  font-style: italic;
+  text-align: center;
+  border: 2px solid var(--mb-ink);
+  background: var(--mb-paper);
+}
+
+/* Each of the three stacked sections (header / comments / notes). */
+.win95-live-review-section {
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  background: var(--mb-chalk);
+  padding: var(--space-4);
+}
+
+/* Section header — locked two-row layout so the title/score row and the
+   action bar always render in the same vertical slots regardless of
+   pitch title length or score state. */
+.win95-live-review-section__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--mb-ink-15);
+}
+
+.win95-live-review-section__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 56px;
+}
+
+.win95-live-review-section__title-row > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Score/Avg block — fixed-width slot in the top-right. Always renders
+   (shows "—" when no rated reviews) so position is uniform. */
+.win95-live-review-scoreblock {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 0 0 auto;
+  width: 110px;
+  padding: 6px 10px;
+  border: 1px solid var(--mb-ink);
+  background: var(--mb-paper);
+  align-self: flex-start;
+  box-sizing: border-box;
+}
+
+.win95-live-review-scoreblock__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.win95-live-review-scoreblock__label {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mb-ink-60);
+}
+
+.win95-live-review-scoreblock__num {
+  font-family: var(--font-numeral);
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--mb-ink);
+  line-height: 1;
+}
+
+/* Action bar — second header row. Nav buttons left, action buttons right. */
+.win95-live-review-section__action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.win95-live-review-section__title {
+  font-family: var(--font-content);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--mb-ink);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.win95-live-review-section__title-by {
+  display: block;
+  font-size: var(--text-base);
+  font-weight: 400;
+  color: var(--mb-ink-60);
+  margin-top: 2px;
+}
+
+.win95-live-review-section__label {
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--mb-ink-60);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.win95-live-review-section__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.win95-live-review-section__nav {
+  display: inline-flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+/* AI summary block under the title. */
+.win95-live-review-summary {
+  font-family: var(--font-content);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--mb-ink);
+  margin: var(--space-2) 0 var(--space-3);
+}
+
+.win95-live-review-summary--fallback {
+  color: var(--mb-ink-60);
+  font-style: italic;
+}
+
+.win95-live-review-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  align-items: center;
+  font-family: var(--font-content);
+  font-size: var(--text-sm);
+  color: var(--mb-ink-60);
+}
+
+.win95-live-review-meta__sep {
+  margin: 0 var(--space-1);
+}
+
+.win95-live-review-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.win95-live-review-rating-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-3);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--mb-ink-15);
+}
+
+.win95-live-review-comments-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.win95-live-review-comment__author {
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--mb-ink-60);
+  margin-bottom: 4px;
+}
+
+.win95-live-review-comment__text {
+  font-family: var(--font-content);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--mb-ink);
+  white-space: pre-wrap;
+}
+
+.win95-live-review-empty {
+  font-family: var(--font-content);
+  font-size: var(--text-sm);
+  color: var(--mb-ink-60);
+  font-style: italic;
+  margin: 0;
+}
+
+/* Notes section — list scrolls, composer pinned to bottom of section. */
+.win95-live-review-notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.win95-live-review-notes__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.win95-live-review-note {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--mb-ink-15);
+}
+
+.win95-live-review-note:last-child {
+  border-bottom: none;
+}
+
+.win95-live-review-note__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-bottom: 4px;
+}
+
+.win95-live-review-note__author {
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--mb-ink-60);
+}
+
+.win95-live-review-note__author-meta {
+  font-family: var(--font-content);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  margin-left: 4px;
+}
+
+.win95-live-review-note__manage {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.win95-live-review-note__manage button {
+  background: transparent;
+  border: none;
+  color: var(--mb-ink-60);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-family: var(--font-content);
+}
+
+.win95-live-review-note__manage button:hover {
+  color: var(--mb-ink);
+}
+
+.win95-live-review-note__text {
+  font-family: var(--font-content);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--mb-ink);
+  white-space: pre-wrap;
+}
+
+.win95-live-review-notes__composer {
+  /* Sits below the (independently-scrolling) notes list. The list caps at
+     360px so the composer stays in view while you scroll through old notes
+     without needing position: sticky. Composer breaks out of the section
+     padding for a full-bleed background that signals "this is where you
+     write." */
+  margin: var(--space-3) calc(-1 * var(--space-4)) calc(-1 * var(--space-4));
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--mb-paper);
+  border-top: 2px solid var(--mb-ink);
+}
+
+.win95-live-review-notes__composer textarea {
+  width: 100%;
+  font-family: var(--font-content);
+  font-size: var(--text-base);
+  padding: var(--space-2);
+  box-sizing: border-box;
+  border: 2px solid var(--mb-ink);
+  background: var(--mb-chalk);
+  resize: vertical;
+}
+
+.win95-live-review-notes__composer textarea:focus {
+  outline: 2px solid var(--mb-magenta);
+  outline-offset: 1px;
+}
+
+.win95-live-review-notes__composer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.win95-live-review-notes__composer-hint {
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--mb-ink-60);
+}
+
+/* ----- Side drawer for full pitch details ----- */
+.win95-live-review-drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--mb-ink);
+  opacity: 0.25;
+  z-index: 9;
+}
+
+.win95-live-review-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 560px;
+  max-width: 100%;
+  background: var(--mb-chalk);
+  border-left: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard);
+  z-index: 10;
+  overflow-y: auto;
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.win95-live-review-drawer__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--mb-ink-15);
+  position: sticky;
+  top: calc(-1 * var(--space-4));
+  background: var(--mb-chalk);
+  margin: calc(-1 * var(--space-4)) calc(-1 * var(--space-4)) 0;
+  padding: var(--space-3) var(--space-4);
+  z-index: 1;
+}
+
+.win95-live-review-drawer__title {
+  font-family: var(--font-content);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  margin: 0;
+  color: var(--mb-ink);
+}
+
+.win95-live-review-drawer__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: var(--space-3);
+}
+
+.win95-live-review-drawer__field-label {
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--mb-ink-60);
+}
+
+.win95-live-review-drawer__field-value {
+  font-family: var(--font-content);
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--mb-ink);
+  white-space: pre-wrap;
+}
+
+.win95-live-review-drawer__field-value--inline {
+  display: inline;
+}
+
+.win95-live-review-drawer__divider {
+  border: none;
+  border-top: 1px solid var(--mb-ink-15);
+  margin: var(--space-3) 0;
+}
+
+/* ----- Keyboard help popover ----- */
+.win95-live-review-help {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--mb-chalk);
+  border: 2px solid var(--mb-ink);
+  box-shadow: var(--shadow-hard-sm);
+  padding: var(--space-3);
+  z-index: 60;
+  min-width: 280px;
+}
+
+.win95-live-review-help dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
+.win95-live-review-help dt {
+  font-family: var(--font-numeral);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--mb-ink);
+  background: var(--mb-paper);
+  border: 1px solid var(--mb-ink);
+  padding: 2px 6px;
+  text-align: center;
+}
+
+.win95-live-review-help dd {
+  font-family: var(--font-content);
+  font-size: var(--text-sm);
+  color: var(--mb-ink);
+  margin: 0;
+  align-self: center;
+}
+
+.win95-live-review-help__title {
+  font-family: var(--font-pixel);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--mb-ink-60);
+  margin: 0 0 var(--space-2) 0;
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--mb-ink-15);
+}

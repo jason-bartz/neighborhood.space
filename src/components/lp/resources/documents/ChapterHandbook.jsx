@@ -10,24 +10,24 @@ export default function ChapterHandbook() {
         margin: '0 0 32px',
       }}>
         Welcome. You're here because you're interested in launching a Good
-        Neighbor Fund chapter — or as we call it, a Neighborhood. We're
-        thrilled you've found us.
+        Neighbor Fund chapter, or as we call it, a Neighborhood. We're glad
+        you found us.
       </p>
 
       <h2>Introduction</h2>
       <p>
-        GNF started in Buffalo, NY, with a simple idea: bold, early-stage
+        GNF started in Buffalo, NY, with a simple idea. Bold, early-stage
         entrepreneurs, especially those from underrepresented backgrounds,
         deserve belief, not the <em>bureaucracy</em> they typically
-        encounter with early-stage business organizations. We give out
-        $1,000 micro-grants — belief capital — to help founders take that
-        all-important first step.
+        encounter with early-stage business organizations. So we give out
+        $1,000 micro-grants (belief capital) to help founders take that
+        first step.
       </p>
       <p>
         Since 2023, we've backed dozens of founders, built a grassroots LP
-        (Limited Partner) community, and crafted a replicable model that
-        blends funding, mentorship, and local pride. Now, we're opening up
-        the playbook. Whether you're a founder, community builder, or
+        (Limited Partner) community, and put together a replicable model
+        that blends funding, mentorship, and local pride. Now we're opening
+        up the playbook. Whether you're a founder, community builder, or
         startup cheerleader, this handbook is your roadmap to bringing GNF
         to your city.
       </p>
@@ -40,8 +40,8 @@ export default function ChapterHandbook() {
         <li>Building local chapters powered by community-driven LPs</li>
       </ul>
       <p>
-        GNF is proudly national, proudly weird (check the retro aesthetic),
-        and deeply committed to doing good in the neighborhoods we serve.
+        GNF is proudly national, proudly weird, and deeply committed to
+        doing good in the neighborhoods we serve.
       </p>
 
       <h2>What's a GNF Neighborhood?</h2>
@@ -58,12 +58,12 @@ export default function ChapterHandbook() {
 
       <h2>Starting a Chapter</h2>
 
-      <h3>Step 1 — Say Hi</h3>
+      <h3>Step 1. Say Hi</h3>
       <p>
-        Fill out our short <a href="https://airtable.com/app38xfYxu9HY6yT3/pagYPQAHYvAUxPfuX/form" target="_blank" rel="noopener noreferrer">new chapter interest form</a>.
+        Fill out our short <a href="https://goodneighbor.fund/start-a-chapter" target="_blank" rel="noopener noreferrer">new chapter interest form</a>.
       </p>
 
-      <h3>Step 2 — Recruit Your LPs</h3>
+      <h3>Step 2. Recruit Your LPs</h3>
       <p>
         You'll need roughly 6–10 founding LPs (that number is up to you).
         Typically, LPs are:
@@ -88,7 +88,7 @@ export default function ChapterHandbook() {
         </p>
       </div>
 
-      <h3>Step 3 — Host Your First Meeting</h3>
+      <h3>Step 3. Host Your First Meeting</h3>
       <p>Plan your inaugural LP meetup to:</p>
       <ul>
         <li>Get to know each other</li>
@@ -97,7 +97,7 @@ export default function ChapterHandbook() {
       </ul>
       <p>
         Make it fun. We recommend restaurants, cafes, rooftops, or
-        breweries — somewhere casual, inspiring, and local.
+        breweries. Somewhere casual, inspiring, and local.
       </p>
       <div className="resource-callout">
         <p className="resource-callout__label">Best Practice</p>
@@ -109,15 +109,13 @@ export default function ChapterHandbook() {
 
       <h2>Y2K Energy</h2>
       <p>
-        Why do we look like your old Windows 98 desktop? Because we're
-        inspired by a time when people just <em>started</em>. The early
-        internet era was raw, open, and full of possibility — exactly how
-        we want our founders to feel.
+        The aesthetic is on purpose. We're inspired by a time when people
+        just <em>started</em>. The early internet era was raw, open, and
+        full of possibility. That's how we want our founders to feel.
       </p>
       <p>
-        So yes, we've got pixel hearts and pastel gradients. But more
-        importantly: we back ideas before they're buttoned up. We fund
-        courage, not polish.
+        More importantly: we back ideas before they're buttoned up. We
+        fund courage, not polish.
       </p>
 
       <h2>How Chapters Operate</h2>
@@ -154,14 +152,14 @@ export default function ChapterHandbook() {
         <li><strong>Optional committees.</strong> Events, founder support, or social media, if desired.</li>
       </ol>
       <p>
-        LPs are not investors. GNF is not a fund. There is no ROI — only
+        LPs are not investors. GNF is not a fund. There is no ROI. Only
         impact, community, and belief.
       </p>
 
       <h2>Setting Up Your Chapter</h2>
       <p>We'll support you with:</p>
       <ul>
-        <li>A chapter landing page on <a href="https://www.neighborhoods.space" target="_blank" rel="noopener noreferrer">neighborhoods.space</a></li>
+        <li>A chapter landing page on <a href="https://goodneighbor.fund" target="_blank" rel="noopener noreferrer">goodneighbor.fund</a></li>
         <li>Access to our LP Portal (submission + review tool)</li>
         <li>A <code style={{ fontFamily: 'var(--font-numeral)' }}>@goodneighbor.fund</code> email address for the Chapter Director</li>
         <li>A private Slack community with a private chapter channel</li>
@@ -172,7 +170,7 @@ export default function ChapterHandbook() {
       <h3>Optional support services (additional cost per item)</h3>
       <ul>
         <li>Additional email address provisions</li>
-        <li>Banking services — online banking to manage LP funds and distribute grant checks directly to awardees via mail, plus Stripe integration for recurring LP memberships</li>
+        <li>Banking services. Online banking to manage LP funds and distribute grant checks directly to awardees via mail, plus Stripe integration for recurring LP memberships</li>
         <li>Custom <a href="https://firebasestorage.googleapis.com/v0/b/gnf-app-9d7e3.firebasestorage.app/o/Misc%20Images%2FSansi-Oxford%20Pennant.webp?alt=media&token=35cfff2d-869d-45c9-b9f6-1b6b7550c5ea" target="_blank" rel="noopener noreferrer">GNF Oxford Pennant</a> ordering</li>
         <li>Custom <a href="https://firebasestorage.googleapis.com/v0/b/gnf-app-9d7e3.firebasestorage.app/o/Misc%20Images%2Ffat-daddys.webp?alt=media&token=5474728d-52e3-4775-aed3-a828b1470a74" target="_blank" rel="noopener noreferrer">GNF novelty check</a> ordering</li>
       </ul>
@@ -213,7 +211,7 @@ export default function ChapterHandbook() {
         <li>A media kit for local press</li>
       </ul>
 
-      <h2>LP Criteria — For Directors Recruiting LPs</h2>
+      <h2>LP Criteria: For Directors Recruiting LPs</h2>
       <p>We suggest inviting people who are:</p>
       <ul>
         <li>Past or present entrepreneurs</li>
@@ -262,7 +260,7 @@ export default function ChapterHandbook() {
       <p>Let's bring belief capital to your block.</p>
 
       <h2>From the Founders</h2>
-      <p>Hey there — we're Susan and Jason, co-founders of Good Neighbor Fund.</p>
+      <p>Hey there. We're Susan and Jason, co-founders of Good Neighbor Fund.</p>
       <p>
         We launched GNF with a borrowed logo and $1,000 in belief. What we
         saw immediately was the hunger for this kind of support. For

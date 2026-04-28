@@ -1,4 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
+
+const LIVE_SORT_OPTIONS = ["avgDesc", "avgAsc", "sumDesc", "sumAsc"];
 
 /**
  * Inline filter + sort controls for Live Review mode. Renders directly in
@@ -41,8 +43,18 @@ function LiveReviewFilterBar({
     [adminPitches]
   );
 
-  const sortDisabled =
-    adminFavoriteFilterMode === "favsOnly" || adminFavoriteFilterMode === "favsAndCons";
+  const shortlistOnly = adminFavoriteFilterMode === "shortlisted";
+
+  // Sort state is shared with the main Review Pitches tab, which exposes a
+  // wider option set (newest/oldest/mostReviews). If we land on Live Review
+  // while one of those is active, snap to avgDesc so the dropdown isn't blank.
+  useEffect(() => {
+    if (!LIVE_SORT_OPTIONS.includes(adminSortMode)) {
+      setAdminSortMode("avgDesc");
+    }
+  }, [adminSortMode, setAdminSortMode]);
+
+  const sortValue = LIVE_SORT_OPTIONS.includes(adminSortMode) ? adminSortMode : "avgDesc";
 
   return (
     <div className="win95-live-review-filterbar" role="group" aria-label="Filter and sort">
@@ -60,7 +72,7 @@ function LiveReviewFilterBar({
         </select>
       )}
 
-      <div className="win95-live-review-filterbar__select">
+      <div className="win95-live-review-filterbar__multi">
         <MultiSelectDropdown
           options={quarters}
           selected={adminQuarterFilter}
@@ -69,37 +81,33 @@ function LiveReviewFilterBar({
         />
       </div>
 
-      <select
-        className="win95-live-review-filterbar__select"
-        aria-label="Filter by rating"
-        value={adminFavoriteFilterMode}
-        onChange={(e) => setAdminFavoriteFilterMode(e.target.value)}
+      <button
+        type="button"
+        className="win95-live-review-filterbar__btn win95-live-review-filterbar__btn--toggle"
+        aria-pressed={shortlistOnly}
+        onClick={() =>
+          setAdminFavoriteFilterMode(shortlistOnly ? "all" : "shortlisted")
+        }
+        title={
+          shortlistOnly
+            ? "Show all pitches"
+            : "Show only pitches on the group shortlist"
+        }
       >
-        <option value="all">All Ratings</option>
-        <option value="favsOnly">Favorites Only</option>
-        <option value="favsAndCons">Favs &amp; Considerations</option>
-        <option value="shortlisted">Shortlisted Only</option>
-      </select>
+        Shortlist Only
+      </button>
 
       <select
         className="win95-live-review-filterbar__select"
         aria-label="Sort order"
-        value={adminSortMode}
+        value={sortValue}
         onChange={(e) => setAdminSortMode(e.target.value)}
-        disabled={sortDisabled}
-        title={
-          sortDisabled
-            ? "Sort is fixed to favorite count while filtering by favorites"
-            : "Sort order"
-        }
+        title="Sort order"
       >
-        <option value="newest">Newest</option>
-        <option value="oldest">Oldest</option>
-        <option value="avgDesc">Avg Score ↓</option>
-        <option value="avgAsc">Avg Score ↑</option>
-        <option value="sumDesc">Total Score ↓</option>
-        <option value="sumAsc">Total Score ↑</option>
-        <option value="mostReviews">Most Reviews</option>
+        <option value="avgDesc">Sort: Wtd Avg ↓</option>
+        <option value="avgAsc">Sort: Wtd Avg ↑</option>
+        <option value="sumDesc">Sort: Total Score ↓</option>
+        <option value="sumAsc">Sort: Total Score ↑</option>
       </select>
 
       <input
@@ -131,7 +139,7 @@ function LiveReviewFilterBar({
         onClick={handleAdminPitchExport}
         title="Download current results as CSV"
       >
-        Export CSV
+        Export
       </button>
     </div>
   );

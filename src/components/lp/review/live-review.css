@@ -27,14 +27,6 @@
   padding: var(--space-2) var(--space-3);
   background: var(--mb-paper);
   border: 2px solid var(--mb-ink);
-  box-shadow: var(--shadow-hard-sm);
-}
-
-/* Help anchor pinned to the right edge of the toolbar regardless of how
-   the filterbar wraps. */
-.win95-live-review-toolbar > .win95-live-review-filters-anchor {
-  margin-left: auto;
-  flex-shrink: 0;
 }
 
 /* Inline filter bar — every control shares one canonical look so the row
@@ -101,8 +93,15 @@
   cursor: not-allowed;
 }
 
-/* MultiSelectDropdown's inline styles set padding/min-width that we want
-   to override so it lines up with the native selects. */
+/* Layout-only wrapper for the MultiSelectDropdown. Carries no border or
+   background of its own — the inner button gets the canonical filterbar
+   styling — so the control reads as a single box, not a box-in-a-box. */
+.win95-live-review-filterbar__multi {
+  flex: 0 1 auto;
+  min-width: 140px;
+  display: inline-flex;
+}
+
 .win95-live-review-filterbar .multi-select-dropdown {
   flex: 0 1 auto;
   min-width: 140px;
@@ -146,18 +145,6 @@
   background: var(--mb-magenta) !important;
 }
 
-.win95-live-review-toolbar__help-btn {
-  min-width: 34px;
-  padding: 0 10px !important;
-  font-weight: 700 !important;
-}
-
-/* Anchor used by the help (?) popover so its absolute child lands under
-   the trigger button. */
-.win95-live-review-filters-anchor {
-  position: relative;
-}
-
 /* Two-pane body. The height calc keeps the panes scrolling internally
    instead of pushing the page. The 320px magic number accounts for the
    desktop window chrome + LP stats card + admin tabstrip + (compact)
@@ -180,7 +167,6 @@
 .win95-live-review-queue {
   overflow-y: auto;
   border: 2px solid var(--mb-ink);
-  box-shadow: var(--shadow-hard-sm);
   background: var(--mb-chalk);
   padding: 0;
   display: flex;
@@ -356,7 +342,6 @@
 /* Each of the three stacked sections (header / comments / notes). */
 .win95-live-review-section {
   border: 2px solid var(--mb-ink);
-  box-shadow: var(--shadow-hard-sm);
   background: var(--mb-chalk);
   padding: var(--space-4);
 }
@@ -424,13 +409,17 @@
   line-height: 1;
 }
 
-/* Action bar — second header row. Nav buttons left, action buttons right. */
+/* Action bar — pinned to the bottom of the header section. Action buttons
+   on the left, nav arrows on the right. */
 .win95-live-review-section__action-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
   flex-wrap: wrap;
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--mb-ink-15);
 }
 
 .win95-live-review-section__title {
@@ -757,53 +746,24 @@
   margin: var(--space-3) 0;
 }
 
-/* ----- Keyboard help popover ----- */
-.win95-live-review-help {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  margin-top: 4px;
-  background: var(--mb-chalk);
-  border: 2px solid var(--mb-ink);
-  box-shadow: var(--shadow-hard-sm);
-  padding: var(--space-3);
-  z-index: 60;
-  min-width: 280px;
+/* AI summary block — eyebrow label + body, mirrors the .pr-ai pattern from
+   the main review pitches tab so reviewers see the same affordance. */
+.win95-live-review-summary-block {
+  margin: var(--space-2) 0 var(--space-3);
 }
 
-.win95-live-review-help dl {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--space-2) var(--space-3);
-  margin: 0;
-}
-
-.win95-live-review-help dt {
-  font-family: var(--font-numeral);
-  font-size: var(--text-sm);
-  font-weight: 700;
-  color: var(--mb-ink);
-  background: var(--mb-paper);
-  border: 1px solid var(--mb-ink);
-  padding: 2px 6px;
-  text-align: center;
-}
-
-.win95-live-review-help dd {
-  font-family: var(--font-content);
-  font-size: var(--text-sm);
-  color: var(--mb-ink);
-  margin: 0;
-  align-self: center;
-}
-
-.win95-live-review-help__title {
+.win95-live-review-summary-block__eyebrow {
   font-family: var(--font-pixel);
   font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--mb-ink-60);
-  margin: 0 0 var(--space-2) 0;
-  padding-bottom: var(--space-1);
-  border-bottom: 1px solid var(--mb-ink-15);
+  margin: 0 0 var(--space-1) 0;
+}
+
+.win95-live-review-summary-block__category {
+  font-family: var(--font-content);
+  font-size: var(--text-sm);
+  color: var(--mb-ink-60);
+  margin-top: var(--space-1);
 }

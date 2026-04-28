@@ -93,7 +93,7 @@ const LiveReviewDetail = forwardRef(function LiveReviewDetail(
               className="win95-live-review-scoreblock"
               title={
                 grouped.scoredCount > 0
-                  ? `Weighted score. Favorite +2, Consideration +1, Pass 0, Ineligible -2. Average across ${grouped.scoredCount} rated review(s).`
+                  ? `Favorite +2, Consideration +1, Pass 0, Ineligible -2.\nAvg = Bayesian-weighted average across ${grouped.scoredCount} rated review(s); pulled toward the global mean so a single rave can't outrank a well-reviewed pitch. Used to sort.\nRaw = unweighted average.`
                   : "No rated reviews yet."
               }
             >
@@ -108,50 +108,34 @@ const LiveReviewDetail = forwardRef(function LiveReviewDetail(
               <div className="win95-live-review-scoreblock__row">
                 <span className="win95-live-review-scoreblock__label">Avg</span>
                 <span className="win95-live-review-scoreblock__num">
+                  {grouped.weightedAverage != null ? grouped.weightedAverage.toFixed(2) : "—"}
+                </span>
+              </div>
+              <div className="win95-live-review-scoreblock__row">
+                <span className="win95-live-review-scoreblock__label">Raw</span>
+                <span className="win95-live-review-scoreblock__num">
                   {grouped.averageScore != null ? grouped.averageScore.toFixed(2) : "—"}
                 </span>
               </div>
             </div>
           </div>
-          <div className="win95-live-review-section__action-bar">
-            <div className="win95-live-review-section__nav" role="group" aria-label="Navigate pitches">
-              <RetroButton size="sm" onClick={onPrev} disabled={isFirst} title="Previous pitch (↑ or k)">
-                ‹
-              </RetroButton>
-              <RetroButton size="sm" onClick={onNext} disabled={isLast} title="Next pitch (↓ or j)">
-                ›
-              </RetroButton>
-            </div>
-            <div className="win95-live-review-section__actions">
-              <RetroButton
-                size="sm"
-                variant={pitch.shortlisted ? "primary" : "default"}
-                onClick={() => handleToggleShortlist(pitch.id, pitch.shortlisted)}
-                disabled={shortlistTogglingId === pitch.id}
-                title={pitch.shortlisted ? "Remove from group shortlist (s)" : "Add to group shortlist (s)"}
-              >
-                {pitch.shortlisted ? "Shortlisted" : "Shortlist"}
-              </RetroButton>
-              <RetroButton
-                size="sm"
-                onClick={() => handleAssignWinner(pitch.id, pitch.isWinner)}
-              >
-                {pitch.isWinner ? "Remove Winner" : "Assign Winner"}
-              </RetroButton>
-              <RetroButton size="sm" variant="primary" onClick={onOpenDetailsDrawer} title="Open full pitch details">
-                Pitch Details
-              </RetroButton>
-            </div>
-          </div>
         </div>
 
-        {pitch.aiSummary ? (
-          <p className="win95-live-review-summary">{pitch.aiSummary}</p>
-        ) : (
-          <p className="win95-live-review-summary win95-live-review-summary--fallback">
-            <em>{pitch.valueProp ? pitch.valueProp.substring(0, 240) + (pitch.valueProp.length > 240 ? "…" : "") : "No AI summary yet."}</em>
-          </p>
-        )}
+        <div className="win95-live-review-summary-block">
+          <p className="win95-live-review-summary-block__eyebrow">AI Summary</p>
+          {pitch.aiSummary ? (
+            <p className="win95-live-review-summary">{pitch.aiSummary}</p>
+          ) : (
+            <p className="win95-live-review-summary win95-live-review-summary--fallback">
+              <em>{pitch.valueProp ? pitch.valueProp.substring(0, 240) + (pitch.valueProp.length > 240 ? "…" : "") : "No AI summary yet."}</em>
+            </p>
+          )}
+          {pitch.category && (
+            <div className="win95-live-review-summary-block__category">
+              Category: {pitch.category}
+            </div>
+          )}
+        </div>
 
         <div className="win95-live-review-meta">
           <span>{pitch.chapter || "N/A"}</span>
@@ -172,6 +156,37 @@ const LiveReviewDetail = forwardRef(function LiveReviewDetail(
             {pitch.shortlisted && <RetroPill tone="yellow">Shortlisted</RetroPill>}
           </div>
         )}
+
+        <div className="win95-live-review-section__action-bar">
+          <div className="win95-live-review-section__actions">
+            <RetroButton
+              size="sm"
+              variant={pitch.shortlisted ? "primary" : "default"}
+              onClick={() => handleToggleShortlist(pitch.id, pitch.shortlisted)}
+              disabled={shortlistTogglingId === pitch.id}
+              title={pitch.shortlisted ? "Remove from group shortlist (s)" : "Add to group shortlist (s)"}
+            >
+              {pitch.shortlisted ? "Shortlisted" : "Shortlist"}
+            </RetroButton>
+            <RetroButton
+              size="sm"
+              onClick={() => handleAssignWinner(pitch.id, pitch.isWinner)}
+            >
+              {pitch.isWinner ? "Remove Winner" : "Assign Winner"}
+            </RetroButton>
+            <RetroButton size="sm" variant="primary" onClick={onOpenDetailsDrawer} title="Open full pitch details">
+              Pitch Details
+            </RetroButton>
+          </div>
+          <div className="win95-live-review-section__nav" role="group" aria-label="Navigate pitches">
+            <RetroButton size="sm" onClick={onPrev} disabled={isFirst} title="Previous pitch (↑ or k)">
+              ‹
+            </RetroButton>
+            <RetroButton size="sm" onClick={onNext} disabled={isLast} title="Next pitch (↓ or j)">
+              ›
+            </RetroButton>
+          </div>
+        </div>
       </section>
 
       {/* Section 2 — LP ratings + comments */}

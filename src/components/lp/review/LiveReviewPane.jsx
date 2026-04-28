@@ -19,8 +19,6 @@ function LiveReviewPane({
   setFocusedPitchId,
   detailsDrawerOpen,
   setDetailsDrawerOpen,
-  keyboardHelpOpen,
-  setKeyboardHelpOpen,
   formatDate,
   getGroupedReviewsForAdmin,
   actionProps,
@@ -78,22 +76,12 @@ function LiveReviewPane({
       // Don't hijack browser/system shortcuts.
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-      switch (e.key) {
-        case "Escape":
-          // Priority order: drawer > help.
-          if (detailsDrawerOpen) {
-            setDetailsDrawerOpen(false);
-            e.preventDefault();
-          } else if (keyboardHelpOpen) {
-            setKeyboardHelpOpen(false);
-            e.preventDefault();
-          }
-          return;
-        case "?":
-          setKeyboardHelpOpen((v) => !v);
+      if (e.key === "Escape") {
+        if (detailsDrawerOpen) {
+          setDetailsDrawerOpen(false);
           e.preventDefault();
-          return;
-        default:
+        }
+        return;
       }
 
       // Movement / action shortcuts only apply when there's a focused pitch.
@@ -133,9 +121,7 @@ function LiveReviewPane({
     focusedIndex,
     pitches,
     detailsDrawerOpen,
-    keyboardHelpOpen,
     setDetailsDrawerOpen,
-    setKeyboardHelpOpen,
     actionProps,
     setFocusedPitchId,
   ]);
@@ -144,30 +130,6 @@ function LiveReviewPane({
     <div className="win95-live-review">
       <div className="win95-live-review-toolbar">
         {filtersProps && <LiveReviewFilterBar {...filtersProps} />}
-        <div className="win95-live-review-filters-anchor">
-          <button
-            type="button"
-            className="win95-live-review-filterbar__btn win95-live-review-toolbar__help-btn"
-            aria-expanded={keyboardHelpOpen}
-            onClick={() => setKeyboardHelpOpen((v) => !v)}
-            title="Keyboard shortcuts (?)"
-          >
-            ?
-          </button>
-          {keyboardHelpOpen && (
-            <div className="win95-live-review-help" role="dialog" aria-label="Keyboard shortcuts">
-              <p className="win95-live-review-help__title">Keyboard Shortcuts</p>
-              <dl>
-                <dt>↓ / J</dt><dd>Next pitch</dd>
-                <dt>↑ / K</dt><dd>Previous pitch</dd>
-                <dt>S</dt><dd>Toggle shortlist on focused pitch</dd>
-                <dt>N</dt><dd>Focus the notes composer</dd>
-                <dt>?</dt><dd>Toggle this help</dd>
-                <dt>Esc</dt><dd>Close drawer / help</dd>
-              </dl>
-            </div>
-          )}
-        </div>
       </div>
 
       <div className="win95-live-review-body">

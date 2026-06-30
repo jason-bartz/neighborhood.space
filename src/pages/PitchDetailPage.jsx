@@ -75,7 +75,7 @@ export default function PitchDetailPage() {
     return (
       <div className="mb-page" style={pageStyle}>
         <PageTaskbar />
-        <p style={{ textAlign: "center", color: "#666", fontSize: 14, marginTop: 80 }}>
+        <p style={{ textAlign: "center", color: "var(--mb-ink)", fontWeight: 600, fontSize: 14, marginTop: 80 }}>
           {status === "auth-loading" ? "Checking access…" : "Loading pitch…"}
         </p>
       </div>
@@ -354,8 +354,8 @@ const eyebrowStyle = {
 };
 
 const titleStyle = {
-  fontFamily: "var(--font-display)",
-  fontWeight: 400,
+  fontFamily: "var(--font-serif)",
+  fontWeight: 600,
   fontSize: 40,
   letterSpacing: "-0.02em",
   lineHeight: 1.05,
@@ -375,9 +375,9 @@ const sectionStyle = {
 };
 
 const sectionTitleStyle = {
-  fontFamily: "var(--font-display)",
+  fontFamily: "var(--font-serif)",
   fontSize: 20,
-  fontWeight: 400,
+  fontWeight: 600,
   margin: 0,
   color: "var(--mb-ink)",
 };

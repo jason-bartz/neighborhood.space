@@ -115,29 +115,40 @@ export default function BrandGuidelinesPDF() {
       <Page size="LETTER" style={pdfStyles.page}>
         <Text style={pdfStyles.h1First}>Typography</Text>
         <Paragraph>
-          Four type families, each with a clear job. Don't swap them. Don't
+          Five type families, each with a clear job. Don't swap them. Don't
           mix more than two on a single surface.
         </Paragraph>
 
         <View style={pdfStyles.typeSample} wrap={false}>
-          <Text style={pdfStyles.typeSampleLabel}>Display · Instrument Serif</Text>
-          <Text style={{ fontFamily: 'Instrument Serif', fontSize: 30, lineHeight: 1 }}>
+          <Text style={pdfStyles.typeSampleLabel}>Display · Archivo</Text>
+          <Text style={{ fontFamily: 'Archivo', fontWeight: 800, textTransform: 'uppercase', letterSpacing: -0.5, fontSize: 26, lineHeight: 1 }}>
             Belief Capital, in the Neighborhood.
           </Text>
           <Text style={pdfStyles.typeSampleMeta}>
-            Headlines, doc titles, editorial moments. Weight 400 always.
+            Mastheads, doc titles, big editorial moments. Heavy, uppercase.
           </Text>
         </View>
 
         <View style={pdfStyles.typeSample} wrap={false}>
-          <Text style={pdfStyles.typeSampleLabel}>Body · Inter</Text>
-          <Text style={{ fontFamily: 'Inter', fontSize: 11, lineHeight: 1.6 }}>
+          <Text style={pdfStyles.typeSampleLabel}>Reading · Spectral</Text>
+          <Text style={{ fontFamily: 'Spectral', fontSize: 11, lineHeight: 1.6 }}>
             $1,000 micro-grants for early-stage founders, funded by a local
             neighborhood of Limited Partners. No bureaucracy, no strings.
             Just belief, delivered quarterly.
           </Text>
           <Text style={pdfStyles.typeSampleMeta}>
-            Paragraphs, UI, navigation. Weights 400 / 600 / 700.
+            Body copy, ledes, prose, names, sign-offs. Weights 400 / 500 / 600.
+          </Text>
+        </View>
+
+        <View style={pdfStyles.typeSample} wrap={false}>
+          <Text style={pdfStyles.typeSampleLabel}>UI · Hanken Grotesk</Text>
+          <Text style={{ fontFamily: 'Hanken Grotesk', fontSize: 11, lineHeight: 1.6 }}>
+            Apply for a grant. Review pitches. Vote on the founders we back.
+            The interface, buttons, forms, and navigation all run on Hanken.
+          </Text>
+          <Text style={pdfStyles.typeSampleMeta}>
+            UI, navigation, buttons, labels, chips. Weights 400 / 600 / 700.
           </Text>
         </View>
 
@@ -153,11 +164,11 @@ export default function BrandGuidelinesPDF() {
 
         <View style={pdfStyles.typeSample} wrap={false}>
           <Text style={pdfStyles.typeSampleLabel}>Micro · Silkscreen</Text>
-          <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase' }}>
+          <Text style={{ fontFamily: 'Hanken Grotesk', fontWeight: 700, fontSize: 10, letterSpacing: 2, textTransform: 'uppercase' }}>
             NEIGHBORHOOD · IDENTITY · 01
           </Text>
           <Text style={pdfStyles.typeSampleMeta}>
-            Silkscreen in production; Inter-bold shown here as PDF
+            Silkscreen in production; Hanken-bold shown here as PDF
             fallback. Eyebrows, labels, tags only. 11 to 14px.
           </Text>
         </View>
@@ -200,7 +211,7 @@ export default function BrandGuidelinesPDF() {
             <Text style={[pdfStyles.doDontHead, { color: PDF_COLORS.magentaDeep }]}>Don't</Text>
             <Text style={{ fontSize: 10, marginBottom: 4 }}>• Don't add gradients, drop shadows, or glows.</Text>
             <Text style={{ fontSize: 10, marginBottom: 4 }}>• Don't mix more than two accent colors.</Text>
-            <Text style={{ fontSize: 10, marginBottom: 4 }}>• Don't set body copy in pixel or serif.</Text>
+            <Text style={{ fontSize: 10, marginBottom: 4 }}>• Don't set body copy in Silkscreen or Archivo.</Text>
             <Text style={{ fontSize: 10, marginBottom: 4 }}>• Don't rotate, warp, or recolor the logo.</Text>
             <Text style={{ fontSize: 10 }}>• Don't use VC words like investor, portfolio, ROI.</Text>
           </View>

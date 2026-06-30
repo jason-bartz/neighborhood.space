@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="../../css/win95-base.css" />
   <link rel="stylesheet" href="../../css/theme-tokens.css" />
 
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Spectral:wght@400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+
   <style>
     html, body {
       width: 1200px;
@@ -24,7 +26,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: var(--font-content, "Inter", "Helvetica Neue", Arial, sans-serif);
+      font-family: var(--font-content, "Hanken Grotesk", "Helvetica Neue", Arial, sans-serif);
       color: var(--gnf-text);
       position: relative;
     }
@@ -117,15 +119,16 @@
     .stepbar .dot.is-active { background: var(--pink-mid); border-color: var(--bevel-outset); }
 
     .label {
-      font-family: "Instrument Serif", "Times New Roman", Georgia, serif;
-      font-weight: 400;
+      font-family: "Archivo", "Arial Black", Impact, sans-serif;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
       font-size: 56px;
       line-height: 1.05;
-      letter-spacing: -0.012em;
       margin: 0 0 20px;
       color: var(--gnf-text);
     }
-    .label em { font-style: italic; color: var(--pink-dark); }
+    .label em { font-style: normal; color: var(--pink-dark); }
 
     .field {
       background: var(--gnf-bg);
@@ -158,7 +161,7 @@
       margin-top: 18px;
     }
     .helper-text {
-      font-family: var(--font-content, "Inter", sans-serif);
+      font-family: var(--font-content, "Hanken Grotesk", "Helvetica Neue", Arial, sans-serif);
       font-size: 14px;
       color: var(--gnf-text-muted);
     }
@@ -229,7 +232,7 @@
         </span>
       </div>
 
-      <h1 class="label">What&rsquo;s your <em>big idea?</em></h1>
+      <h1 class="label">WHAT&rsquo;S YOUR <em>BIG IDEA?</em></h1>
 
       <div class="field" aria-hidden="true">
         <span>I want to start a mobile bike-repair shop in my neighborhood</span>

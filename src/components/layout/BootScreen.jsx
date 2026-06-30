@@ -101,8 +101,8 @@ export default function BootScreen({ onFinish }) {
         </div>
         <h1 style={{
           fontFamily: 'var(--font-display)',
-          fontWeight: 400,
-          fontStyle: 'italic',
+          fontWeight: 900,
+          textTransform: 'uppercase',
           fontSize: '38px',
           letterSpacing: '-0.02em',
           margin: '0 0 24px',

@@ -403,7 +403,7 @@
             '<span>' + escapeHtml(a.chapter) + '</span>' +
             '<span>' + escapeHtml(a.quarter) + '</span>' +
           '</div>' +
-          '<h3 class="mb-h4" style="margin:0;font-family:var(--font-display);font-weight:400;font-size:24px;line-height:1.1;letter-spacing:-0.01em;">' +
+          '<h3 class="mb-h4" style="margin:0;font-family:var(--font-serif);font-weight:600;font-size:24px;line-height:1.1;letter-spacing:-0.01em;">' +
             escapeHtml(a.businessName) +
           '</h3>' +
           '<div class="mb-italic" style="font-size:14px;color:var(--mb-ink-60);">by ' + escapeHtml(a.founderName) + '</div>' +
@@ -492,7 +492,7 @@
               '<span>' + escapeHtml(awardee.quarter) + '</span>' +
             '</div>' +
             '<h2 id="awardee-modal-title" class="mb-h3"' +
-              ' style="margin:0;font-family:var(--font-display);font-weight:400;line-height:1.1;letter-spacing:-0.01em;">' +
+              ' style="margin:0;line-height:1.1;letter-spacing:-0.01em;">' +
               escapeHtml(awardee.businessName) +
             '</h2>' +
             '<div class="mb-italic" style="font-size:15px;color:var(--mb-ink-60);">by ' + escapeHtml(awardee.founderName) + '</div>' +

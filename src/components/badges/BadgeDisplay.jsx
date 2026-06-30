@@ -69,7 +69,7 @@ export function BadgeNotification({ badge, onClose }) {
           <div style={{ marginBottom: '15px', display: 'flex', justifyContent: 'center' }}>
             <BadgeIcon id={badge.id || badge.badgeId} size={84} />
           </div>
-          <h3 style={{ marginBottom: '10px', color: 'var(--mb-ink)', fontFamily: 'var(--font-display)', fontWeight: 400, fontSize: 24, letterSpacing: '-0.01em' }}>{stripBadgeNameEmoji(badge.name)}</h3>
+          <h3 style={{ marginBottom: '10px', color: 'var(--mb-ink)', fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 24, letterSpacing: '-0.01em' }}>{stripBadgeNameEmoji(badge.name)}</h3>
           <p style={{ marginBottom: '20px', color: 'var(--mb-ink-60)' }}>{badge.description}</p>
           <button
             onClick={onClose}

@@ -315,8 +315,8 @@ export default function ChapterHandbookPDF() {
         </Paragraph>
 
         <View style={{ marginTop: 24, borderTopWidth: 1, borderTopColor: PDF_COLORS.ink, paddingTop: 16 }}>
-          <Text style={{ fontFamily: 'Instrument Serif', fontSize: 18, marginBottom: 4 }}>With love,</Text>
-          <Text style={{ fontFamily: 'Instrument Serif', fontSize: 18 }}>Jason and Susan</Text>
+          <Text style={{ fontFamily: 'Spectral', fontWeight: 600, fontSize: 18, marginBottom: 4 }}>With love,</Text>
+          <Text style={{ fontFamily: 'Spectral', fontWeight: 600, fontSize: 18 }}>Jason and Susan</Text>
           <Text style={{ fontSize: 10, color: PDF_COLORS.ink60, marginTop: 4 }}>
             Co-Founders, Good Neighbor Fund
           </Text>

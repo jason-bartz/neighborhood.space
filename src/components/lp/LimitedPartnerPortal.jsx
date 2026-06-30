@@ -1204,8 +1204,8 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
 // All four cards are 1080×1080 PNGs rendered to a hidden <canvas> and
 // downloaded via canvas.toBlob. They share a Millennium Bug aesthetic:
 // flat MB-palette blocks (no gradients), 3px ink borders with hard-offset
-// shadows, Instrument Serif display, Inter body, Silkscreen eyebrows,
-// JetBrains Mono numerals. The colorful gnf logo and emoji accents are
+// shadows, Archivo uppercase masthead, Spectral/Hanken body, Silkscreen
+// eyebrows, JetBrains Mono numerals. The colorful gnf logo and emoji accents are
 // the only image-based content; everything else is typographic.
 
 // ---------- Card palette (hex mirrors of the theme-tokens.css vars) ----------
@@ -1231,8 +1231,9 @@ const MB_COLORS = {
 };
 
 const CARD_FONTS = {
-  display:  '"Instrument Serif", "Times New Roman", Georgia, serif',
-  content:  '"Inter", "Helvetica Neue", Arial, sans-serif',
+  display:  '"Archivo", "Arial Black", Impact, sans-serif',
+  serif:    '"Spectral", Georgia, "Times New Roman", serif',
+  content:  '"Hanken Grotesk", "Helvetica Neue", Arial, sans-serif',
   pixel:    '"Silkscreen", "Courier New", monospace',
   numeral:  '"JetBrains Mono", "Menlo", "Courier New", monospace',
 };
@@ -1266,17 +1267,21 @@ const loadBadgeIconImage = (badgeId, size = 96) => new Promise((resolve) => {
   }
 });
 
-// Await web-font readiness so Instrument Serif / Silkscreen actually
-// render on the canvas instead of silently falling back to serif/Courier.
+// Await web-font readiness so Archivo / Spectral / Hanken / Silkscreen
+// actually render on the canvas instead of silently falling back.
 const waitForCardFonts = async () => {
   if (typeof document === 'undefined' || !document.fonts) return;
   try {
     // Preload specific size/weight combos the cards need.
     await Promise.all([
-      document.fonts.load('italic 72px "Instrument Serif"'),
-      document.fonts.load('400 48px "Instrument Serif"'),
-      document.fonts.load('700 32px "Inter"'),
-      document.fonts.load('400 24px "Inter"'),
+      document.fonts.load('800 88px "Archivo"'),
+      document.fonts.load('900 64px "Archivo"'),
+      document.fonts.load('600 64px "Spectral"'),
+      document.fonts.load('500 32px "Spectral"'),
+      document.fonts.load('700 64px "Spectral"'),
+      document.fonts.load('400 24px "Spectral"'),
+      document.fonts.load('700 32px "Hanken Grotesk"'),
+      document.fonts.load('400 24px "Hanken Grotesk"'),
       document.fonts.load('700 18px "Silkscreen"'),
       document.fonts.load('700 120px "JetBrains Mono"'),
     ]);
@@ -1401,7 +1406,7 @@ const drawPortrait = (ctx, cx, cy, r, photoImg, name) => {
     ctx.fillStyle = MB_COLORS.magenta;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `400 ${Math.round(r * 0.9)}px ${CARD_FONTS.display}`;
+    ctx.font = `900 ${Math.round(r * 0.9)}px ${CARD_FONTS.display}`;
     ctx.fillText(initials, cx, cy + 2);
     ctx.textBaseline = 'alphabetic';
   }
@@ -1437,16 +1442,16 @@ const drawWelcomeCard = async (canvas) => {
   ctx.letterSpacing = '0px';
 
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.font = `400 64px ${CARD_FONTS.display}`;
+  ctx.font = `600 64px ${CARD_FONTS.serif}`;
   ctx.fillText(user?.name || 'New Neighbor', 540, 545);
 
-  // Editorial headline
+  // Masthead headline — Archivo uppercase, second line magenta
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.font = `400 56px ${CARD_FONTS.display}`;
-  ctx.fillText("I'm backing founders", 540, 660);
-  ctx.font = `italic 400 56px ${CARD_FONTS.display}`;
+  ctx.font = `800 56px ${CARD_FONTS.display}`;
+  ctx.fillText("I'M BACKING FOUNDERS", 540, 660);
+  ctx.font = `800 56px ${CARD_FONTS.display}`;
   ctx.fillStyle = MB_COLORS.magenta;
-  ctx.fillText('in my neighborhood.', 540, 730);
+  ctx.fillText('IN MY NEIGHBORHOOD.', 540, 730);
 
   // Supporting body
   ctx.fillStyle = MB_COLORS.ink;
@@ -1500,7 +1505,7 @@ const drawBadgeCard = async (canvas) => {
   ctx.letterSpacing = '0px';
 
   ctx.fillStyle = MB_COLORS.chalk;
-  ctx.font = `400 52px ${CARD_FONTS.display}`;
+  ctx.font = `600 52px ${CARD_FONTS.serif}`;
   ctx.fillText(user?.name || 'Achievement Hunter', 280, 252);
 
   // Big numeral: badge count
@@ -1628,7 +1633,7 @@ const drawChapterStatsCard = async (canvas) => {
   ctx.letterSpacing = '0px';
 
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.font = `400 72px ${CARD_FONTS.display}`;
+  ctx.font = `600 72px ${CARD_FONTS.serif}`;
   ctx.fillText(user?.chapter || 'Chapter', 540, 280);
 
   // Two stat cards side-by-side
@@ -1667,9 +1672,9 @@ const drawChapterStatsCard = async (canvas) => {
   // Pull quote
   ctx.textAlign = 'center';
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.font = `italic 400 46px ${CARD_FONTS.display}`;
-  ctx.fillText('"Funded by belief.', 540, 670);
-  ctx.fillText('Fueled by neighbors."', 540, 720);
+  ctx.font = `800 46px ${CARD_FONTS.display}`;
+  ctx.fillText('"FUNDED BY BELIEF.', 540, 670);
+  ctx.fillText('FUELED BY NEIGHBORS."', 540, 720);
 
   // CTA bar (magenta)
   drawShadowRect(ctx, 80, 770, 920, 120, MB_COLORS.magenta, 8);
@@ -1711,15 +1716,15 @@ const drawRecruitmentCard = async (canvas) => {
   ctx.letterSpacing = '0px';
 
   ctx.fillStyle = MB_COLORS.chalk;
-  ctx.font = `400 60px ${CARD_FONTS.display}`;
+  ctx.font = `600 60px ${CARD_FONTS.serif}`;
   ctx.fillText(user?.name || 'LP Name', 540, 550);
 
-  // Editorial headline
-  ctx.font = `400 52px ${CARD_FONTS.display}`;
-  ctx.fillText('I fund neighbors', 540, 640);
-  ctx.font = `italic 400 52px ${CARD_FONTS.display}`;
+  // Masthead headline — Archivo uppercase, second line butter
+  ctx.font = `800 52px ${CARD_FONTS.display}`;
+  ctx.fillText('I FUND NEIGHBORS', 540, 640);
+  ctx.font = `800 52px ${CARD_FONTS.display}`;
   ctx.fillStyle = MB_COLORS.butter;
-  ctx.fillText('before the VCs do.', 540, 700);
+  ctx.fillText('BEFORE THE VCS DO.', 540, 700);
 
   // CTA — butter rect with ink text
   drawShadowRect(ctx, 90, 770, 900, 140, MB_COLORS.butter, 8);
@@ -1815,20 +1820,20 @@ const drawApprovalDialogCard = async (canvas) => {
   ctx.fillText('GRANT APPROVED  ·  SYSTEM MESSAGE', 320, 345);
   ctx.letterSpacing = '0px';
 
-  // Editorial headline — split into roman + italic-magenta + roman
+  // Masthead headline — Archivo uppercase, the middle phrase in magenta
   const hLineY1 = 440;
   const hLineY2 = 540;
-  const hSize = 88;
+  const hSize = 72;
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.font = `400 ${hSize}px ${CARD_FONTS.display}`;
+  ctx.font = `800 ${hSize}px ${CARD_FONTS.display}`;
   ctx.fillText('$1,000 ', 320, hLineY1);
   const part1W = ctx.measureText('$1,000 ').width;
-  ctx.font = `italic 400 ${hSize}px ${CARD_FONTS.display}`;
+  ctx.font = `800 ${hSize}px ${CARD_FONTS.display}`;
   ctx.fillStyle = MB_COLORS.magenta;
-  ctx.fillText('for your', 320 + part1W, hLineY1);
-  ctx.font = `400 ${hSize}px ${CARD_FONTS.display}`;
+  ctx.fillText('FOR YOUR', 320 + part1W, hLineY1);
+  ctx.font = `800 ${hSize}px ${CARD_FONTS.display}`;
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.fillText('big idea.', 320, hLineY2);
+  ctx.fillText('BIG IDEA.', 320, hLineY2);
 
   // Subhead
   ctx.fillStyle = MB_COLORS.ink60;
@@ -1845,7 +1850,7 @@ const drawApprovalDialogCard = async (canvas) => {
   ctx.fillText('SHARED BY', 220, bylineY - 14);
   ctx.letterSpacing = '0px';
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.font = `400 28px ${CARD_FONTS.display}`;
+  ctx.font = `600 28px ${CARD_FONTS.serif}`;
   ctx.fillText(user?.name || 'A Limited Partner', 220, bylineY + 14);
   ctx.fillStyle = MB_COLORS.ink60;
   ctx.font = `400 18px ${CARD_FONTS.content}`;
@@ -1914,12 +1919,12 @@ const drawApplicationFormCard = async (canvas) => {
   // Editorial label: "What's your big idea?"
   ctx.textAlign = 'left';
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.font = `400 88px ${CARD_FONTS.display}`;
-  ctx.fillText('What’s your ', 130, 440);
-  const lblW = ctx.measureText('What’s your ').width;
-  ctx.font = `italic 400 88px ${CARD_FONTS.display}`;
+  ctx.font = `800 64px ${CARD_FONTS.display}`;
+  ctx.fillText('WHAT’S YOUR ', 130, 440);
+  const lblW = ctx.measureText('WHAT’S YOUR ').width;
+  ctx.font = `800 64px ${CARD_FONTS.display}`;
   ctx.fillStyle = MB_COLORS.magenta;
-  ctx.fillText('big idea?', 130 + lblW, 440);
+  ctx.fillText('BIG IDEA?', 130 + lblW, 440);
 
   // Sunken input field with typed example + cursor
   drawShadowRect(ctx, 130, 510, 820, 110, MB_COLORS.paper, 6);
@@ -1954,7 +1959,7 @@ const drawApplicationFormCard = async (canvas) => {
   ctx.fillText('SHARED BY', 220, bylineCY - 14);
   ctx.letterSpacing = '0px';
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.font = `400 22px ${CARD_FONTS.display}`;
+  ctx.font = `600 22px ${CARD_FONTS.serif}`;
   ctx.fillText(`${user?.name || 'A Limited Partner'} — ${user?.chapter || 'GNF'} LP`, 220, bylineCY + 14);
 
   ctx.textAlign = 'center';
@@ -2008,22 +2013,22 @@ const drawInviteCard = async (canvas) => {
   ctx.fillText('AN INVITATION TO GIVE TOGETHER', 60, 168);
   ctx.letterSpacing = '0px';
 
-  // Headline — Instrument Serif, the personal "me" set italic in magenta
+  // Masthead headline — Archivo uppercase, the personal "ME" in magenta
   const hSize = 76;
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.font = `400 ${hSize}px ${CARD_FONTS.display}`;
+  ctx.font = `800 ${hSize}px ${CARD_FONTS.display}`;
   const hy1 = 248;
   let hx = 60;
-  ctx.fillText('Join ', hx, hy1);
-  hx += ctx.measureText('Join ').width;
-  ctx.font = `italic 400 ${hSize}px ${CARD_FONTS.display}`;
+  ctx.fillText('JOIN ', hx, hy1);
+  hx += ctx.measureText('JOIN ').width;
+  ctx.font = `800 ${hSize}px ${CARD_FONTS.display}`;
   ctx.fillStyle = MB_COLORS.magenta;
-  ctx.fillText('me', hx, hy1);
-  hx += ctx.measureText('me').width;
-  ctx.font = `400 ${hSize}px ${CARD_FONTS.display}`;
+  ctx.fillText('ME', hx, hy1);
+  hx += ctx.measureText('ME').width;
+  ctx.font = `800 ${hSize}px ${CARD_FONTS.display}`;
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.fillText(' as a', hx, hy1);
-  ctx.fillText('Limited Partner', 60, hy1 + 70);
+  ctx.fillText(' AS A', hx, hy1);
+  ctx.fillText('LIMITED PARTNER', 60, hy1 + 70);
 
   // Portrait — top-right of the content field
   drawPortrait(ctx, 940, 232, 72, photoImg, name);
@@ -2039,10 +2044,10 @@ const drawInviteCard = async (canvas) => {
   // Name — auto-shrink only down to a still-legible floor for long names
   let nameSize = 34;
   ctx.fillStyle = MB_COLORS.ink;
-  ctx.font = `400 ${nameSize}px ${CARD_FONTS.display}`;
+  ctx.font = `600 ${nameSize}px ${CARD_FONTS.serif}`;
   while (ctx.measureText(name).width > 660 && nameSize > 26) {
     nameSize -= 1;
-    ctx.font = `400 ${nameSize}px ${CARD_FONTS.display}`;
+    ctx.font = `600 ${nameSize}px ${CARD_FONTS.serif}`;
   }
   ctx.fillText(name, 60, 388);
 
@@ -2129,6 +2134,282 @@ const drawInviteCard = async (canvas) => {
   drawFooter(ctx, logoImg);
 };
 
+// ---------- 8. The $1,000 Check — recruit the next founder application ----------
+// A re-creation of the GNF "big check" made out to "Your Business Here": a
+// tilted check with a thick aqua security border, the logo (no wordmark) in
+// the bank-name corner, today's DATE, a boxed $1,000.00, "Belief capital" memo
+// and a "Chapter Director" signature. The masthead, DATE and CTA auto-fill
+// from the current quarter so the card never goes stale — the headline reframes
+// the grant as a check already written, waiting only for the founder's name.
+const drawCheckCard = async (canvas) => {
+  await waitForCardFonts();
+  const ctx = canvas.getContext('2d');
+
+  // Auto data: today's date + the current quarter's application deadline.
+  // quarterLabel uses the canonical getCurrentQuarter(); the deadline is the
+  // last calendar day of that quarter.
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+  const q = Math.floor(now.getMonth() / 3);
+  const deadline = new Date(now.getFullYear(), q * 3 + 3, 0);
+  const dateStr = `${pad(now.getMonth() + 1)}/${pad(now.getDate())}/${now.getFullYear()}`;
+  const quarterLabel = getCurrentQuarter();
+  const deadlineStr = `${MONTHS[deadline.getMonth()]} ${deadline.getDate()}, ${deadline.getFullYear()}`;
+
+  // Paper base
+  ctx.fillStyle = MB_COLORS.paper;
+  ctx.fillRect(0, 0, 1080, 1080);
+
+  drawMasthead(ctx, `Apply by ${deadlineStr}`);
+  const logoImg = await loadImage('/assets/gnf-logo.png');
+
+  // ---------- Campaign headline ----------
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+
+  ctx.fillStyle = MB_COLORS.magenta;
+  ctx.font = `700 20px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '4px';
+  ctx.fillText('WE ALREADY WROTE THE CHECK', 540, 172);
+  ctx.letterSpacing = '0px';
+
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `600 64px ${CARD_FONTS.serif}`;
+  ctx.fillText('It just needs', 540, 244);
+  ctx.font = `700 64px ${CARD_FONTS.serif}`;
+  ctx.fillStyle = MB_COLORS.magenta;
+  ctx.fillText('your name on it.', 540, 304);
+  ctx.fillStyle = MB_COLORS.ink;
+
+  // =================================================================
+  //  THE BIG CHECK — drawn into a slightly tilted frame.
+  // =================================================================
+  const cx = 70, cy = 352, cw = 940, ch = 356;
+  const checkCX = cx + cw / 2;
+  const checkCY = cy + ch / 2;
+  const tilt = -0.028; // ~1.6deg counter-clockwise
+
+  ctx.save();
+  ctx.translate(checkCX, checkCY);
+  ctx.rotate(tilt);
+  ctx.translate(-checkCX, -checkCY);
+
+  // Check body: hard offset shadow + THICK solid color border to the edge
+  // (aqua "security" band), then the white check face inside it.
+  const bw = 18;
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.fillRect(cx + 12, cy + 12, cw, ch);
+  ctx.fillStyle = MB_COLORS.aqua;
+  ctx.fillRect(cx, cy, cw, ch);
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.fillRect(cx + bw, cy + bw, cw - 2 * bw, ch - 2 * bw);
+  ctx.strokeStyle = MB_COLORS.ink;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(cx, cy, cw, ch);
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(cx + bw, cy + bw, cw - 2 * bw, ch - 2 * bw);
+
+  const L = cx + 38;
+  const R = cx + cw - 38;
+
+  // Top-left: enlarged gnf logo only (no wordmark) + slim tagline.
+  const ls = 82;
+  if (logoImg) {
+    ctx.drawImage(logoImg, L, cy + 26, ls, ls);
+  }
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = MB_COLORS.ink60;
+  ctx.font = `500 20px ${CARD_FONTS.serif}`;
+  ctx.fillText('Neighbors funding neighbors', L + ls + 18, cy + 60);
+  ctx.font = `700 10px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '2px';
+  ctx.fillText('EST. 2023', L + ls + 18, cy + 82);
+  ctx.letterSpacing = '0px';
+
+  // Top-right: check No. + DATE
+  ctx.textAlign = 'right';
+  ctx.fillStyle = MB_COLORS.ink60;
+  ctx.font = `700 12px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '2px';
+  ctx.fillText('No. 1000', R, cy + 44);
+  ctx.letterSpacing = '0px';
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MB_COLORS.ink60;
+  ctx.font = `700 11px ${CARD_FONTS.pixel}`;
+  const dateLabelX = R - 220;
+  ctx.fillText('DATE', dateLabelX, cy + 80);
+  ctx.strokeStyle = MB_COLORS.ink;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(dateLabelX + 44, cy + 82);
+  ctx.lineTo(R, cy + 82);
+  ctx.stroke();
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 22px ${CARD_FONTS.numeral}`;
+  ctx.textAlign = 'center';
+  ctx.fillText(dateStr, (dateLabelX + 44 + R) / 2, cy + 76);
+
+  // PAY TO THE ORDER OF + payee + amount box
+  const payY = cy + 172;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `700 12px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '1px';
+  ctx.fillText('PAY TO THE', L, payY - 18);
+  ctx.fillText('ORDER OF', L, payY - 2);
+  ctx.letterSpacing = '0px';
+
+  // Single centered string so the "$" never collides with the digits.
+  const boxW = 184, boxH = 54, boxX = R - boxW, boxY = payY - 42;
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.fillRect(boxX, boxY, boxW, boxH);
+  ctx.strokeStyle = MB_COLORS.ink;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(boxX, boxY, boxW, boxH);
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `700 30px ${CARD_FONTS.numeral}`;
+  ctx.textAlign = 'center';
+  ctx.fillText('$1,000.00', boxX + boxW / 2, boxY + 37);
+
+  const lineStartX = L + 88;
+  const lineEndX = boxX - 24;
+  ctx.strokeStyle = MB_COLORS.ink;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(lineStartX, payY + 4);
+  ctx.lineTo(lineEndX, payY + 4);
+  ctx.stroke();
+
+  // Payee = Your Business Here — magenta Spectral 600, mixed case, auto-shrunk to fit.
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MB_COLORS.magenta;
+  const payee = 'Your Business Here';
+  let payeeSize = 44;
+  ctx.font = `600 ${payeeSize}px ${CARD_FONTS.serif}`;
+  const payeeAvail = lineEndX - (lineStartX + 8) - 6;
+  while (ctx.measureText(payee).width > payeeAvail && payeeSize > 28) {
+    payeeSize -= 2;
+    ctx.font = `600 ${payeeSize}px ${CARD_FONTS.serif}`;
+  }
+  ctx.fillText(payee, lineStartX + 8, payY - 4);
+
+  // Written-amount line
+  const writeY = payY + 58;
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `500 24px ${CARD_FONTS.serif}`;
+  ctx.textAlign = 'left';
+  const amountWords = 'One thousand and 00/100';
+  ctx.fillText(amountWords, L, writeY);
+  const awWidth = ctx.measureText(amountWords).width;
+  ctx.fillStyle = MB_COLORS.ink60;
+  const dashStart = L + awWidth + 12;
+  const dollarsLabelW = 80;
+  const dashEnd = R - dollarsLabelW;
+  ctx.font = `400 22px ${CARD_FONTS.serif}`;
+  let dxp = dashStart;
+  while (dxp < dashEnd - 10) { ctx.fillText('—', dxp, writeY); dxp += 16; }
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `700 13px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '1px';
+  ctx.textAlign = 'right';
+  ctx.fillText('DOLLARS', R, writeY - 2);
+  ctx.letterSpacing = '0px';
+
+  // Bottom: MEMO (left) + signature (right)
+  const botY = cy + ch - 52;
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MB_COLORS.ink60;
+  ctx.font = `700 11px ${CARD_FONTS.pixel}`;
+  ctx.textBaseline = 'middle';
+  ctx.fillText('MEMO', L, botY - 9);
+  ctx.textBaseline = 'alphabetic';
+  const memoLabelW = 52;
+  ctx.strokeStyle = MB_COLORS.ink;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(L + memoLabelW, botY);
+  ctx.lineTo(L + 360, botY);
+  ctx.stroke();
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `500 22px ${CARD_FONTS.serif}`;
+  ctx.fillText('Belief capital', L + memoLabelW + 8, botY - 6);
+
+  // Signature — "Chapter Director" signed ON the line (no GNF wordmark here).
+  const sigRight = R;
+  const sigLeft = R - 300;
+  ctx.strokeStyle = MB_COLORS.ink;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(sigLeft, botY);
+  ctx.lineTo(sigRight, botY);
+  ctx.stroke();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `600 38px ${CARD_FONTS.serif}`;
+  ctx.fillText('Chapter Director', (sigLeft + sigRight) / 2, botY - 7);
+  ctx.font = `700 10px ${CARD_FONTS.pixel}`;
+  ctx.fillStyle = MB_COLORS.ink60;
+  ctx.letterSpacing = '2px';
+  ctx.fillText('AUTHORIZED SIGNATURE', (sigLeft + sigRight) / 2, botY + 18);
+  ctx.letterSpacing = '0px';
+
+  // "$1,000 BELIEF CAPITAL" sticker tag, overhanging the top-right corner.
+  ctx.save();
+  const tagW = 188, tagH = 56;
+  const tagX = cx + cw - tagW + 6;
+  const tagY = cy - 30;
+  ctx.translate(tagX + tagW / 2, tagY + tagH / 2);
+  ctx.rotate(-0.05);
+  drawShadowRect(ctx, -tagW / 2, -tagH / 2, tagW, tagH, MB_COLORS.magenta, 6);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.font = `800 30px ${CARD_FONTS.display}`;
+  ctx.fillText('$1,000', 0, -8);
+  ctx.font = `700 10px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '2px';
+  ctx.fillText('BELIEF CAPITAL', 0, 14);
+  ctx.letterSpacing = '0px';
+  ctx.textBaseline = 'alphabetic';
+  ctx.restore();
+
+  ctx.restore(); // end check tilt — page-level layers below stay straight
+
+  // CTA bar BELOW the check
+  const ctaY = 828, ctaH = 96;
+  drawShadowRect(ctx, 70, ctaY, 940, ctaH, MB_COLORS.ink, 8);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = MB_COLORS.butter;
+  ctx.font = `700 16px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '2px';
+  ctx.fillText(`${quarterLabel} CLOSES ${deadlineStr.toUpperCase()}`, 100, ctaY + 34);
+  ctx.letterSpacing = '0px';
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.font = `800 30px ${CARD_FONTS.display}`;
+  ctx.fillText('SUBMIT YOUR 60-SECOND PITCH', 100, ctaY + 66);
+
+  const pillW = 224, pillH = 56, pillX = 1010 - 24 - pillW, pillY = ctaY + (ctaH - pillH) / 2;
+  drawShadowRect(ctx, pillX, pillY, pillW, pillH, MB_COLORS.magenta, 6);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.font = `700 17px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '1px';
+  ctx.fillText('APPLY ▸', pillX + pillW / 2, pillY + pillH / 2 - 9);
+  ctx.letterSpacing = '0px';
+  ctx.font = `600 16px ${CARD_FONTS.content}`;
+  ctx.fillText('goodneighbor.fund/pitch', pillX + pillW / 2, pillY + pillH / 2 + 15);
+  ctx.textBaseline = 'alphabetic';
+
+  drawFooter(ctx, logoImg);
+};
+
 const downloadCard = async (type) => {
   const canvasId =
     type === 'welcome' ? 'welcome-canvas' :
@@ -2137,6 +2418,7 @@ const downloadCard = async (type) => {
     type === 'recruitment' ? 'recruitment-canvas' :
     type === 'approval' ? 'approval-canvas' :
     type === 'invite' ? 'invite-canvas' :
+    type === 'check' ? 'check-canvas' :
     'application-canvas';
   const canvas = document.getElementById(canvasId);
 
@@ -2156,6 +2438,8 @@ const downloadCard = async (type) => {
     await drawApplicationFormCard(canvas);
   } else if (type === 'invite') {
     await drawInviteCard(canvas);
+  } else if (type === 'check') {
+    await drawCheckCard(canvas);
   }
 
   canvas.toBlob((blob) => {
@@ -2181,7 +2465,9 @@ useEffect(() => {
       const approvalCanvas = document.getElementById('approval-canvas');
       const applicationCanvas = document.getElementById('application-canvas');
       const inviteCanvas = document.getElementById('invite-canvas');
+      const checkCanvas = document.getElementById('check-canvas');
 
+      if (checkCanvas) await drawCheckCard(checkCanvas);
       if (welcomeCanvas) await drawWelcomeCard(welcomeCanvas);
       if (badgeCanvas) await drawBadgeCard(badgeCanvas);
       if (statsCanvas) await drawChapterStatsCard(statsCanvas);
@@ -4939,7 +5225,7 @@ const sortedUsers = useMemo(() => {
 
 if (isLoadingAuth || completingSignIn) {
   const message = completingSignIn ? "Signing you in…" : "Verifying access…";
-  return <div style={{ padding: '50px', textAlign: 'center', fontFamily: 'var(--font-content)', fontSize: '1.2em', color: 'var(--mb-ink-60)' }}>{message}</div>;
+  return <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '50px', textAlign: 'center', fontFamily: 'var(--font-content)', fontWeight: 600, fontSize: '1.2em', color: 'var(--mb-ink)' }}>{message}</div>;
 }
 
 
@@ -6027,51 +6313,58 @@ return (
           <section className="admin-section admin-section--paper">
             <div className="social-cards-container">
               <SocialCardTile
+                canvasId="check-canvas"
+                title="The $1,000 Check"
+                eyebrow="Card 01"
+                description="The big check, made out to “Your Business Here” &mdash; auto-dated with this quarter&rsquo;s deadline. Post it to drive 60-second pitch applications."
+                onDownload={() => downloadCard('check')}
+              />
+              <SocialCardTile
                 canvasId="invite-canvas"
                 title="Join Me as an LP"
-                eyebrow="Card 01"
+                eyebrow="Card 02"
                 description="A personal, color-blocked invite &mdash; your name, chapter, and the four facts that recruit the next Limited Partner."
                 onDownload={() => downloadCard('invite')}
               />
               <SocialCardTile
                 canvasId="welcome-canvas"
                 title="Welcome to GNF"
-                eyebrow="Card 02"
+                eyebrow="Card 03"
                 description="Introduce yourself to the chapter."
                 onDownload={() => downloadCard('welcome')}
               />
               <SocialCardTile
                 canvasId="badge-canvas"
                 title="Badge Achievements"
-                eyebrow="Card 03"
+                eyebrow="Card 04"
                 description="Show off the trophies you&rsquo;ve earned."
                 onDownload={() => downloadCard('badge')}
               />
               <SocialCardTile
                 canvasId="stats-canvas"
                 title="Chapter Impact"
-                eyebrow="Card 04"
+                eyebrow="Card 05"
                 description="Your chapter&rsquo;s funded-business tally."
                 onDownload={() => downloadCard('stats')}
               />
               <SocialCardTile
                 canvasId="recruitment-canvas"
                 title="LP Recruitment"
-                eyebrow="Card 05"
+                eyebrow="Card 06"
                 description="Rally new LPs into the network."
                 onDownload={() => downloadCard('recruitment')}
               />
               <SocialCardTile
                 canvasId="approval-canvas"
                 title="Approval Dialog"
-                eyebrow="Card 06"
+                eyebrow="Card 07"
                 description="Belief, in writing — Win95 grant-approved notification."
                 onDownload={() => downloadCard('approval')}
               />
               <SocialCardTile
                 canvasId="application-canvas"
                 title="Application Form"
-                eyebrow="Card 07"
+                eyebrow="Card 08"
                 description="Apply in one sentence — “What&rsquo;s your big idea?”"
                 onDownload={() => downloadCard('application')}
               />
@@ -9371,7 +9664,6 @@ return (
                                 background: roleTag.bg,
                                 border: '2px solid',
                                 borderColor: 'var(--mb-ink)',
-                                boxShadow: 'var(--shadow-hard-sm)',
                                 padding: '2px 6px',
                                 fontSize: '10px',
                                 fontWeight: 'bold',
@@ -9452,7 +9744,6 @@ return (
                                   background: 'var(--gnf-pink-100)',
                                   border: '2px solid',
                                   borderColor: 'var(--mb-ink)',
-                                  boxShadow: 'var(--shadow-hard-sm)',
                                   padding: '2px 6px',
                                   fontSize: '11px',
                                   display: 'flex',

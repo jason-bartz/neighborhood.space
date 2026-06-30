@@ -158,8 +158,9 @@ export default function LPApplication({ onClose, initialChapter, hideFrame = fal
         <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={250} recycle={false} />
         <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Application Received</span>
         <h1 style={{
-          fontFamily: "var(--font-display)",
-          fontWeight: 400,
+          fontFamily: "var(--font-serif)",
+          fontWeight: 600,
+          textTransform: "none",
           fontSize: 40,
           letterSpacing: "-0.02em",
           lineHeight: 1.05,
@@ -227,8 +228,9 @@ export default function LPApplication({ onClose, initialChapter, hideFrame = fal
           }}>
             <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Limited Partner · Application</span>
             <h2 style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 400,
+              fontFamily: "var(--font-serif)",
+              fontWeight: 600,
+              textTransform: "none",
               fontSize: 28,
               letterSpacing: "-0.015em",
               lineHeight: 1.1,
@@ -244,7 +246,7 @@ export default function LPApplication({ onClose, initialChapter, hideFrame = fal
             <p className="mb-body" style={{ margin: "0 0 12px" }}>
               As a Limited Partner, you'll help select grant recipients, support founders with your
               knowledge and network, and be part of a chapter of value-aligned individuals. This isn't
-              venture capital; we expect <em style={{ fontFamily: "var(--font-display)", fontStyle: "italic" }}>no</em> financial return &mdash;
+              venture capital; we expect <em className="mb-key">no</em> financial return &mdash;
               just community impact. It's <strong style={{ fontWeight: 700 }}>belief capital</strong>.
             </p>
             <p className="mb-body" style={{ margin: "0 0 14px" }}>

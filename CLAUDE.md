@@ -4,7 +4,7 @@ Guidance for Claude Code sessions in this repo. Start here; [README.md](README.m
 
 ## What this is
 
-A React SPA + Firebase backend for the Good Neighbor Fund — public pitch submissions on one side, a role-gated reviewer portal on the other. The UI is a deliberate two-layer hybrid: a Windows-95 desktop **chrome** (taskbar, dock, window frames) wrapping editorial-modern **content** ("Millennium Bug" — Instrument Serif + Inter + Silkscreen + saturated color blocks on cream paper). The vibe is load-bearing, not decorative.
+A React SPA + Firebase backend for the Good Neighbor Fund — public pitch submissions on one side, a role-gated reviewer portal on the other. The UI is a deliberate two-layer hybrid: a Windows-95 desktop **chrome** (taskbar, dock, window frames) wrapping editorial-modern **content** ("Millennium Bug", on the "Broadcast" type system — Archivo heavy-uppercase mastheads + Spectral reading serif + Hanken Grotesk UI + Silkscreen + saturated color blocks on cream paper). The vibe is load-bearing, not decorative.
 
 ## Commands
 
@@ -41,7 +41,7 @@ All role checks live in [firestore.rules](firestore.rules). Three tiers: `superA
 
 ## Design system — non-negotiable rules
 
-Full guide: [STYLE_GUIDE.md](STYLE_GUIDE.md). The hot list:
+Full guide: [STYLE_GUIDE.md](docs/STYLE_GUIDE.md). The hot list:
 
 ### Two layers — pick the right one
 
@@ -49,7 +49,7 @@ The repo has **two parallel design layers** and they are NOT interchangeable. Pi
 
 | Layer | When to use | Tokens | Utility classes |
 |---|---|---|---|
-| **Millennium Bug** (editorial) | **Default for all content inside windows** — pages, cards, forms, modals, dashboards, anything a user reads or fills in | `--mb-*` (magenta, grape, aqua, tangerine, butter, paper, ink, chalk) + `--font-display` / `--font-content` / `--font-pixel` / `--font-numeral` | `.mb-block-*`, `.mb-card`, `.mb-btn` (+ `.mb-btn-ink` / `-chalk` / `-aqua` / `-butter` / `-tangerine` / `-grape` / `-ghost`), `.mb-eyebrow`, `.mb-h1`–`.mb-h4`, `.mb-lede` / `.mb-body` / `.mb-micro`, `.mb-tag`, `.mb-badge`, `.mb-grid` (+ `-2`/`-3`/`-4`), `.mb-form-shell` (auto-themes nested form controls), `.mb-numeral` |
+| **Millennium Bug** (editorial) | **Default for all content inside windows** — pages, cards, forms, modals, dashboards, anything a user reads or fills in | `--mb-*` (magenta, grape, aqua, tangerine, butter, paper, ink, chalk) + `--font-display` (Archivo) / `--font-serif` (Spectral) / `--font-content` (Hanken Grotesk) / `--font-pixel` (Silkscreen) / `--font-numeral` (JetBrains Mono) | `.mb-block-*`, `.mb-card`, `.mb-btn` (+ `.mb-btn-ink` / `-chalk` / `-aqua` / `-butter` / `-tangerine` / `-grape` / `-ghost`), `.mb-eyebrow`, `.mb-h1`–`.mb-h4`, `.mb-lede` / `.mb-body` / `.mb-micro`, `.mb-tag`, `.mb-badge`, `.mb-grid` (+ `-2`/`-3`/`-4`), `.mb-form-shell` (auto-themes nested form controls), `.mb-numeral`, `.mb-key` / `.mb-figure` / `.mb-cursor` (keyword/figure/cursor emphasis) |
 | **Win95** (OS chrome) | **Only for OS chrome** — taskbar, dock, window titlebars, close buttons, the desktop background. New content components should not use `.win95-*` classes. | `--gnf-*`, `--pink-*`, `--blue-*`, `--shadow-outset` / `-inset`, `--bevel-*` | `.win95-window`, `.win95-titlebar`, `.win95-close-btn`, `.win95-taskbar`, etc. |
 
 If you're building inside a window and you find yourself reaching for `.win95-btn`, `--shadow-outset`, or pastel `--gnf-pink-*` tokens, **stop and switch to `.mb-*`**.
@@ -64,6 +64,8 @@ Defined in [src/styles/theme-tokens.css](src/styles/theme-tokens.css). Read the 
 - **Forms: wrap in `.mb-form-shell`.** It auto-themes inputs, selects, textareas, labels, and small text. Don't restyle individual fields.
 - **Buttons: `.mb-btn` and variants.** Don't write a custom button. Hard offset, ink border, `mb-btn-arrow` for CTA arrows.
 - **Type: stay on the MB scale.** `--tc-eyebrow` / `-micro` / `-body` / `-lede` / `-h4` / `-h3` / `-h2` / `-h1`. Pixel font only for eyebrows + tags + tiny labels.
+- **Broadcast type system — pick the right family.** Mastheads (hero titles, page banners, big `mb-h1`/`mb-h2`) are **Archivo heavy (800–900), UPPERCASE** — the `mb-h*` / `mb-display` classes auto-apply this, so don't add inline `font-family`/`font-weight` overrides. Person/business **names**, sign-offs, and small subheads (`h3`/`h4`, card titles) are **Spectral 600, MIXED CASE — never uppercase a name.** Body/ledes/prose flow from `mb-body` / `mb-lede` / `mb-content` (Spectral). Buttons/forms/labels/nav/chips flow from `mb-content` (Hanken Grotesk). Numerals are JetBrains Mono.
+- **Emphasis is color + weight, never italic.** The old Instrument-Serif roman+ITALIC trick is retired. For a keyword accent use `<em className="mb-key">word</em>` (non-italic magenta 600; keep an inline `color: var(--mb-X)` override only when a non-magenta accent reads better on a colored background). For a dollar figure in a headline wrap it in `<span className="mb-figure">$1,000</span>` (butter). `.mb-cursor` is the blinking-caret accent. Don't leave `fontStyle: "italic"` on display/headline/serif-emphasis type (an italic placeholder like "No bio" in plain body copy is fine).
 - **Badge naming:** **timeless, trophy-style** (e.g., "First Steps", "Trailblazer"). No tech / pop-culture references.
 - **The 2002 clock year is intentional.** Part of the Y2K aesthetic; don't "fix" it.
 
@@ -120,7 +122,7 @@ This pair of files (src ↔ public) drifting out of sync is a recurring footgun.
 
 ## When you're unsure
 
-- Design decisions → [STYLE_GUIDE.md](STYLE_GUIDE.md).
+- Design decisions → [STYLE_GUIDE.md](docs/STYLE_GUIDE.md).
 - Data model / access rules → [firestore.rules](firestore.rules).
 - Cloud Function behavior → [functions/CLAUDE.md](functions/CLAUDE.md) + [functions/index.js](functions/index.js).
 - Original product spec → [Claude Showcase Requirements.md](Claude%20Showcase%20Requirements.md) (historical; parts have drifted).

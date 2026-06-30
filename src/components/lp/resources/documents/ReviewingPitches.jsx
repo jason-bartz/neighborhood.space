@@ -4,7 +4,7 @@ export default function ReviewingPitches() {
   return (
     <>
       <p style={{
-        fontFamily: 'var(--font-display)',
+        fontFamily: 'var(--font-serif)',
         fontSize: 22,
         lineHeight: 1.4,
         margin: '0 0 32px',

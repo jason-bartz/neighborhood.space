@@ -8,25 +8,38 @@ import {
   Document,
 } from '@react-pdf/renderer';
 
-// ---------- Font registration ---------------------------------------------
+// ---------- Font registration ("Broadcast" type system) -------------------
 // react-pdf's fontkit can't parse Google's modern woff2 variable fonts, so
 // we pull the legacy static .ttf files (served when requested with an older
 // UA). If Google rotates these URLs again, the failing fetch surfaces in
 // the toolbar's error banner. Refresh them via the legacy-UA CSS feed.
+//   Archivo = heavy UPPERCASE masthead · Spectral = reading serif (body,
+//   ledes, names) · Hanken Grotesk = UI labels · JetBrains Mono = numerals.
 
 Font.register({
-  family: 'Inter',
+  family: 'Archivo',
   fonts: [
-    { src: 'https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfMZg.ttf', fontWeight: 400 },
-    { src: 'https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuGKYMZg.ttf', fontWeight: 600 },
-    { src: 'https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYMZg.ttf', fontWeight: 700 },
+    { src: 'https://fonts.gstatic.com/s/archivo/v25/k3k6o8UDI-1M0wlSV9XAw6lQkqWY8Q82sJaRE-NWIDdgffTT0zRp8B1uJ0o.ttf', fontWeight: 700 },
+    { src: 'https://fonts.gstatic.com/s/archivo/v25/k3k6o8UDI-1M0wlSV9XAw6lQkqWY8Q82sJaRE-NWIDdgffTTtDRp8B1uJ0o.ttf', fontWeight: 800 },
+    { src: 'https://fonts.gstatic.com/s/archivo/v25/k3k6o8UDI-1M0wlSV9XAw6lQkqWY8Q82sJaRE-NWIDdgffTTnTRp8B1uJ0o.ttf', fontWeight: 900 },
   ],
 });
 
 Font.register({
-  family: 'Instrument Serif',
+  family: 'Spectral',
   fonts: [
-    { src: 'https://fonts.gstatic.com/s/instrumentserif/v5/jizBRFtNs2ka5fXjeivQ4LroWlx-2zI.ttf', fontWeight: 400 },
+    { src: 'https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA-M-mH_OSQ.ttf', fontWeight: 400 },
+    { src: 'https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsV3GY_GtWA.ttf', fontWeight: 500 },
+    { src: 'https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtl3GY_GtWA.ttf', fontWeight: 600 },
+  ],
+});
+
+Font.register({
+  family: 'Hanken Grotesk',
+  fonts: [
+    { src: 'https://fonts.gstatic.com/s/hankengrotesk/v12/ieVq2YZDLWuGJpnzaiwFXS9tYvBRzyFLlZg_f_Ncs2Za4fpLzXk.ttf', fontWeight: 400 },
+    { src: 'https://fonts.gstatic.com/s/hankengrotesk/v12/ieVq2YZDLWuGJpnzaiwFXS9tYvBRzyFLlZg_f_NcbWFa4fpLzXk.ttf', fontWeight: 600 },
+    { src: 'https://fonts.gstatic.com/s/hankengrotesk/v12/ieVq2YZDLWuGJpnzaiwFXS9tYvBRzyFLlZg_f_NcVGFa4fpLzXk.ttf', fontWeight: 700 },
   ],
 });
 
@@ -76,14 +89,14 @@ export const pdfStyles = StyleSheet.create({
     paddingTop: 56,
     paddingBottom: 64,
     paddingHorizontal: 56,
-    fontFamily: 'Inter',
+    fontFamily: 'Spectral',
     fontSize: 11,
     lineHeight: 1.55,
     color: PDF_COLORS.ink,
   },
   coverPage: {
     padding: 0,
-    fontFamily: 'Inter',
+    fontFamily: 'Spectral',
     color: PDF_COLORS.chalk,
   },
   coverBlock: {
@@ -94,7 +107,7 @@ export const pdfStyles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   coverEyebrow: {
-    fontFamily: 'Inter',
+    fontFamily: 'Hanken Grotesk',
     fontSize: 9,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -102,13 +115,16 @@ export const pdfStyles = StyleSheet.create({
     opacity: 0.85,
   },
   coverTitle: {
-    fontFamily: 'Instrument Serif',
+    fontFamily: 'Archivo',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: -0.5,
     fontSize: 64,
     lineHeight: 0.95,
     marginBottom: 16,
   },
   coverSummary: {
-    fontFamily: 'Inter',
+    fontFamily: 'Spectral',
     fontSize: 14,
     lineHeight: 1.45,
     maxWidth: 380,
@@ -136,7 +152,10 @@ export const pdfStyles = StyleSheet.create({
     opacity: 0.85,
   },
   h1: {
-    fontFamily: 'Instrument Serif',
+    fontFamily: 'Archivo',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: -0.3,
     fontSize: 32,
     lineHeight: 1.1,
     marginTop: 24,
@@ -147,15 +166,18 @@ export const pdfStyles = StyleSheet.create({
     paddingTop: 18,
   },
   h1First: {
-    fontFamily: 'Instrument Serif',
+    fontFamily: 'Archivo',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: -0.3,
     fontSize: 32,
     lineHeight: 1.1,
     marginBottom: 14,
     color: PDF_COLORS.ink,
   },
   h2: {
-    fontFamily: 'Inter',
-    fontWeight: 700,
+    fontFamily: 'Spectral',
+    fontWeight: 600,
     fontSize: 15,
     lineHeight: 1.2,
     marginTop: 18,
@@ -163,7 +185,7 @@ export const pdfStyles = StyleSheet.create({
     color: PDF_COLORS.ink,
   },
   h3: {
-    fontFamily: 'Inter',
+    fontFamily: 'Hanken Grotesk',
     fontWeight: 700,
     fontSize: 9,
     letterSpacing: 1.4,
@@ -179,11 +201,11 @@ export const pdfStyles = StyleSheet.create({
     color: PDF_COLORS.ink,
   },
   bold: {
-    fontFamily: 'Inter',
-    fontWeight: 700,
+    fontFamily: 'Spectral',
+    fontWeight: 600,
   },
   lede: {
-    fontFamily: 'Instrument Serif',
+    fontFamily: 'Spectral',
     fontSize: 16,
     lineHeight: 1.45,
     marginBottom: 18,
@@ -198,7 +220,7 @@ export const pdfStyles = StyleSheet.create({
     width: 14,
     fontSize: 11,
     color: PDF_COLORS.magenta,
-    fontFamily: 'Inter',
+    fontFamily: 'Hanken Grotesk',
     fontWeight: 700,
   },
   bulletText: {
@@ -227,7 +249,7 @@ export const pdfStyles = StyleSheet.create({
     marginVertical: 12,
   },
   calloutLabel: {
-    fontFamily: 'Inter',
+    fontFamily: 'Hanken Grotesk',
     fontWeight: 700,
     fontSize: 8,
     letterSpacing: 1.4,
@@ -261,7 +283,7 @@ export const pdfStyles = StyleSheet.create({
     backgroundColor: PDF_COLORS.chalk,
   },
   swatchName: {
-    fontFamily: 'Inter',
+    fontFamily: 'Hanken Grotesk',
     fontWeight: 700,
     fontSize: 10,
     marginBottom: 2,
@@ -302,7 +324,7 @@ export const pdfStyles = StyleSheet.create({
     padding: 12,
   },
   doDontHead: {
-    fontFamily: 'Inter',
+    fontFamily: 'Hanken Grotesk',
     fontWeight: 700,
     fontSize: 9,
     letterSpacing: 1.4,
@@ -317,7 +339,7 @@ export const pdfStyles = StyleSheet.create({
     marginBottom: 10,
   },
   typeSampleLabel: {
-    fontFamily: 'Inter',
+    fontFamily: 'Hanken Grotesk',
     fontWeight: 700,
     fontSize: 8,
     letterSpacing: 1.4,

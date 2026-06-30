@@ -1220,14 +1220,15 @@ html { scroll-behavior: smooth; }
    Reusable classes for the LP Portal admin surface. These adopt
    the editorial/modern-retro content theme established in
    theme-tokens.css (cream paper, ink borders, magenta accents,
-   Instrument Serif / Inter / Silkscreen / JetBrains Mono).
+   Archivo / Spectral / Hanken Grotesk / Silkscreen / JetBrains Mono).
    Namespaced with `.admin-*` and `.retro-*`.
 
    Tokens used (from theme-tokens.css):
      --mb-paper, --mb-chalk, --mb-ink, --mb-ink-15, --mb-ink-60
      --mb-magenta, --mb-magenta-deep, --mb-magenta-soft
      --mb-aqua-soft, --mb-butter, --mb-butter-soft, --mb-grape-soft
-     --font-display (Instrument Serif), --font-content (Inter),
+     --font-display (Archivo), --font-serif (Spectral),
+     --font-content (Hanken Grotesk),
      --font-pixel (Silkscreen), --font-numeral (JetBrains Mono)
      --shadow-hard-sm / --shadow-hard / --shadow-hard-lg
    ================================================================ */
@@ -1410,16 +1411,17 @@ html { scroll-behavior: smooth; }
 
 .admin-section-head__title {
   font-family: var(--font-display);
-  font-weight: 400;
+  font-weight: 800;
   font-size: var(--tc-h2);
-  line-height: 1.05;
-  letter-spacing: -0.018em;
+  line-height: 1.0;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
   margin: 0;
   color: inherit;
 }
 
 .admin-section-head__title em {
-  font-style: italic;
+  font-style: normal;
   color: var(--mb-magenta);
 }
 
@@ -1434,7 +1436,7 @@ html { scroll-behavior: smooth; }
 }
 
 .admin-section-head__lede {
-  font-family: var(--font-content);
+  font-family: var(--font-serif);
   font-size: var(--tc-lede);
   line-height: 1.45;
   margin: 0;
@@ -1506,8 +1508,8 @@ html { scroll-behavior: smooth; }
 /* Editorial section headings — admin panels that use plain <h4>/<h5>
    still get proper type, for legacy blocks that haven't migrated yet. */
 .admin-tabpanel h4 {
-  font-family: var(--font-display);
-  font-weight: 400;
+  font-family: var(--font-serif);
+  font-weight: 600;
   font-size: var(--tc-h3);
   line-height: 1.1;
   letter-spacing: -0.01em;
@@ -1928,17 +1930,10 @@ html { scroll-behavior: smooth; }
   margin-bottom: 16px;
 }
 
-/* ── Member photo: grayscale with ink border; hover reveals color ── */
+/* ── Member photo: full color with ink border ── */
 .member-photo {
   border: 2px solid var(--mb-ink);
   background: #fff;
-  filter: grayscale(100%);
-  transition: filter 120ms linear;
-}
-
-.member-photo:hover,
-.member-photo:focus-visible {
-  filter: grayscale(0%);
 }
 
 /* ── Action row (bottom of an edit panel: Save / Cancel) ── */
@@ -2013,8 +2008,8 @@ html { scroll-behavior: smooth; }
 }
 
 .retro-empty-title {
-  font-family: var(--font-display);
-  font-weight: 400;
+  font-family: var(--font-serif);
+  font-weight: 600;
   font-size: var(--tc-h4);
   letter-spacing: -0.01em;
   color: var(--mb-ink);
@@ -2072,8 +2067,8 @@ html { scroll-behavior: smooth; }
 .retro-section-head .retro-hint {
   color: var(--mb-ink-60);
   font-size: var(--tc-micro);
-  font-style: italic;
-  font-family: var(--font-display);
+  font-style: normal;
+  font-family: var(--font-serif);
 }
 
 /* ── Inline hint / help text ── */
@@ -2367,16 +2362,15 @@ html { scroll-behavior: smooth; }
 
 .social-card-tile__preview {
   border: 2px solid var(--mb-ink);
-  box-shadow: var(--shadow-hard-sm);
+  box-shadow: none;
   aspect-ratio: 1 / 1;
   background: var(--mb-paper);
   overflow: hidden;
-  transition: transform 80ms ease-out, box-shadow 80ms ease-out;
+  transition: transform 80ms ease-out;
 }
 
 .social-card-tile:hover .social-card-tile__preview {
   transform: translate(-2px, -2px);
-  box-shadow: var(--shadow-hard-lg);
 }
 
 .social-card-tile__body {
@@ -2396,8 +2390,8 @@ html { scroll-behavior: smooth; }
 }
 
 .social-card-tile__title {
-  font-family: var(--font-display);
-  font-weight: 400;
+  font-family: var(--font-serif);
+  font-weight: 600;
   font-size: 24px;
   line-height: 1.1;
   letter-spacing: -0.01em;
@@ -2507,16 +2501,16 @@ html { scroll-behavior: smooth; }
 }
 
 .lp-pitch-card__title {
-  font-family: var(--font-display);
+  font-family: var(--font-serif);
   font-size: 20px;
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.18;
   letter-spacing: -0.01em;
   color: var(--mb-ink);
 }
 
 .lp-pitch-card__title strong {
-  font-weight: 400;
+  font-weight: 700;
 }
 
 .lp-pitch-card__by {
@@ -2620,9 +2614,9 @@ html { scroll-behavior: smooth; }
 }
 
 .admin-pitch-card__title {
-  font-family: var(--font-display);
+  font-family: var(--font-serif);
   font-size: 22px;
-  font-weight: 400;
+  font-weight: 600;
   line-height: 1.15;
   letter-spacing: -0.01em;
   color: var(--mb-ink);
@@ -2766,8 +2760,8 @@ html { scroll-behavior: smooth; }
 }
 
 .admin-tool-card__title {
-  font-family: var(--font-display);
-  font-weight: 400;
+  font-family: var(--font-serif);
+  font-weight: 600;
   font-size: 22px;
   line-height: 1.15;
   letter-spacing: -0.01em;

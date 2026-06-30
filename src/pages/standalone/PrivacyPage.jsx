@@ -102,7 +102,7 @@ export default function PrivacyPage() {
             services, you agree to the practices described below.
           </div>
 
-          <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "36px", letterSpacing: "-0.015em", color: "var(--mb-ink)", marginTop: "0", marginBottom: "16px" }}>Privacy Policy</h2>
+          <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 800, textTransform: "uppercase", fontSize: "36px", letterSpacing: "-0.015em", color: "var(--mb-ink)", marginTop: "0", marginBottom: "16px" }}>Privacy Policy</h2>
 
           <h3 style={{ marginBottom: "4px" }}>1. What We Collect</h3>
           <p style={{ marginTop: "4px" }}>

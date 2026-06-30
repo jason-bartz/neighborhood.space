@@ -200,8 +200,9 @@ export default function PitchPage({ onClose }) {
           <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={250} recycle={false} />
           <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Pitch Received</span>
           <h1 style={{
-            fontFamily: "var(--font-display)",
-            fontWeight: 400,
+            fontFamily: "var(--font-serif)",
+            fontWeight: 600,
+            textTransform: "none",
             fontSize: 44,
             letterSpacing: "-0.02em",
             lineHeight: 1.05,
@@ -271,11 +272,11 @@ export default function PitchPage({ onClose }) {
             color: "var(--mb-ink)"
           }}>
             <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Pitch Application</span>
-            <h3 style={{ marginTop: 8, fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 24, letterSpacing: "-0.01em" }}>Apply for a $1,000 micro-grant</h3>
+            <h3 style={{ marginTop: 8, fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 24, letterSpacing: "-0.01em" }}>Apply for a <span style={{ color: "var(--mb-magenta-deep)" }}>$1,000</span> micro-grant</h3>
             Please fill out this application to be considered for a Good Neighbor Fund $1,000 micro-grant.<br /><br />
             <strong>What we look for:</strong>
             <ul>
-              <li>Business ideas at the ideation stage (early stage will be considered)</li>
+              <li>Businesses at the early or ideation stage</li>
               <li>Clear understanding of the problem you're solving</li>
               <li>Specific, high-impact plan for using the $1,000</li>
               <li>Passion in your pitch video</li>
@@ -425,19 +426,31 @@ export default function PitchPage({ onClose }) {
 
 
           {/* Self Identification */}
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <label>Do any of the following apply to you? (optional)</label>
-            <select
-              name="selfId"
-              multiple
-              value={form.selfId || []}
-              onChange={handleChange}
-              style={{ height: "120px" }}
-            >
-              {["Veteran Owned/Led", "Women Owned/Led", "BIPOC Owned/Led", "LGBTQ+ Owned/Led", "Disabled Owned/Led", "Student Owned/Led", "Minority Owned/Led"].map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
+          <div style={{ display: "flex", flexDirection: "column" }} role="group" aria-labelledby="pitch-selfId-label">
+            <label id="pitch-selfId-label">Do any of the following apply to you? (optional)</label>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "4px" }}>
+              {["Veteran Owned/Led", "Women Owned/Led", "BIPOC Owned/Led", "LGBTQ+ Owned/Led", "Disabled Owned/Led", "Student Owned/Led", "Minority Owned/Led"].map(opt => {
+                const selected = (form.selfId || []).includes(opt);
+                return (
+                  <label key={opt} style={{ fontSize: "13px", display: "flex", alignItems: "center", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      name="selfId"
+                      value={opt}
+                      checked={selected}
+                      onChange={(e) => {
+                        const next = e.target.checked
+                          ? [...(form.selfId || []), opt]
+                          : (form.selfId || []).filter((v) => v !== opt);
+                        setForm((prev) => ({ ...prev, selfId: next }));
+                      }}
+                      style={{ marginRight: "8px" }}
+                    />
+                    <span>{opt}</span>
+                  </label>
+                );
+              })}
+            </div>
             <small>
               This self-identifying information is used only for GNF reporting purposes and is never shared publicly without your consent.
             </small>

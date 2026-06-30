@@ -154,7 +154,7 @@ export default function LPRecruitingPDF() {
 
         <Text style={pdfStyles.h2}>First outreach</Text>
         <View style={templateStyle}>
-          <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 10, marginBottom: 6 }}>
+          <Text style={{ fontFamily: 'Hanken Grotesk', fontWeight: 700, fontSize: 10, marginBottom: 6 }}>
             Subject: A weird little thing I'm starting in [city]
           </Text>
           <Text style={{ fontSize: 10, lineHeight: 1.5 }}>
@@ -173,7 +173,7 @@ export default function LPRecruitingPDF() {
 
         <Text style={pdfStyles.h2}>Follow-up after coffee</Text>
         <View style={templateStyle}>
-          <Text style={{ fontFamily: 'Inter', fontWeight: 700, fontSize: 10, marginBottom: 6 }}>
+          <Text style={{ fontFamily: 'Hanken Grotesk', fontWeight: 700, fontSize: 10, marginBottom: 6 }}>
             Subject: Official ask: GNF [city]
           </Text>
           <Text style={{ fontSize: 10, lineHeight: 1.5 }}>

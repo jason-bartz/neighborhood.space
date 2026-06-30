@@ -4,7 +4,7 @@ export default function ChapterHandbook() {
   return (
     <>
       <p style={{
-        fontFamily: 'var(--font-display)',
+        fontFamily: 'var(--font-serif)',
         fontSize: 22,
         lineHeight: 1.4,
         margin: '0 0 32px',
@@ -313,7 +313,7 @@ export default function ChapterHandbook() {
         you're a part of something that's growing bigger every day. Thanks
         for believing in others before the rest of the world catches on.
       </p>
-      <p style={{ fontFamily: 'var(--font-display)', fontSize: 20, marginTop: 24 }}>
+      <p style={{ fontFamily: 'var(--font-serif)', fontWeight: 600, fontSize: 20, marginTop: 24 }}>
         With love,<br />
         Jason and Susan<br />
         <em style={{ fontSize: 14, color: 'var(--mb-ink-60)' }}>Co-Founders, Good Neighbor Fund</em>

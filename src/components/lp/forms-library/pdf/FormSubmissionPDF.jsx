@@ -3,7 +3,7 @@ import {
   Page, Text, View, Document, Image, StyleSheet,
 } from '@react-pdf/renderer';
 import {
-  PDF_COLORS, ACCENT_MAP, pdfStyles, CoverPage, PageFooter, Paragraph, Section,
+  PDF_COLORS, pdfStyles, PageFooter, Paragraph, Section,
 } from '../../resources/pdf/PDFTheme';
 
 const localStyles = StyleSheet.create({
@@ -44,6 +44,28 @@ const localStyles = StyleSheet.create({
     borderColor: PDF_COLORS.ink,
     fontSize: 10,
     lineHeight: 1.5,
+  },
+  // Compact masthead header (replaces the full cover page so the doc is one page).
+  header: {
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: PDF_COLORS.ink,
+  },
+  headerEyebrow: {
+    fontFamily: 'Hanken Grotesk',
+    fontSize: 9,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+    color: PDF_COLORS.ink60,
+    marginBottom: 6,
+  },
+  headerSub: {
+    fontFamily: 'Spectral',
+    fontWeight: 600,
+    fontSize: 13,
+    color: PDF_COLORS.ink,
+    marginTop: 2,
   },
 });
 
@@ -104,12 +126,6 @@ function LPOnboardingBody({ submission }) {
         <Field label="Email">{submission.email}</Field>
         <Field label="Chapter">{submission.chapter}</Field>
       </Section>
-
-      {submission.headshotUrl && (
-        <Section title="Headshot">
-          <Image src={submission.headshotUrl} style={localStyles.photo} />
-        </Section>
-      )}
 
       <Section title="Bio">
         <Paragraph>{submission.bio}</Paragraph>
@@ -175,7 +191,6 @@ function MicrograntAwardeeBody({ submission }) {
 }
 
 export default function FormSubmissionPDF({ submission, formMeta }) {
-  const accent = formMeta?.accent || 'magenta';
   const title = formMeta?.title || 'Form Submission';
   const docTitle = `${title} — ${submission.name || submission.fullName || 'Submission'}`;
 
@@ -194,14 +209,16 @@ export default function FormSubmissionPDF({ submission, formMeta }) {
 
   return (
     <Document title={docTitle} author="Good Neighbor Fund">
-      <CoverPage
-        eyebrow={`${formMeta?.category || 'Form'} · ${submission.chapter || ''}`}
-        title={title}
-        summary={submission.name || submission.fullName || ''}
-        number={formMeta?.number || ''}
-        accent={accent}
-      />
       <Page size="LETTER" style={pdfStyles.page}>
+        <View style={localStyles.header}>
+          <Text style={localStyles.headerEyebrow}>
+            {`${formMeta?.category || 'Form'} · ${submission.chapter || ''}`}
+          </Text>
+          <Text style={pdfStyles.h1First}>{title}</Text>
+          {(submission.name || submission.fullName) ? (
+            <Text style={localStyles.headerSub}>{submission.name || submission.fullName}</Text>
+          ) : null}
+        </View>
         {body}
         <PageFooter docTitle={docTitle} />
       </Page>

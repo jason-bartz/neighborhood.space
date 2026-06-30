@@ -108,8 +108,8 @@ export default function MobileBootScreen({ onFinish }) {
           fontSize: '28px',
           margin: '0 0 20px 0',
           fontFamily: 'var(--font-display)',
-          fontWeight: 400,
-          fontStyle: 'italic',
+          fontWeight: 900,
+          textTransform: 'uppercase',
           letterSpacing: '-0.02em',
           color: 'var(--mb-ink)'
         }}>Booting up&hellip;</h1>

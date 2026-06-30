@@ -266,8 +266,6 @@ function AwardeeModal({ awardee, onClose }) {
               className="mb-h3"
               style={{
                 margin: 0,
-                fontFamily: "var(--font-display)",
-                fontWeight: 400,
                 lineHeight: 1.1,
                 letterSpacing: "-0.01em",
               }}
@@ -365,8 +363,8 @@ const metaRowStyle = {
 
 const cardTitleStyle = {
   margin: 0,
-  fontFamily: "var(--font-display)",
-  fontWeight: 400,
+  fontFamily: "var(--font-serif)",
+  fontWeight: 600,
   fontSize: 24,
   lineHeight: 1.1,
   letterSpacing: "-0.01em",

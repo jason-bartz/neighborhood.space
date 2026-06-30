@@ -105,8 +105,9 @@ export default function StartAChapter({ onClose, hideFrame = false }) {
         <Confetti width={windowSize.width} height={windowSize.height} numberOfPieces={250} recycle={false} />
         <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Application Received</span>
         <h1 style={{
-          fontFamily: "var(--font-display)",
-          fontWeight: 400,
+          fontFamily: "var(--font-serif)",
+          fontWeight: 600,
+          textTransform: "none",
           fontSize: 40,
           letterSpacing: "-0.02em",
           lineHeight: 1.05,
@@ -174,8 +175,9 @@ export default function StartAChapter({ onClose, hideFrame = false }) {
       }}>
         <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>New Chapter · Interest Form</span>
         <h2 style={{
-          fontFamily: "var(--font-display)",
-          fontWeight: 400,
+          fontFamily: "var(--font-serif)",
+          fontWeight: 600,
+          textTransform: "none",
           fontSize: 28,
           letterSpacing: "-0.015em",
           lineHeight: 1.1,

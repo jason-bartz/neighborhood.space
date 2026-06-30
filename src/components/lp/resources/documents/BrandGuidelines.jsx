@@ -218,7 +218,7 @@ export default function BrandGuidelines() {
   return (
     <>
       <p className="resource-doc__lede" style={{
-        fontFamily: 'var(--font-display)',
+        fontFamily: 'var(--font-serif)',
         fontSize: '22px',
         lineHeight: 1.4,
         color: 'var(--mb-ink)',
@@ -235,8 +235,9 @@ export default function BrandGuidelines() {
       <p>
         We pull from the early internet, that golden window when making
         something didn't require permission or polish. Our design language
-        leans into it: saturated color, hard borders, pixel labels, editorial
-        serifs, monospace numerals. Y2K warmth without the kitsch.
+        leans into it: saturated color, hard borders, pixel labels, heavy
+        uppercase headlines, editorial serifs, monospace numerals. Y2K warmth
+        without the kitsch.
       </p>
       <p>
         Keep it bright, keep it human, and don't be afraid of a little chaos.
@@ -309,32 +310,44 @@ export default function BrandGuidelines() {
 
       <h2>Typography</h2>
       <p>
-        Four type families, each with a clear job. Don't swap them. Don't
+        Five type families, each with a clear job. Don't swap them. Don't
         mix more than two on a single surface.
       </p>
 
       <div className="bg-type-sample">
-        <p className="bg-type-sample__label">Display · Instrument Serif</p>
+        <p className="bg-type-sample__label">Display · Archivo</p>
         <p
           className="bg-type-sample__display"
-          style={{ fontFamily: 'var(--font-display)', fontSize: 44, lineHeight: 1, margin: 0 }}
+          style={{ fontFamily: 'var(--font-display)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '-0.01em', fontSize: 44, lineHeight: 1, margin: 0 }}
         >
           Belief Capital, in the Neighborhood.
         </p>
-        <p className="bg-type-sample__meta">Headlines, doc titles, editorial moments. Weight 400 always.</p>
+        <p className="bg-type-sample__meta">Mastheads, doc titles, big editorial moments. Heavy, uppercase.</p>
       </div>
 
       <div className="bg-type-sample">
-        <p className="bg-type-sample__label">Body · Inter</p>
+        <p className="bg-type-sample__label">Reading · Spectral</p>
         <p
           className="bg-type-sample__display"
-          style={{ fontFamily: 'var(--font-content)', fontSize: 16, lineHeight: 1.6, margin: 0 }}
+          style={{ fontFamily: 'var(--font-serif)', fontSize: 18, lineHeight: 1.6, margin: 0 }}
         >
           $1,000 micro-grants for early-stage founders, funded by a local
           neighborhood of Limited Partners. No bureaucracy, no strings. Just
           belief, delivered quarterly.
         </p>
-        <p className="bg-type-sample__meta">Paragraphs, UI, navigation. Weights 400 / 600 / 700.</p>
+        <p className="bg-type-sample__meta">Body copy, ledes, prose, names, sign-offs. Weights 400 / 500 / 600.</p>
+      </div>
+
+      <div className="bg-type-sample">
+        <p className="bg-type-sample__label">UI · Hanken Grotesk</p>
+        <p
+          className="bg-type-sample__display"
+          style={{ fontFamily: 'var(--font-content)', fontSize: 16, lineHeight: 1.6, margin: 0 }}
+        >
+          Apply for a grant. Review pitches. Vote on the founders we back. The
+          interface, buttons, forms, and navigation all run on Hanken.
+        </p>
+        <p className="bg-type-sample__meta">UI, navigation, buttons, labels, chips. Weights 400 / 600 / 700.</p>
       </div>
 
       <div className="bg-type-sample">
@@ -398,7 +411,7 @@ export default function BrandGuidelines() {
           <ul>
             <li>Don't add gradients, drop shadows, or glows.</li>
             <li>Don't mix more than two accent colors on one surface.</li>
-            <li>Don't set body copy in Silkscreen or Instrument Serif.</li>
+            <li>Don't set body copy in Silkscreen or Archivo.</li>
             <li>Don't rotate, warp, or recolor the logo.</li>
             <li>Don't use VC words like "investor," "portfolio," or "ROI." Say founder, grantee, grant.</li>
           </ul>

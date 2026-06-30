@@ -23,6 +23,7 @@ W, H = 1200, 630
 
 BASKERVILLE = "/System/Library/Fonts/Supplemental/Baskerville.ttc"
 HELV_NEUE   = "/System/Library/Fonts/HelveticaNeue.ttc"
+ARCHIVO     = str(ASSETS / "fonts" / "archivo-extrabold.ttf")
 PIXELIFY    = str(ASSETS / "fonts" / "pixelify-sans.ttf")
 HERO_PHOTO  = ASSETS / "fat-daddys.webp"
 LOGO        = PUBLIC / "logo.png"
@@ -73,9 +74,9 @@ CHAPTERS = {
 def build_og(slug, cfg):
     out = ASSETS / f"og-{slug}.png"
 
-    f_amount   = font(BASKERVILLE, 120, index=4)  # Bold
-    f_tail     = font(BASKERVILLE, 32, index=1)   # Italic
-    f_idea     = font(BASKERVILLE, 72, index=1)   # Italic
+    f_amount   = font(BASKERVILLE, 120, index=4)  # Bold (numeral figure)
+    f_tail     = font(BASKERVILLE, 32, index=0)   # Roman (non-italic tag)
+    f_idea     = font(ARCHIVO, 72)                 # Archivo ExtraBold masthead
     f_lede     = font(HELV_NEUE, 22)
     f_pixel    = font(PIXELIFY, 18)
     f_tag      = font(PIXELIFY, 16)
@@ -128,9 +129,10 @@ def build_og(slug, cfg):
     draw.text((PAD_L + amount_w + 14, y + 52), "for your",
               fill=MB_MAGENTA_DEEP, font=f_tail)
 
-    # "big idea."
+    # "BIG IDEA." — Archivo ExtraBold uppercase masthead
     y2 = y + 108
-    draw.text((PAD_L, y2), "big idea.", fill=MB_INK, font=f_idea)
+    idea_text = "big idea.".upper()
+    draw.text((PAD_L, y2), idea_text, fill=MB_INK, font=f_idea)
 
     # Lede
     y3 = y2 + 100

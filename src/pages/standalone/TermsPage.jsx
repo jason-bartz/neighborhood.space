@@ -101,7 +101,7 @@ export default function TermsPage() {
             application, you agree to the terms below. Please read carefully.
           </div>
 
-          <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "36px", letterSpacing: "-0.015em", color: "var(--mb-ink)", marginTop: "0", marginBottom: "16px" }}>Terms of Use</h2>
+          <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 800, textTransform: "uppercase", fontSize: "36px", letterSpacing: "-0.015em", color: "var(--mb-ink)", marginTop: "0", marginBottom: "16px" }}>Terms of Use</h2>
 
           <h3 style={{ marginBottom: "4px" }}>1. About the Micro-Grant Program</h3>
           <p style={{ marginTop: "4px" }}>

@@ -4,7 +4,7 @@ export default function ManagingResources() {
   return (
     <>
       <p style={{
-        fontFamily: 'var(--font-display)',
+        fontFamily: 'var(--font-serif)',
         fontSize: 22,
         lineHeight: 1.4,
         margin: '0 0 32px',
@@ -138,10 +138,9 @@ export default function ManagingResources() {
         background: 'var(--mb-paper)',
         border: '2px solid var(--mb-ink)',
         padding: '14px 18px',
-        fontFamily: 'var(--font-display)',
+        fontFamily: 'var(--font-serif)',
         fontSize: 15,
         lineHeight: 1.5,
-        fontStyle: 'italic',
       }}>
         "Annual competition awarding $1M each to 5 startups.
         Companies relocate to Buffalo for 12 months and receive a

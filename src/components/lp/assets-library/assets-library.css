@@ -47,11 +47,11 @@
 }
 
 .assets-library__notes-title {
-  font-family: var(--font-display);
+  font-family: var(--font-serif);
+  font-weight: 600;
   font-size: 22px;
   line-height: 1;
   margin: 0 0 8px;
-  font-weight: 400;
   color: var(--mb-ink);
 }
 

@@ -233,7 +233,7 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
       </Marquee>
     </div>
 
-    {/* ===== HERO — Magenta ===== */}
+    {/* ===== HERO — Ink left panel, photo right ===== */}
     <section className="mb-block mb-block-magenta" style={{ padding: 0 }}>
       <div style={{
         display: "grid",
@@ -241,20 +241,21 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
         alignItems: "stretch",
         minHeight: "520px"
       }}>
-        {/* Left — copy */}
+        {/* Left — copy (ink panel) */}
         <div style={{
+          background: "var(--mb-ink)",
           padding: "var(--s-block-pad-y) var(--s-block-pad-x)",
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
           gap: "var(--s-stack)"
         }}>
-          <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>
-            Est. 2023 · Belief Capital
+          <span className="mb-eyebrow" style={{ color: "var(--mb-aqua)" }}>
+            Est. 2023 · Belief Capital<span className="mb-cursor" aria-hidden="true" />
           </span>
 
           <h2 className="mb-h1" style={{ color: "var(--mb-chalk)" }}>
-            $1,000 micro-grants for <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>bold</em> business ideas.
+            <span className="mb-figure">$1,000</span> micro-grants for <em className="mb-key">bold</em> business ideas.
           </h2>
 
           <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.95, maxWidth: "48ch" }}>
@@ -267,30 +268,12 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
               type="button"
               onClick={onPitchClick}
               aria-label="Submit your business pitch for a $1,000 Good Neighbor Fund grant"
-              className="mb-btn mb-btn-butter"
+              className="mb-btn"
+              style={{ borderColor: "var(--mb-chalk)" }}
             >
               Submit Your Pitch
               <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
             </button>
-          </div>
-
-          <div style={{
-            display: "flex",
-            gap: 24,
-            marginTop: 32,
-            paddingTop: 24,
-            borderTop: "1px solid rgba(255,255,255,0.3)",
-            flexWrap: "wrap"
-          }}>
-            <span className="mb-numeral" style={{ color: "var(--mb-chalk)", fontSize: 14 }}>
-              <span style={{ opacity: 0.6 }}>34 /</span> businesses funded
-            </span>
-            <span className="mb-numeral" style={{ color: "var(--mb-chalk)", fontSize: 14 }}>
-              <span style={{ opacity: 0.6 }}>80% /</span> women-owned
-            </span>
-            <span className="mb-numeral" style={{ color: "var(--mb-chalk)", fontSize: 14 }}>
-              <span style={{ opacity: 0.6 }}>52% /</span> BIPOC-owned
-            </span>
           </div>
         </div>
 
@@ -331,7 +314,7 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
         <div className="mb-section-head" style={{ margin: 0 }}>
           <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Our Mission</span>
           <h2 className="mb-h2">
-            Belief capital for the founders banks won't fund.
+            Belief capital for founders at the very beginning.
           </h2>
         </div>
 
@@ -364,7 +347,7 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
       <div className="mb-section-head" style={{ textAlign: "center", alignItems: "center", marginBottom: 48 }}>
         <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Impact · Since 2023</span>
         <h2 className="mb-h2" style={{ color: "var(--mb-chalk)" }}>
-          Small bets. <em style={{ fontStyle: "italic", color: "var(--mb-aqua)" }}>Real</em> neighborhoods.
+          Small bets. <em className="mb-key" style={{ color: "var(--mb-aqua)" }}>Real</em> neighborhoods.
         </h2>
       </div>
 
@@ -406,7 +389,7 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
         ))}
       </div>
 
-      <p className="mb-italic" style={{ marginTop: 48, fontSize: "var(--tc-lede)", textAlign: "center" }}>
+      <p className="mb-italic" style={{ marginTop: 48, fontSize: "var(--tc-lede)", textAlign: "center", color: "var(--mb-ink)" }}>
         This is not venture capital &mdash; we expect no return on investment.<br/>
         This is <strong style={{ fontFamily: "var(--font-content)", fontStyle: "normal", fontWeight: 700 }}>belief capital</strong>: an endorsement of your potential.
       </p>
@@ -456,7 +439,7 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
     <section className="mb-block mb-block-paper">
       <div className="mb-section-head" style={{ marginBottom: 32, alignItems: "center", textAlign: "center" }}>
         <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>As Featured In</span>
-        <h2 className="mb-h3" style={{ fontStyle: "italic" }}>
+        <h2 className="mb-h3">
           The good word travels.
         </h2>
       </div>
@@ -578,19 +561,21 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
         </span>
 
         <blockquote
-          className="mb-display"
           style={{
+            fontFamily: "var(--font-serif)",
+            fontWeight: 500,
             fontSize: "clamp(24px, 3vw, 34px)",
             lineHeight: 1.3,
+            letterSpacing: "-0.01em",
             margin: 0,
             textAlign: "center"
           }}
         >
-          <span style={{ fontFamily: "var(--font-display)", fontStyle: "italic", color: "var(--mb-magenta)", fontSize: "1.6em", lineHeight: 0, position: "relative", top: "0.4em", marginRight: "0.1em" }}>"</span>
+          <span style={{ fontFamily: "var(--font-serif)", color: "var(--mb-magenta)", fontSize: "1.6em", lineHeight: 0, position: "relative", top: "0.4em", marginRight: "0.1em" }}>"</span>
           The grant was far more than a financial contribution to jump-starting my business. It provided
           validation for an idea & passion I've had for some time — support and encouragement to realize
           a dream of entrepreneurship after a 22-year teaching career.
-          <span style={{ fontFamily: "var(--font-display)", fontStyle: "italic", color: "var(--mb-magenta)", fontSize: "1.6em", lineHeight: 0, position: "relative", top: "0.4em", marginLeft: "0.05em" }}>"</span>
+          <span style={{ fontFamily: "var(--font-serif)", color: "var(--mb-magenta)", fontSize: "1.6em", lineHeight: 0, position: "relative", top: "0.4em", marginLeft: "0.05em" }}>"</span>
         </blockquote>
 
         <div style={{
@@ -626,11 +611,11 @@ const PageCTAFooter = ({ onPitchClick }) => (
     {/* ===== FINAL CTA — Ink ===== */}
     <section className="mb-block mb-block-ink" style={{ textAlign: "center" }}>
       <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)", display: "block", marginBottom: 20 }}>
-        Apply Now · Q2 2026
+        Apply Now · Q2 2026<span className="mb-cursor" aria-hidden="true" />
       </span>
 
       <h2 className="mb-h1" style={{ color: "var(--mb-chalk)", maxWidth: "24ch", margin: "0 auto 24px" }}>
-        Ready to bring your business idea <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>to life?</em>
+        Ready to bring your business idea <em className="mb-key" style={{ color: "var(--mb-butter)" }}>to life?</em>
       </h2>
 
       <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.85, maxWidth: "56ch", margin: "0 auto 36px" }}>
@@ -816,7 +801,7 @@ const ChaptersPage = ({ setPage, onLpApplicationClick, onPitchClick }) => {
         }}>
           <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Network · Neighborhood by Neighborhood</span>
           <h2 className="mb-h1" style={{ color: "var(--mb-chalk)" }}>
-            GNF <em style={{ fontStyle: "italic", color: "var(--mb-aqua)" }}>Chapters.</em>
+            GNF <em className="mb-key" style={{ color: "var(--mb-aqua)" }}>Chapters.</em>
           </h2>
           <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.9, marginTop: 8, maxWidth: "48ch" }}>
             We operate through local chapters &mdash; each with their own community of Limited Partners
@@ -968,7 +953,7 @@ const ChaptersPage = ({ setPage, onLpApplicationClick, onPitchClick }) => {
         Expansion · Cities Welcome
       </span>
       <h2 className="mb-h1" style={{ color: "var(--mb-chalk)", maxWidth: "20ch", margin: "0 auto 24px" }}>
-        Start a chapter in your <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>city.</em>
+        Start a chapter in your <em className="mb-key" style={{ color: "var(--mb-butter)" }}>city.</em>
       </h2>
       <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.9, maxWidth: "56ch", margin: "0 auto 36px" }}>
         Interested in launching a GNF chapter in your own community? We're always looking for passionate
@@ -1021,7 +1006,7 @@ const DonatePage = ({ onPitchClick }) => (
           <div className="mb-section-head" style={{ margin: 0, maxWidth: "48ch" }}>
             <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Support the Fund</span>
             <h2 className="mb-h1" style={{ color: "var(--mb-chalk)" }}>
-              Fuel <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>belief capital</em> for bold neighborhood founders.
+              Fuel <em className="mb-key" style={{ color: "var(--mb-butter)" }}>belief capital</em> for bold neighborhood founders.
             </h2>
             <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.92, marginTop: 12 }}>
               We're a 100% volunteer-led organization. Every dollar funds the next micro-grant &mdash; no
@@ -1260,7 +1245,7 @@ const DonatePage = ({ onPitchClick }) => (
             <span className="mb-numeral" style={{ fontSize: 11, color: "var(--mb-magenta)", fontWeight: 700, letterSpacing: "0.08em" }}>
               TIER 0{i + 1}
             </span>
-            <h3 className="mb-h4" style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 22, letterSpacing: "-0.01em" }}>
+            <h3 className="mb-h4" style={{ margin: 0, fontSize: 22, letterSpacing: "-0.01em" }}>
               {tier.tier}
             </h3>
             <span className="mb-numeral" style={{ fontSize: 24, fontWeight: 700, color: "var(--mb-ink)", letterSpacing: "-0.03em" }}>

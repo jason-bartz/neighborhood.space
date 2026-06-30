@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="../../css/win95-base.css" />
   <link rel="stylesheet" href="../../css/theme-tokens.css" />
 
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800;900&family=Spectral:wght@400;500;600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Silkscreen:wght@400;700&display=swap" rel="stylesheet">
+
   <style>
     /* Lock the page to OG dimensions for headless rendering. */
     html, body {
@@ -25,7 +27,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: var(--font-content, "Inter", "Helvetica Neue", Arial, sans-serif);
+      font-family: var(--font-content, "Hanken Grotesk", "Helvetica Neue", Arial, sans-serif);
       color: var(--gnf-text);
       position: relative;
     }
@@ -141,21 +143,24 @@
     }
 
     .headline {
-      font-family: "Instrument Serif", "Times New Roman", Georgia, serif;
-      font-weight: 400;
-      font-size: 64px;
+      font-family: "Archivo", "Arial Black", Impact, sans-serif;
+      font-weight: 800;
+      text-transform: uppercase;
+      font-size: 56px;
       line-height: 1.04;
-      letter-spacing: -0.015em;
+      letter-spacing: -0.02em;
       margin: 0 0 22px;
       color: var(--gnf-text);
     }
+    /* $1,000 figure highlighted in magenta — butter would be illegible on the
+       light dialog (1.6:1); magenta is the brand keyword color and reads (3.9:1). */
     .headline em {
-      font-style: italic;
-      color: var(--pink-dark);
+      font-style: normal;
+      color: var(--mb-magenta);
     }
 
     .subhead {
-      font-family: var(--font-content, "Inter", sans-serif);
+      font-family: var(--font-content, "Hanken Grotesk", "Helvetica Neue", Arial, sans-serif);
       font-size: 18px;
       line-height: 1.4;
       color: var(--gnf-text-secondary);
@@ -234,8 +239,9 @@
         <div class="eyebrow">grant approved <span>✶</span> system message</div>
 
         <h1 class="headline">
-          Your <em>$1,000</em> micro&#8209;grant has<br />
-          been approved.
+          YOUR <em>$1,000</em><br />
+          MICRO&#8209;GRANT HAS<br />
+          BEEN APPROVED.
         </h1>
 
         <p class="subhead">

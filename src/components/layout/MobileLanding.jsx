@@ -387,14 +387,14 @@ export default function MobileLanding({ initialBootDone = false }) {
           <main className="mb-content">
             <h1 style={{ position: "absolute", left: "-9999px", width: "1px", height: "1px", overflow: "hidden" }}>Good Neighbor Fund - $1,000 Micro-Grants for Bold Founders | Chapters in Western New York, Denver, Central NY, and the Capital Region</h1>
 
-            {/* ===== HERO — Magenta ===== */}
-            <section className="mb-block mb-block-magenta" style={{ padding: "36px 20px" }}>
+            {/* ===== HERO — Ink ===== */}
+            <section className="mb-block mb-block-magenta" style={{ padding: "36px 20px", background: "var(--mb-ink)" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>
-                  Est. 2023 · Belief Capital
+                <span className="mb-eyebrow" style={{ color: "var(--mb-aqua)" }}>
+                  Est. 2023 · Belief Capital<span className="mb-cursor" aria-hidden="true" />
                 </span>
                 <h2 className="mb-h1" style={{ color: "var(--mb-chalk)", fontSize: 32, lineHeight: 1.05 }}>
-                  $1,000 micro-grants for <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>bold</em> business ideas.
+                  <span className="mb-figure">$1,000</span> micro-grants for <em className="mb-key">bold</em> business ideas.
                 </h2>
                 <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.95, fontSize: 15 }}>
                   We back founders before they're "ready." No pitch deck. No equity taken. Just belief in your vision and potential.
@@ -402,30 +402,12 @@ export default function MobileLanding({ initialBootDone = false }) {
                 <button
                   type="button"
                   onClick={() => handleOpenApp("submit")}
-                  className="mb-btn mb-btn-butter"
-                  style={{ alignSelf: "flex-start", fontSize: 12, padding: "12px 18px", marginTop: 4 }}
+                  className="mb-btn"
+                  style={{ alignSelf: "flex-start", fontSize: 12, padding: "12px 18px", marginTop: 4, borderColor: "var(--mb-chalk)" }}
                 >
                   Submit Your Pitch
                   <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
                 </button>
-                <div style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 14,
-                  marginTop: 16,
-                  paddingTop: 16,
-                  borderTop: "1px solid rgba(255,255,255,0.3)",
-                }}>
-                  <span className="mb-numeral" style={{ color: "var(--mb-chalk)", fontSize: 12 }}>
-                    <span style={{ opacity: 0.6 }}>34 /</span> funded
-                  </span>
-                  <span className="mb-numeral" style={{ color: "var(--mb-chalk)", fontSize: 12 }}>
-                    <span style={{ opacity: 0.6 }}>80% /</span> women-owned
-                  </span>
-                  <span className="mb-numeral" style={{ color: "var(--mb-chalk)", fontSize: 12 }}>
-                    <span style={{ opacity: 0.6 }}>52% /</span> BIPOC-owned
-                  </span>
-                </div>
               </div>
             </section>
 
@@ -434,7 +416,7 @@ export default function MobileLanding({ initialBootDone = false }) {
               <div className="mb-section-head" style={{ margin: 0, marginBottom: 18 }}>
                 <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Our Mission</span>
                 <h2 className="mb-h2" style={{ fontSize: 26, lineHeight: 1.1 }}>
-                  Belief capital for the founders banks won't fund.
+                  Belief capital for founders at the very beginning.
                 </h2>
               </div>
               <p className="mb-lede" style={{ fontSize: 15, marginBottom: 14 }}>
@@ -459,7 +441,7 @@ export default function MobileLanding({ initialBootDone = false }) {
               <div className="mb-section-head" style={{ textAlign: "center", alignItems: "center", marginBottom: 24 }}>
                 <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Impact · Since 2023</span>
                 <h2 className="mb-h2" style={{ color: "var(--mb-chalk)", fontSize: 26, lineHeight: 1.1 }}>
-                  Small bets. <em style={{ fontStyle: "italic", color: "var(--mb-aqua)" }}>Real</em> neighborhoods.
+                  Small bets. <em className="mb-key" style={{ color: "var(--mb-aqua)" }}>Real</em> neighborhoods.
                 </h2>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
@@ -498,7 +480,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                   </article>
                 ))}
               </div>
-              <p className="mb-italic" style={{ marginTop: 24, fontSize: 15, textAlign: "center" }}>
+              <p className="mb-italic" style={{ marginTop: 24, fontSize: 15, textAlign: "center", color: "var(--mb-ink)" }}>
                 This is not venture capital — we expect no return.<br />
                 This is <strong style={{ fontFamily: "var(--font-content)", fontStyle: "normal", fontWeight: 700 }}>belief capital</strong>.
               </p>
@@ -508,7 +490,7 @@ export default function MobileLanding({ initialBootDone = false }) {
             <section className="mb-block mb-block-paper" style={{ padding: "28px 20px" }}>
               <div className="mb-section-head" style={{ marginBottom: 16, alignItems: "center", textAlign: "center" }}>
                 <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>As Featured In</span>
-                <h2 className="mb-h3" style={{ fontStyle: "italic", fontSize: 20 }}>
+                <h2 className="mb-h3" style={{ fontSize: 20 }}>
                   The good word travels.
                 </h2>
               </div>
@@ -620,10 +602,10 @@ export default function MobileLanding({ initialBootDone = false }) {
               <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)", display: "block", marginBottom: 20, textAlign: "center" }}>
                 In Their Words
               </span>
-              <blockquote className="mb-display" style={{ fontSize: 20, lineHeight: 1.35, margin: 0, textAlign: "center" }}>
-                <span style={{ fontFamily: "var(--font-display)", fontStyle: "italic", color: "var(--mb-magenta)", fontSize: "1.6em", lineHeight: 0, position: "relative", top: "0.4em", marginRight: "0.08em" }}>"</span>
+              <blockquote style={{ fontFamily: "var(--font-serif)", fontWeight: 500, fontSize: 20, lineHeight: 1.35, letterSpacing: "-0.01em", margin: 0, textAlign: "center" }}>
+                <span style={{ fontFamily: "var(--font-serif)", color: "var(--mb-magenta)", fontSize: "1.6em", lineHeight: 0, position: "relative", top: "0.4em", marginRight: "0.08em" }}>"</span>
                 The grant was far more than a financial contribution to jump-starting my business. It provided validation for an idea & passion I've had for some time — support and encouragement to realize a dream of entrepreneurship after a 22-year teaching career.
-                <span style={{ fontFamily: "var(--font-display)", fontStyle: "italic", color: "var(--mb-magenta)", fontSize: "1.6em", lineHeight: 0, position: "relative", top: "0.4em", marginLeft: "0.05em" }}>"</span>
+                <span style={{ fontFamily: "var(--font-serif)", color: "var(--mb-magenta)", fontSize: "1.6em", lineHeight: 0, position: "relative", top: "0.4em", marginLeft: "0.05em" }}>"</span>
               </blockquote>
               <div style={{ marginTop: 22, display: "flex", justifyContent: "center", alignItems: "center", gap: 10 }}>
                 <span style={{ width: 22, height: 2, background: "var(--mb-ink)", display: "inline-block" }} />
@@ -642,10 +624,10 @@ export default function MobileLanding({ initialBootDone = false }) {
             {/* ===== FINAL CTA — Ink ===== */}
             <section className="mb-block mb-block-ink" style={{ padding: "40px 20px", textAlign: "center" }}>
               <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)", display: "block", marginBottom: 14 }}>
-                Apply Now · Q2 2026
+                Apply Now · Q2 2026<span className="mb-cursor" aria-hidden="true" />
               </span>
               <h2 className="mb-h1" style={{ color: "var(--mb-chalk)", fontSize: 28, lineHeight: 1.1, margin: "0 auto 16px" }}>
-                Ready to bring your business idea <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>to life?</em>
+                Ready to bring your business idea <em className="mb-key" style={{ color: "var(--mb-butter)" }}>to life?</em>
               </h2>
               <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.85, margin: "0 auto 24px", fontSize: 14 }}>
                 No business plan required — just a 60-second pitch video and your authentic vision.
@@ -681,7 +663,7 @@ export default function MobileLanding({ initialBootDone = false }) {
               <div className="mb-section-head" style={{ margin: 0 }}>
                 <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Network · Neighborhood by Neighborhood</span>
                 <h2 className="mb-h1" style={{ color: "var(--mb-chalk)", fontSize: 32, lineHeight: 1.05 }}>
-                  GNF <em style={{ fontStyle: "italic", color: "var(--mb-aqua)" }}>Chapters.</em>
+                  GNF <em className="mb-key" style={{ color: "var(--mb-aqua)" }}>Chapters.</em>
                 </h2>
                 <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.9, marginTop: 10, fontSize: 15 }}>
                   We operate through local chapters — each with their own community of Limited Partners who review applications and select quarterly awardees.
@@ -786,7 +768,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                 Expansion · Cities Welcome
               </span>
               <h2 className="mb-h1" style={{ color: "var(--mb-chalk)", fontSize: 28, lineHeight: 1.1, margin: "0 auto 16px" }}>
-                Start a chapter in your <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>city.</em>
+                Start a chapter in your <em className="mb-key" style={{ color: "var(--mb-butter)" }}>city.</em>
               </h2>
               <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.9, margin: "0 auto 24px", fontSize: 14 }}>
                 Interested in launching a GNF chapter in your own community? We're always looking for passionate good neighbors to help spread the belief capital.
@@ -932,7 +914,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{awardee.chapter}</span>
                           <span style={{ whiteSpace: "nowrap" }}>{awardee.quarter}</span>
                         </div>
-                        <h3 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 16, lineHeight: 1.15, letterSpacing: "-0.01em" }}>
+                        <h3 style={{ margin: 0, fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 16, lineHeight: 1.15, letterSpacing: "-0.01em" }}>
                           {awardee.businessName}
                         </h3>
                         <div className="mb-italic" style={{ fontSize: 11, color: "var(--mb-ink-60)" }}>
@@ -972,7 +954,7 @@ export default function MobileLanding({ initialBootDone = false }) {
               <div className="mb-section-head" style={{ margin: 0, marginBottom: 20 }}>
                 <span className="mb-eyebrow" style={{ color: "var(--mb-butter)" }}>Support the Fund</span>
                 <h2 className="mb-h1" style={{ color: "var(--mb-chalk)", fontSize: 30, lineHeight: 1.05 }}>
-                  Fuel <em style={{ fontStyle: "italic", color: "var(--mb-butter)" }}>belief capital</em> for bold neighborhood founders.
+                  Fuel <em className="mb-key" style={{ color: "var(--mb-butter)" }}>belief capital</em> for bold neighborhood founders.
                 </h2>
                 <p className="mb-lede" style={{ color: "var(--mb-chalk)", opacity: 0.92, marginTop: 12, fontSize: 14 }}>
                   We're a 100% volunteer-led organization. Every dollar funds the next micro-grant — no overhead, no middlemen.
@@ -1151,7 +1133,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                     <span className="mb-numeral" style={{ fontSize: 10, color: "var(--mb-magenta)", fontWeight: 700, letterSpacing: "0.08em" }}>
                       TIER 0{i + 1}
                     </span>
-                    <h3 style={{ margin: 0, fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 20, letterSpacing: "-0.01em" }}>
+                    <h3 style={{ margin: 0, fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 20, letterSpacing: "-0.01em" }}>
                       {tier.tier}
                     </h3>
                     <span className="mb-numeral" style={{ fontSize: 22, fontWeight: 700, color: "var(--mb-ink)", letterSpacing: "-0.03em" }}>

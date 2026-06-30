@@ -46,7 +46,7 @@ Production: [goodneighbor.fund](https://www.goodneighbor.fund)
 ├── firestore.rules              # Role-based access control
 ├── storage.rules
 ├── firebase.json
-├── STYLE_GUIDE.md               # Windows 95 design system — read before touching CSS
+├── docs/STYLE_GUIDE.md          # Windows 95 design system — read before touching CSS
 └── Claude Showcase Requirements.md  # Original product spec (historical)
 ```
 
@@ -136,7 +136,7 @@ Root `.env` holds dev-only values (see [.env.example](.env.example)).
 
 ## Design System
 
-**Read [STYLE_GUIDE.md](STYLE_GUIDE.md) before writing any CSS.** The short version:
+**Read [STYLE_GUIDE.md](docs/STYLE_GUIDE.md) before writing any CSS.** The short version:
 
 - Two cascading layers: `win95-tokens.css` (tokens) → `win95-base.css` (resets + utilities). `theme-tokens.css` adds an editorial overlay for content inside windows.
 - Never hardcode hex, never use `border-radius`, never use soft drop shadows. Depth comes from beveled borders.
@@ -170,7 +170,7 @@ firebase deploy --only firestore:rules,storage
 
 ## Additional Docs
 
-- [STYLE_GUIDE.md](STYLE_GUIDE.md) — design system
+- [STYLE_GUIDE.md](docs/STYLE_GUIDE.md) — design system
 - [CLAUDE.md](CLAUDE.md) — guidance for Claude Code sessions
 - [functions/CLAUDE.md](functions/CLAUDE.md) — Cloud Functions specifics
 - [functions/SETUP_GUIDE.md](functions/SETUP_GUIDE.md) — deployment setup

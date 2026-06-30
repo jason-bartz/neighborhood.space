@@ -238,11 +238,11 @@ export default function GrantApplicationForm({ onClose, zIndex, windowId, bringT
         boxShadow: "none"
       }}>
         <span className="mb-eyebrow" style={{ color: "var(--mb-magenta)" }}>Pitch Application</span>
-        <h3 style={{ marginTop: 8, fontFamily: "var(--font-display)", fontWeight: 400, fontSize: 24, letterSpacing: "-0.01em" }}>Apply for a $1,000 micro-grant</h3>
+        <h3 style={{ marginTop: 8, fontFamily: "var(--font-serif)", fontWeight: 600, fontSize: 24, letterSpacing: "-0.01em" }}>Apply for a <span style={{ color: "var(--mb-magenta-deep)" }}>$1,000</span> micro-grant</h3>
         Please fill out this application to be considered for a Good Neighbor Fund $1,000 micro-grant.<br /><br />
         <strong>What we look for:</strong>
         <ul>
-          <li>Business ideas at the ideation stage (early stage will be considered)</li>
+          <li>Businesses at the early or ideation stage</li>
           <li>Clear understanding of the problem you're solving</li>
           <li>Specific, high-impact plan for using the $1,000</li>
           <li>Passion in your pitch video</li>

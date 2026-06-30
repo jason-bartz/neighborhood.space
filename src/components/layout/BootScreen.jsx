@@ -97,18 +97,18 @@ export default function BootScreen({ onFinish }) {
           color: 'var(--mb-magenta)',
           marginBottom: '6px'
         }}>
-          NeighborhoodOS v3.1
+          NeighborhoodOS v3.2
         </div>
         <h1 style={{
           fontFamily: 'var(--font-display)',
           fontWeight: 900,
           textTransform: 'uppercase',
-          fontSize: '38px',
+          fontSize: '28px',
           letterSpacing: '-0.02em',
           margin: '0 0 24px',
           color: 'var(--mb-ink)'
         }}>
-          Booting up&hellip;
+          Booting up<span className="mb-boot-dots" aria-hidden="true" />
         </h1>
 
         <div style={{

@@ -262,6 +262,27 @@
   .mb-cursor { animation: none; }
 }
 
+/* Boot-screen ellipsis — dots appear one at a time, then repeat. Fixed width
+   reserves space for "..." so the heading doesn't jiggle as dots cycle. */
+.mb-boot-dots {
+  display: inline-block;
+  width: 1em;
+  text-align: left;
+}
+.mb-boot-dots::after {
+  content: "...";
+  animation: mb-boot-ellipsis 1.4s steps(1, end) infinite;
+}
+@keyframes mb-boot-ellipsis {
+  0%        { content: ""; }
+  25%       { content: "."; }
+  50%       { content: ".."; }
+  75%, 100% { content: "..."; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mb-boot-dots::after { content: "..."; animation: none; }
+}
+
 /* Drop cap for long-form section bodies — Archivo, magenta */
 .mb-dropcap::first-letter,
 .mb-body.mb-dropcap::first-letter {

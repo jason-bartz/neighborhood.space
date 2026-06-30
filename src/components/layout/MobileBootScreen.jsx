@@ -103,16 +103,16 @@ export default function MobileBootScreen({ onFinish }) {
           textTransform: 'uppercase',
           color: 'var(--mb-magenta)',
           marginBottom: '4px'
-        }}>NeighborhoodOS v3.1</div>
+        }}>NeighborhoodOS v3.2</div>
         <h1 style={{
-          fontSize: '28px',
+          fontSize: '22px',
           margin: '0 0 20px 0',
           fontFamily: 'var(--font-display)',
           fontWeight: 900,
           textTransform: 'uppercase',
           letterSpacing: '-0.02em',
           color: 'var(--mb-ink)'
-        }}>Booting up&hellip;</h1>
+        }}>Booting up<span className="mb-boot-dots" aria-hidden="true" /></h1>
 
         <div style={{
           display: 'flex',

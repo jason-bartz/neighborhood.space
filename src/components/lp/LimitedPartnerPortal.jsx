@@ -1118,7 +1118,7 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
       </button>
 
       {isOpen && (
-        <div style={{
+        <div className="multi-select-panel" style={{
           position: 'absolute',
           top: '100%',
           left: 0,
@@ -1188,7 +1188,7 @@ const MultiSelectDropdown = ({ options, selected, onChange, placeholder = "Selec
                 type="checkbox"
                 checked={selected.includes(option)}
                 onChange={() => toggleOption(option)}
-                style={{ marginRight: '8px' }}
+                style={{ width: '14px', height: '14px', flexShrink: 0, margin: '0 8px 0 0', verticalAlign: 'middle' }}
               />
               {option}
             </label>
@@ -1975,6 +1975,160 @@ const drawApplicationFormCard = async (canvas) => {
   drawFooter(ctx, logoImg);
 };
 
+// ---------- 7. Invite Card — recruit the next Limited Partner ----------
+// Mirrors the "Become a Limited Partner" recruiting flyer as a 1080×1080
+// share card: a personal "Join me as a Limited Partner" headline (the sharer's
+// name + chapter auto-filled), a 2×2 color-blocked stat grid carrying the four
+// hard facts ($500/yr · $1,000 grants · 4× dinners · ~1hr a month), and a
+// single ink CTA bar pointing to the application.
+const drawInviteCard = async (canvas) => {
+  await waitForCardFonts();
+  const ctx = canvas.getContext('2d');
+
+  // Paper base
+  ctx.fillStyle = MB_COLORS.paper;
+  ctx.fillRect(0, 0, 1080, 1080);
+
+  drawMasthead(ctx, 'Neighbors funding neighbors');
+
+  const [photoImg, logoImg] = await Promise.all([
+    loadUserPortrait(user),
+    loadImage('/assets/gnf-logo.png'),
+  ]);
+
+  const name = user?.name || 'A Neighbor';
+  const chapter = user?.chapter || 'Your Chapter';
+
+  // Eyebrow
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = MB_COLORS.magentaDeep;
+  ctx.font = `700 18px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '3px';
+  ctx.fillText('AN INVITATION TO GIVE TOGETHER', 60, 168);
+  ctx.letterSpacing = '0px';
+
+  // Headline — Instrument Serif, the personal "me" set italic in magenta
+  const hSize = 76;
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 ${hSize}px ${CARD_FONTS.display}`;
+  const hy1 = 248;
+  let hx = 60;
+  ctx.fillText('Join ', hx, hy1);
+  hx += ctx.measureText('Join ').width;
+  ctx.font = `italic 400 ${hSize}px ${CARD_FONTS.display}`;
+  ctx.fillStyle = MB_COLORS.magenta;
+  ctx.fillText('me', hx, hy1);
+  hx += ctx.measureText('me').width;
+  ctx.font = `400 ${hSize}px ${CARD_FONTS.display}`;
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.fillText(' as a', hx, hy1);
+  ctx.fillText('Limited Partner', 60, hy1 + 70);
+
+  // Portrait — top-right of the content field
+  drawPortrait(ctx, 940, 232, 72, photoImg, name);
+
+  // Byline — "YOUR NEIGHBOR" / name / chapter (chapter always shown)
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MB_COLORS.grape;
+  ctx.font = `700 15px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '2px';
+  ctx.fillText('YOUR NEIGHBOR', 60, 352);
+  ctx.letterSpacing = '0px';
+
+  // Name — auto-shrink only down to a still-legible floor for long names
+  let nameSize = 34;
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 ${nameSize}px ${CARD_FONTS.display}`;
+  while (ctx.measureText(name).width > 660 && nameSize > 26) {
+    nameSize -= 1;
+    ctx.font = `400 ${nameSize}px ${CARD_FONTS.display}`;
+  }
+  ctx.fillText(name, 60, 388);
+
+  ctx.fillStyle = MB_COLORS.ink60;
+  ctx.font = `400 20px ${CARD_FONTS.content}`;
+  ctx.fillText(chapter, 60, 414);
+
+  // Tagline — right column under the portrait, right-aligned so it stays clear
+  // of long names on the left and never runs off the right edge.
+  ctx.textAlign = 'right';
+  ctx.fillStyle = MB_COLORS.ink;
+  ctx.font = `400 26px ${CARD_FONTS.content}`;
+  ctx.fillText('Pool $500 a year.', 1014, 366);
+  ctx.fillText('Back founders, together.', 1014, 402);
+  ctx.textAlign = 'left';
+
+  // 2×2 color-blocked stat grid — the hero
+  const gridX = 60, gridY = 438;
+  const cellW = 465, cellH = 186, gap = 26;
+  const cells = [
+    { fill: MB_COLORS.magenta, fg: MB_COLORS.chalk, num: '$500',   cap: 'PER YEAR · TAX-DEDUCTIBLE' },
+    { fill: MB_COLORS.aqua,    fg: MB_COLORS.ink,   num: '$1,000', cap: 'GRANTS YOU AWARD TOGETHER' },
+    { fill: MB_COLORS.grape,   fg: MB_COLORS.chalk, num: '4x',     cap: 'DINNERS A YEAR · BEST MEETING' },
+    { fill: MB_COLORS.butter,  fg: MB_COLORS.ink,   num: '~1 HR',  cap: 'A MONTH RATING PITCHES' },
+  ];
+
+  cells.forEach((c, i) => {
+    const col = i % 2, row = Math.floor(i / 2);
+    const cx = gridX + col * (cellW + gap);
+    const cy = gridY + row * (cellH + gap);
+    drawShadowRect(ctx, cx, cy, cellW, cellH, c.fill, 8);
+
+    // Big numeral — right-aligned, width-capped so "$1,000" never clips
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = c.fg;
+    let numFont = 92;
+    ctx.font = `700 ${numFont}px ${CARD_FONTS.numeral}`;
+    while (ctx.measureText(c.num).width > cellW - 56 && numFont > 56) {
+      numFont -= 4;
+      ctx.font = `700 ${numFont}px ${CARD_FONTS.numeral}`;
+    }
+    ctx.fillText(c.num, cx + cellW - 26, cy + 104);
+
+    // Caption — Silkscreen, bottom-left, wrapped to max 2 lines
+    ctx.textAlign = 'left';
+    ctx.fillStyle = c.fg;
+    ctx.letterSpacing = '1px';
+    ctx.font = `700 15px ${CARD_FONTS.pixel}`;
+    const capMax = cellW - 52;
+    const words = c.cap.split(' ');
+    const lines = [];
+    let cur = '';
+    words.forEach((w) => {
+      const test = cur ? cur + ' ' + w : w;
+      if (ctx.measureText(test).width > capMax && cur) { lines.push(cur); cur = w; }
+      else { cur = test; }
+    });
+    if (cur) lines.push(cur);
+    const capLines = lines.slice(0, 2);
+    let capY = cy + cellH - 26 - (capLines.length - 1) * 22;
+    capLines.forEach((ln) => { ctx.fillText(ln, cx + 26, capY); capY += 22; });
+    ctx.letterSpacing = '0px';
+  });
+
+  // CTA bar — single ink block: pixel label left, application URL right
+  const ctaX = 60, ctaY = 856, ctaW = 960, ctaH = 78;
+  drawShadowRect(ctx, ctaX, ctaY, ctaW, ctaH, MB_COLORS.ink, 8);
+
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = MB_COLORS.butter;
+  ctx.font = `700 18px ${CARD_FONTS.pixel}`;
+  ctx.letterSpacing = '2px';
+  ctx.fillText('YOUR SEAT AT THE TABLE  →', ctaX + 28, ctaY + ctaH / 2 + 1);
+  ctx.letterSpacing = '0px';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = MB_COLORS.chalk;
+  ctx.font = `600 26px ${CARD_FONTS.content}`;
+  ctx.fillText('goodneighbor.fund/lp-application', ctaX + ctaW - 28, ctaY + ctaH / 2 + 1);
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+
+  drawFooter(ctx, logoImg);
+};
+
 const downloadCard = async (type) => {
   const canvasId =
     type === 'welcome' ? 'welcome-canvas' :
@@ -1982,6 +2136,7 @@ const downloadCard = async (type) => {
     type === 'stats' ? 'stats-canvas' :
     type === 'recruitment' ? 'recruitment-canvas' :
     type === 'approval' ? 'approval-canvas' :
+    type === 'invite' ? 'invite-canvas' :
     'application-canvas';
   const canvas = document.getElementById(canvasId);
 
@@ -1999,6 +2154,8 @@ const downloadCard = async (type) => {
     await drawApprovalDialogCard(canvas);
   } else if (type === 'application') {
     await drawApplicationFormCard(canvas);
+  } else if (type === 'invite') {
+    await drawInviteCard(canvas);
   }
 
   canvas.toBlob((blob) => {
@@ -2023,6 +2180,7 @@ useEffect(() => {
       const recruitmentCanvas = document.getElementById('recruitment-canvas');
       const approvalCanvas = document.getElementById('approval-canvas');
       const applicationCanvas = document.getElementById('application-canvas');
+      const inviteCanvas = document.getElementById('invite-canvas');
 
       if (welcomeCanvas) await drawWelcomeCard(welcomeCanvas);
       if (badgeCanvas) await drawBadgeCard(badgeCanvas);
@@ -2030,6 +2188,7 @@ useEffect(() => {
       if (recruitmentCanvas) await drawRecruitmentCard(recruitmentCanvas);
       if (approvalCanvas) await drawApprovalDialogCard(approvalCanvas);
       if (applicationCanvas) await drawApplicationFormCard(applicationCanvas);
+      if (inviteCanvas) await drawInviteCard(inviteCanvas);
     }, 100);
   }
 }, [activeTab, user, userStats, userBadges, adminPitches]);
@@ -4953,8 +5112,10 @@ return (
           padding: 10px !important;
           margin-bottom: 14px !important;
         }
-        .filter-bar select, .filter-bar input,
-        .filter-bar--one-row select, .filter-bar--one-row input {
+        .filter-bar select,
+        .filter-bar input:not([type="checkbox"]):not([type="radio"]),
+        .filter-bar--one-row select,
+        .filter-bar--one-row input:not([type="checkbox"]):not([type="radio"]) {
           width: 100% !important;
           min-width: 0 !important;
           min-height: 40px !important;
@@ -5028,6 +5189,32 @@ return (
           padding: 6px !important;
           font-size: 11px !important;
         }
+
+        /* ── User accounts table — reclaim horizontal room for the member name.
+           Drop the row avatar thumbnail and collapse the Edit/Close button to a
+           bare icon, and tighten the actions column. The Profile column is hidden
+           via .hide-on-mobile (its data is still editable in the expand panel). */
+        .member-row-avatar {
+          display: none !important;
+        }
+        .user-action-btn {
+          padding: 6px 9px !important;
+          min-width: 0 !important;
+        }
+        .user-action-btn__label {
+          display: none !important;
+        }
+        .user-action-btn__icon {
+          display: inline-flex !important;
+          vertical-align: middle !important;
+        }
+        .retro-table th.col-actions,
+        .retro-table td.col-actions {
+          width: 52px !important;
+          padding-left: 4px !important;
+          padding-right: 4px !important;
+          text-align: center !important;
+        }
         
         /* Form responsive */
         form {
@@ -5042,9 +5229,21 @@ return (
           grid-template-columns: 1fr !important;
         }
         
-        /* Multi-select dropdown */
+        /* Multi-select dropdown — full-width trigger, and pin the panel to the
+           trigger's own box so it can't shoot past the viewport edge (the panel's
+           desktop min-width: 200px overflowed the right column on phones). */
         .multi-select-dropdown {
           width: 100% !important;
+        }
+        .multi-select-panel {
+          left: 0 !important;
+          right: 0 !important;
+          min-width: 0 !important;
+          width: 100% !important;
+        }
+        .multi-select-panel label {
+          display: flex !important;
+          align-items: center !important;
         }
 
         /* ── LP Pitch Card — tighter typography, stacked founder line ── */
@@ -5152,6 +5351,8 @@ return (
         .mobile-menu-btn { display: none !important; }
         .mobile-sidebar-overlay { display: none !important; }
         .mobile-sidebar { display: none !important; }
+        /* Desktop shows the text label; the compact icon is mobile-only. */
+        .user-action-btn__icon { display: none; }
       }
     `}</style>
 
@@ -5826,44 +6027,51 @@ return (
           <section className="admin-section admin-section--paper">
             <div className="social-cards-container">
               <SocialCardTile
+                canvasId="invite-canvas"
+                title="Join Me as an LP"
+                eyebrow="Card 01"
+                description="A personal, color-blocked invite &mdash; your name, chapter, and the four facts that recruit the next Limited Partner."
+                onDownload={() => downloadCard('invite')}
+              />
+              <SocialCardTile
                 canvasId="welcome-canvas"
                 title="Welcome to GNF"
-                eyebrow="Card 01"
+                eyebrow="Card 02"
                 description="Introduce yourself to the chapter."
                 onDownload={() => downloadCard('welcome')}
               />
               <SocialCardTile
                 canvasId="badge-canvas"
                 title="Badge Achievements"
-                eyebrow="Card 02"
+                eyebrow="Card 03"
                 description="Show off the trophies you&rsquo;ve earned."
                 onDownload={() => downloadCard('badge')}
               />
               <SocialCardTile
                 canvasId="stats-canvas"
                 title="Chapter Impact"
-                eyebrow="Card 03"
+                eyebrow="Card 04"
                 description="Your chapter&rsquo;s funded-business tally."
                 onDownload={() => downloadCard('stats')}
               />
               <SocialCardTile
                 canvasId="recruitment-canvas"
                 title="LP Recruitment"
-                eyebrow="Card 04"
+                eyebrow="Card 05"
                 description="Rally new LPs into the network."
                 onDownload={() => downloadCard('recruitment')}
               />
               <SocialCardTile
                 canvasId="approval-canvas"
                 title="Approval Dialog"
-                eyebrow="Card 05"
+                eyebrow="Card 06"
                 description="Belief, in writing — Win95 grant-approved notification."
                 onDownload={() => downloadCard('approval')}
               />
               <SocialCardTile
                 canvasId="application-canvas"
                 title="Application Form"
-                eyebrow="Card 06"
+                eyebrow="Card 07"
                 description="Apply in one sentence — “What&rsquo;s your big idea?”"
                 onDownload={() => downloadCard('application')}
               />
@@ -6410,7 +6618,7 @@ return (
                                                 value={editingAdminNoteText}
                                                 onChange={(e) => setEditingAdminNoteText(e.target.value)}
                                                 rows={3}
-                                                style={{ width: '100%', fontFamily: 'inherit', fontSize: 14, padding: 8, boxSizing: 'border-box' }}
+                                                style={{ width: '100%', fontFamily: 'inherit', fontSize: 14, padding: 8, boxSizing: 'border-box', border: '2px solid var(--mb-ink)', boxShadow: 'var(--shadow-hard-sm)', background: 'var(--mb-chalk)' }}
                                                 aria-label="Edit note"
                                               />
                                               <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
@@ -6436,8 +6644,8 @@ return (
                                       );
                                     })
                                   ) : (
-                                    <p style={{ fontStyle: 'italic', color: '#999', textAlign: 'center', padding: '8px 0 16px', margin: 0 }}>
-                                      No notes yet. Capture anything that comes up during discussion.
+                                    <p style={{ fontStyle: 'italic', color: '#999', textAlign: 'center', padding: '4px 0', margin: 0 }}>
+                                      No notes yet.
                                     </p>
                                   )}
                                   <div style={{ marginTop: notesForPitch.length > 0 ? 12 : 0, paddingTop: notesForPitch.length > 0 ? 12 : 0, borderTop: notesForPitch.length > 0 ? '1px solid #f0f0f0' : 'none' }}>
@@ -6446,7 +6654,7 @@ return (
                                       onChange={(e) => setAdminNoteDrafts(prev => ({ ...prev, [p.id]: e.target.value }))}
                                       placeholder="Add a note from the discussion — follow-ups, questions, a quote you want to remember."
                                       rows={3}
-                                      style={{ width: '100%', fontFamily: 'inherit', fontSize: 14, padding: 8, boxSizing: 'border-box' }}
+                                      style={{ width: '100%', fontFamily: 'inherit', fontSize: 14, padding: 8, boxSizing: 'border-box', border: '2px solid var(--mb-ink)', boxShadow: 'var(--shadow-hard-sm)', background: 'var(--mb-chalk)' }}
                                       aria-label="Add admin note"
                                     />
                                     <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
@@ -6799,7 +7007,7 @@ return (
                         value={websiteById[p.id] ?? p.website ?? ""}
                         onChange={(e) => handleFieldChange(p.id, "website", e.target.value)}
                         placeholder="https://..."
-                        style={{ display: 'block', width: '100%', maxWidth: 600, marginTop: 4, padding: '8px 10px', fontFamily: 'inherit', border: '2px solid var(--mb-ink)', boxShadow: 'var(--shadow-hard-sm)', background: 'var(--mb-chalk)' }}
+                        style={{ display: 'block', width: '100%', maxWidth: 600, marginTop: 4, padding: '8px 10px', fontFamily: 'inherit', border: '2px solid var(--mb-ink)', boxShadow: 'var(--shadow-hard-sm)', background: 'var(--mb-chalk)', boxSizing: 'border-box' }}
                       />
                     </div>
 
@@ -6810,7 +7018,7 @@ return (
                         rows={4}
                         value={aboutById[p.id] ?? p.about ?? ""}
                         onChange={(e) => handleFieldChange(p.id, "about", e.target.value)}
-                        style={{ display: 'block', width: '100%', maxWidth: 600, marginTop: 4, padding: '8px 10px', fontFamily: 'inherit', fontSize: '0.95em', border: '2px solid var(--mb-ink)', boxShadow: 'var(--shadow-hard-sm)', background: 'var(--mb-chalk)' }}
+                        style={{ display: 'block', width: '100%', maxWidth: 600, marginTop: 4, padding: '8px 10px', fontFamily: 'inherit', fontSize: '0.95em', border: '2px solid var(--mb-ink)', boxShadow: 'var(--shadow-hard-sm)', background: 'var(--mb-chalk)', boxSizing: 'border-box' }}
                         placeholder="Write a short public description about this founder or business..."
                       />
                       <div style={{ marginTop: 8 }}>
@@ -6947,8 +7155,8 @@ return (
                         <th style={{ width: '28%' }}>Member</th>
                         <th style={{ width: '14%' }}>Role</th>
                         <th style={{ width: '18%' }}>Chapter</th>
-                        <th>Profile</th>
-                        <th style={{ width: '90px' }}>Actions</th>
+                        <th className="hide-on-mobile">Profile</th>
+                        <th className="col-actions" style={{ width: '90px' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -6984,14 +7192,14 @@ return (
                                       <img
                                         src={rowPhotoUrl}
                                         alt=""
-                                        className="member-photo"
+                                        className="member-photo member-row-avatar"
                                         style={{
                                           width: 32, height: 32, objectFit: 'cover', flexShrink: 0
                                         }}
                                         onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
                                       />
                                     ) : (
-                                      <div style={{
+                                      <div className="member-row-avatar" style={{
                                         width: 32, height: 32, flexShrink: 0,
                                         border: '2px dashed var(--mb-ink-40, #999)', background: 'transparent'
                                       }} />
@@ -7051,7 +7259,7 @@ return (
                                   </select>
                                 </td>
                                 {/* Profile: professional role (bold) + bio truncated */}
-                                <td style={{ minWidth: 0 }}>
+                                <td className="hide-on-mobile" style={{ minWidth: 0 }}>
                                   <div style={{ lineHeight: 1.3, minWidth: 0 }}>
                                     <div style={{ fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                                       {dashIfEmpty(u.professionalRole)}
@@ -7061,22 +7269,32 @@ return (
                                     </div>
                                   </div>
                                 </td>
-                                {/* Actions: Edit / Close. Send link + Delete moved into the edit panel below. */}
-                                <td className="actions">
+                                {/* Actions: Edit / Close. Send link + Delete moved into the edit panel below.
+                                    On mobile the label is swapped for a compact icon to free up
+                                    horizontal room for the member name (see .user-action-btn CSS). */}
+                                <td className="actions col-actions">
                                   {isEditing ? (
                                     <RetroButton
                                       size="sm"
+                                      className="user-action-btn"
+                                      ariaLabel="Close editing"
+                                      title="Close editing"
                                       onClick={() => {
                                         const newEditingUsers = { ...editingUsers };
                                         delete newEditingUsers[u.uid];
                                         setEditingUsers(newEditingUsers);
                                       }}
                                     >
-                                      Close
+                                      <span className="user-action-btn__label">Close</span>
+                                      <svg className="user-action-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="square" aria-hidden="true">
+                                        <path d="M4 4l8 8M12 4l-8 8" />
+                                      </svg>
                                     </RetroButton>
                                   ) : (
                                     <RetroButton
                                       size="sm"
+                                      className="user-action-btn"
+                                      ariaLabel={`Edit profile for ${u.name || u.email}`}
                                       onClick={() => setEditingUsers({
                                         ...editingUsers,
                                         [u.uid]: {
@@ -7087,7 +7305,10 @@ return (
                                       })}
                                       title={`Edit profile for ${u.email}`}
                                     >
-                                      Edit
+                                      <span className="user-action-btn__label">Edit</span>
+                                      <svg className="user-action-btn__icon" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="square" strokeLinejoin="miter" aria-hidden="true">
+                                        <path d="M10.5 2.5l3 3L6 13l-3.5.5L3 10z" />
+                                      </svg>
                                     </RetroButton>
                                   )}
                                 </td>

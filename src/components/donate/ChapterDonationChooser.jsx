@@ -28,14 +28,14 @@ export default function ChapterDonationChooser({ renderTrigger, accent = 'ink' }
         <button
           type="button"
           onClick={() => setOpen(false)}
-          className="mb-eyebrow"
           style={{
             background: 'transparent',
             border: 'none',
             color: 'var(--mb-ink-60)',
             cursor: 'pointer',
             padding: 0,
-            font: 'inherit',
+            fontFamily: 'var(--font-content)',
+            fontSize: 11,
             textDecoration: 'underline',
           }}
         >

@@ -1,14 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
+import { CHAPTER_CENTERS, CHAPTER_NAMES } from "../../data/chapterConfig";
+import { makeGeocoder } from "../../helpers/pitchGeocoder";
 import "./FounderMap.css";
-
-const chapterCenters = {
-  "Western New York": { lat: 42.88, lng: -77.8, zoom: 8 }, // Zoomed out to show full WNY region
-  Denver: { lat: 39.7392, lng: -104.9903, zoom: 10 },
-  "Central New York": { lat: 43.05, lng: -76.15, zoom: 8 }, // Centered on Syracuse
-  "Capital Region": { lat: 42.65, lng: -73.75, zoom: 9 }, // Centered on Albany
-};
 
 function getQuarterFromTimestamp(timestamp) {
   try {
@@ -95,39 +90,6 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
         setError('Failed to load location data');
       });
   }, []);
-
-  // Lookup function to get coordinates from zip code
-  const getCoordinatesFromZip = (zipCode) => {
-    if (!zipcodeData || !zipCode) return null;
-    
-    // Normalize zip code (remove spaces, ensure string)
-    const normalizedZip = String(zipCode).trim();
-    
-    // Search in Western NY counties
-    const wnyCounties = zipcodeData.western_new_york;
-    for (const countyName in wnyCounties) {
-      const county = wnyCounties[countyName];
-      if (Array.isArray(county)) {
-        const found = county.find(entry => entry.zip === normalizedZip);
-        if (found) {
-          return { lat: found.lat, lng: found.lon };
-        }
-      }
-    }
-    
-    // Search in Denver
-    if (zipcodeData.denver_colorado && zipcodeData.denver_colorado.zip_codes) {
-      const denverZip = zipcodeData.denver_colorado.zip_codes.find(
-        entry => entry.zip === normalizedZip
-      );
-      if (denverZip) {
-        return { lat: denverZip.lat, lng: denverZip.lon };
-      }
-    }
-    
-    console.log(`No coordinates found for zip code: ${normalizedZip}`);
-    return null;
-  };
 
   // Force initialization when component mounts and container is ready
   useEffect(() => {
@@ -406,13 +368,14 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
           where("isWinner", "==", true)
         );
         const snap = await getDocs(q);
+        // Shared geocoder: precise zip where available, chapter-center fallback
+        // otherwise, so winners from every chapter land on the map.
+        const geocode = makeGeocoder(zipcodeData);
         const data = [];
-        
+
         console.log(`Found ${snap.docs.length} winner documents`);
         let skippedCount = 0;
-        let usingLatLngCount = 0;
-        let usingZipCount = 0;
-        
+
         snap.docs.forEach((doc) => {
           const d = doc.data();
           // Hide winners staged in the admin Grant Winners tab but not yet
@@ -421,51 +384,30 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
             skippedCount++;
             return;
           }
-          let coords = null;
-          
-          // First try zip code
-          const zipCode = d.zipCode || d.zip || d["zip-code"] || d.postalCode;
-          if (zipCode) {
-            coords = getCoordinatesFromZip(zipCode);
-            if (coords) {
-              usingZipCount++;
-              console.log(`Using zip ${zipCode} for ${d.businessName || d["business-name"]}`);
-            }
-          }
-          
-          // Fall back to lat/lng if available and zip lookup failed
-          if (!coords && d.latitude && d.longitude) {
-            coords = { lat: d.latitude, lng: d.longitude };
-            usingLatLngCount++;
-            console.log(`Using lat/lng for ${d.businessName || d["business-name"]} (zip lookup failed)`);
-          }
-          
-          if (coords) {
-            data.push({
-              ...d,
-              id: doc.id,
-              coords: coords,
-              zipCode: zipCode,
-              quarter: getQuarterFromTimestamp(d.createdAt),
-              photo: d["pitch-photo"] || d.photo,
-              businessName: d.businessName || d["business-name"],
-              founderName: d.founderName || d["founder-name"]
-            });
-          } else {
+
+          // Pass the doc id in so same-zip winners get distinct fallback spots
+          // (doc.data() alone has no id).
+          const coords = geocode({ ...d, id: doc.id });
+          if (!coords) {
             skippedCount++;
-            console.log(`Skipped ${d.businessName || d["business-name"] || 'unnamed'} - no zip or coords`, {
-              zip: zipCode,
-              lat: d.latitude,
-              lng: d.longitude
-            });
+            return;
           }
+
+          data.push({
+            ...d,
+            id: doc.id,
+            coords: { lat: coords.lat, lng: coords.lng },
+            approximate: coords.approximate,
+            zipCode: d.zipCode || d.zip || d["zip-code"] || d.postalCode,
+            quarter: getQuarterFromTimestamp(d.createdAt),
+            photo: d["pitch-photo"] || d.photo,
+            businessName: d.businessName || d["business-name"],
+            founderName: d.founderName || d["founder-name"]
+          });
         });
-        
-        console.log(`Location data summary:
-          - ${usingZipCount} founders located via zip code
-          - ${usingLatLngCount} founders using lat/lng fallback
-          - ${skippedCount} founders skipped (no location data)`);
-        
+
+        console.log(`Mapped ${data.length} founders (${skippedCount} skipped — unpublished or no location)`);
+
         data.sort((a, b) =>
           (a.businessName || "").localeCompare(b.businessName || "")
         );
@@ -487,8 +429,8 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
   const handleChapterChange = (e) => {
     const chapter = e.target.value;
     setChapterFilter(chapter);
-    if (chapter && chapterCenters[chapter]) {
-      setMapCenter(chapterCenters[chapter]);
+    if (chapter && CHAPTER_CENTERS[chapter]) {
+      setMapCenter(CHAPTER_CENTERS[chapter]);
       setLocations(founders.filter((f) => f.chapter === chapter));
     } else {
       setMapCenter({ lat: 39.5, lng: -98.35, zoom: 4 });
@@ -612,24 +554,22 @@ export default function FounderMap({ onClose, windowId, bringToFront, isEmbedded
         height: "100%",
         minWidth: 0
       }}>
-        <div style={{ marginBottom: 10, display: "flex", gap: 10 }}>
+        <div className="mb-form-shell" style={{ marginBottom: 10, display: "flex", gap: 10 }}>
           <input
             type="text"
             placeholder="Search founder or business"
             value={search}
             onChange={handleSearch}
-            style={{ flexGrow: 1, padding: 6 }}
+            style={{ flexGrow: 1 }}
           />
           <select
             value={chapterFilter}
             onChange={handleChapterChange}
-            style={{ padding: 6 }}
           >
             <option value="">All Chapters</option>
-            <option value="Western New York">Western New York</option>
-            <option value="Denver">Denver</option>
-            <option value="Central New York">Central New York</option>
-            <option value="Capital Region">Capital Region</option>
+            {CHAPTER_NAMES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
           </select>
         </div>
 

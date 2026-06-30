@@ -103,7 +103,11 @@ rules_version = '2';
                       && chapterRoleInvariant();
         // Update tiers, in increasing privilege:
         //   1. Self-edit: anyone can edit their own profile fields (name, bio,
-        //      links, photo). Role/chapter changes are blocked here.
+        //      links, photo). Role/chapter changes are blocked here. The
+        //      `stats` and `badges` fields are intentionally NOT in this
+        //      allowlist — they're written exclusively by the `trackReview`
+        //      Cloud Function on review submit (admin SDK bypasses rules) so
+        //      LPs can't grant themselves badges or fake review counts.
         //   2. LP: standard reviewer tier — read-mostly. Cannot mutate other
         //      users' records (legacy global-update access removed; chapter
         //      management is the chapter_director / superAdmin job).

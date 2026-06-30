@@ -7,7 +7,7 @@ import ResourceDirectory from "./directory/ResourceDirectory";
 
 const MODES = [
   { value: "directory", label: "Directory" },
-  { value: "concierge", label: "Concierge" },
+  { value: "concierge", label: "AI Concierge" },
 ];
 
 // Detects a chapter from the URL path so chapter pages (/wny, /denver, ...)
@@ -97,7 +97,6 @@ export default function ResourceNavigator({ isEmbedded = false }) {
               />
             ) : (
               <ConciergeWizard
-                chapters={chapters}
                 defaultChapter={detectedChapter}
                 onSubmit={handleConciergeSubmit}
                 modeToggle={modeToggle}

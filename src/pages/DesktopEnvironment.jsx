@@ -117,7 +117,10 @@ export default function DesktopEnvironment() {
       const userAgent = navigator.userAgent || navigator.vendor || window.opera;
       const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
-      if (/android|iphone|ipad|ipod/i.test(userAgent) || (window.innerWidth <= 768 && isTouchDevice)) {
+      // iPads (and other tablets) get the full desktop experience — only phones
+      // and genuinely small touch viewports route to MobileLanding.
+      const isPhoneUA = /iphone|ipod|android.*mobile/i.test(userAgent);
+      if (isPhoneUA || (window.innerWidth <= 768 && isTouchDevice)) {
         setIsMobile(true);
       } else {
         setIsMobile(false);

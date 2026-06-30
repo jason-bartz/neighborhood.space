@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { makeGeocoder } from '../../helpers/pitchGeocoder';
 
 // Fix for default markers in React-Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -11,13 +12,15 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
-// Custom marker icon component
-const createCustomIcon = (isWinner) => {
+// Custom marker icon component. `approximate` pins (placed at a chapter center
+// because the zip has no precise coordinates yet) render dimmed.
+const createCustomIcon = (isWinner, approximate = false) => {
   return L.divIcon({
     html: `<div style="
-      font-size: 24px; 
+      font-size: 24px;
       text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
       cursor: pointer;
+      opacity: ${approximate ? 0.6 : 1};
       transform: translate(-12px, -12px);
     ">${isWinner ? '🏆' : '📍'}</div>`,
     iconSize: [24, 24],
@@ -92,65 +95,25 @@ export default function PitchMap({ pitches = [], currentUserChapter, onPitchClic
       });
   }, []);
   
-  // Lookup function to get coordinates from zip code
-  const getCoordinatesFromZip = (zipCode) => {
-    if (!zipcodeData || !zipCode) return null;
-    
-    // Normalize zip code (remove spaces, ensure string)
-    const normalizedZip = String(zipCode).trim();
-    
-    // Search in Western NY counties
-    const wnyCounties = zipcodeData.western_new_york;
-    for (const countyName in wnyCounties) {
-      const county = wnyCounties[countyName];
-      if (Array.isArray(county)) {
-        const found = county.find(entry => entry.zip === normalizedZip);
-        if (found) {
-          return { lat: found.lat, lng: found.lon };
-        }
-      }
-    }
-    
-    // Search in Denver
-    if (zipcodeData.denver_colorado && zipcodeData.denver_colorado.zip_codes) {
-      const denverZip = zipcodeData.denver_colorado.zip_codes.find(
-        entry => entry.zip === normalizedZip
-      );
-      if (denverZip) {
-        return { lat: denverZip.lat, lng: denverZip.lon };
-      }
-    }
-    
-    console.log(`PitchMap: No coordinates found for zip code: ${normalizedZip}`);
-    return null;
-  };
-  
-  // Add coordinates to pitches when zipcode data is loaded
+  // Geocode pitches once zipcode data is loaded. The shared geocoder resolves
+  // every chapter (precise zip where available, chapter-center fallback
+  // otherwise), so no chapter silently drops off the map.
   useEffect(() => {
-    if (!zipcodeData || !pitches.length) return;
-    
-    console.log('PitchMap: Adding coordinates to pitches...');
-    const pitchesWithNewCoords = pitches.map(pitch => {
-      // If pitch already has coordinates, use them
-      if (pitch.lat && pitch.lng) {
+    if (!zipcodeData) return;
+
+    const geocode = makeGeocoder(zipcodeData);
+    const located = pitches.map((pitch) => {
+      if (typeof pitch.lat === 'number' && typeof pitch.lng === 'number') {
         return pitch;
       }
-      
-      // Try to get coordinates from zipcode or zip field
-      const zipField = pitch.zipcode || pitch.zip || pitch.zipCode;
-      if (zipField) {
-        const coords = getCoordinatesFromZip(zipField);
-        if (coords) {
-          console.log(`PitchMap: Found coordinates for ${pitch.businessName} at zip ${zipField}`);
-          return { ...pitch, ...coords };
-        }
-      }
-      
-      return pitch;
+      const coords = geocode(pitch);
+      return coords
+        ? { ...pitch, lat: coords.lat, lng: coords.lng, approximate: coords.approximate }
+        : pitch;
     });
-    
-    setPitchesWithCoords(pitchesWithNewCoords);
-    console.log('PitchMap: Pitches with coordinates:', pitchesWithNewCoords.filter(p => p.lat && p.lng).length);
+
+    setPitchesWithCoords(located);
+    console.log('PitchMap: Pitches with coordinates:', located.filter(p => p.lat && p.lng).length);
   }, [pitches, zipcodeData]);
 
   // Get unique chapters and quarters for filters
@@ -328,7 +291,7 @@ export default function PitchMap({ pitches = [], currentUserChapter, onPitchClic
             <Marker
               key={pitch.id}
               position={[pitch.lat, pitch.lng]}
-              icon={createCustomIcon(pitch.isWinner)}
+              icon={createCustomIcon(pitch.isWinner, pitch.approximate)}
               eventHandlers={{
                 click: () => onPitchClick && onPitchClick(pitch)
               }}
@@ -352,8 +315,8 @@ export default function PitchMap({ pitches = [], currentUserChapter, onPitchClic
           ))}
         </MapContainer>
         
-        {/* Loading indicator for geocoding */}
-        {pitches.some(p => !p.lat || !p.lng) && (
+        {/* Loading indicator — shown only while the zip dataset is still loading */}
+        {!zipcodeData && (
           <div style={{
             position: 'absolute',
             bottom: '20px',

@@ -14,6 +14,8 @@ const {
   listAllChapterSlugs,
 } = require("./chapterRosterSnapshot");
 const { recommend: recommendResourcesHelper } = require("./recommendResources");
+const { zipToChapter } = require("./zipToChapter");
+const { trackReviewSubmissionServer } = require("./statsTracking");
 
 const ANTHROPIC_API_KEY = defineSecret("ANTHROPIC_API_KEY");
 // v2 functions can't use functions.config(); secrets flow through Secret Manager.
@@ -982,15 +984,24 @@ exports.recommendResources = onCall(
   },
   async (request) => {
     const data = request.data || {};
-    const chapter = typeof data.chapter === "string" ? data.chapter : null;
     const stage = typeof data.stage === "string" ? data.stage : null;
     const chips = Array.isArray(data.chips)
       ? data.chips.filter((c) => typeof c === "string").slice(0, 8)
       : [];
+    const identities = Array.isArray(data.identities)
+      ? data.identities.filter((c) => typeof c === "string").slice(0, 8)
+      : [];
     const needText = typeof data.needText === "string" ? data.needText.slice(0, 600) : "";
 
-    if (!chapter && !stage && chips.length === 0 && !needText) {
-      throw new HttpsError("invalid-argument", "Provide at least one of: chapter, stage, chips, needText.");
+    // Chapter can be provided directly (chapter pages) or resolved from a
+    // zip code (the AI Concierge entry on /). Server-side resolution keeps
+    // the mapping authoritative and prevents clients from spoofing.
+    const explicitChapter = typeof data.chapter === "string" ? data.chapter : null;
+    const zip = typeof data.zip === "string" ? data.zip : null;
+    const chapter = explicitChapter || zipToChapter(zip);
+
+    if (!chapter && !stage && chips.length === 0 && !needText && identities.length === 0) {
+      throw new HttpsError("invalid-argument", "Provide at least one of: chapter, zip, stage, chips, identities, needText.");
     }
 
     let resources = [];
@@ -1022,10 +1033,13 @@ exports.recommendResources = onCall(
         chapter,
         stage,
         chips,
+        identities,
         needText,
         apiKey: ANTHROPIC_API_KEY.value(),
       });
-      return result;
+      // Echo resolvedChapter so the client can display "Looks like X"
+      // when the user only entered a zip.
+      return { ...result, resolvedChapter: chapter };
     } catch (error) {
       console.error("recommendResources helper threw:", error);
       throw new HttpsError("internal", "Recommendation failed.");
@@ -1581,6 +1595,12 @@ function prettyBillingPeriod(productType, value) {
 
 const TRACKED_PRODUCT_TYPES = new Set(["lp_membership", "gnf_club", "gnf_chapter_fee", "donation"]);
 
+// Stripe payment-link metadata still carries legacy chapter names. Normalize
+// here so the Slack message reflects the current chapter name everywhere.
+const CHAPTER_NAME_REMAP = {
+  "Upstate New York": "Central New York",
+};
+
 // Walk an event's object graph to find metadata from the payment link.
 // Different event types surface the same metadata in different places.
 function extractTrackedMetadata(obj) {
@@ -1590,7 +1610,12 @@ function extractTrackedMetadata(obj) {
     obj.lines && obj.lines.data && obj.lines.data[0] && obj.lines.data[0].metadata,
   ];
   for (const md of candidates) {
-    if (md && TRACKED_PRODUCT_TYPES.has(md.product_type)) return md;
+    if (md && TRACKED_PRODUCT_TYPES.has(md.product_type)) {
+      if (md.chapter && CHAPTER_NAME_REMAP[md.chapter]) {
+        return { ...md, chapter: CHAPTER_NAME_REMAP[md.chapter] };
+      }
+      return md;
+    }
   }
   return null;
 }
@@ -2297,5 +2322,67 @@ exports.rebuildLpRosterSnapshots = onCall(
       }
     }
     return { results };
+  },
+);
+
+// Server-side review stats + badge tracker. Replaces the previous client-side
+// trackReviewSubmission, which the LP /users self-update rule blocked because
+// `stats` and `badges` aren't in the allowlist (and shouldn't be — letting an
+// LP write either field directly means they could grant themselves any badge
+// or fake review counts via devtools). The client writes /reviews/{reviewId}
+// as the LP, then calls this; we re-read the review with admin SDK and bump
+// the user's stats + badges. Returns { newBadges, stats } so the client can
+// render the badge-earned toast and refresh the Trophy Case.
+exports.trackReview = onCall(
+  { serviceAccount: "gnf-app-9d7e3@appspot.gserviceaccount.com" },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Sign in required.");
+    }
+    const uid = request.auth.uid;
+
+    const reviewId = request.data && request.data.reviewId;
+    const isEdit = !!(request.data && request.data.isEdit);
+    const previousReview = (request.data && request.data.previousReview) || null;
+    if (!reviewId || typeof reviewId !== "string") {
+      throw new HttpsError("invalid-argument", "reviewId is required.");
+    }
+    // The doc id format is `${uid}_${pitchId}` — the /reviews rules already
+    // gate on this; re-check here so we never bump stats for a review the
+    // caller didn't actually author.
+    if (!reviewId.startsWith(`${uid}_`)) {
+      throw new HttpsError("permission-denied", "Review does not belong to caller.");
+    }
+
+    const db = admin.firestore();
+    const reviewSnap = await db.collection("reviews").doc(reviewId).get();
+    if (!reviewSnap.exists) {
+      throw new HttpsError("not-found", `Review ${reviewId} not found.`);
+    }
+    const reviewData = reviewSnap.data();
+    if (reviewData.reviewerId !== uid) {
+      throw new HttpsError("permission-denied", "Review reviewerId does not match caller.");
+    }
+
+    let pitchData = null;
+    if (reviewData.pitchId) {
+      const pitchSnap = await db.collection("pitches").doc(reviewData.pitchId).get();
+      if (pitchSnap.exists) pitchData = { id: pitchSnap.id, ...pitchSnap.data() };
+    }
+
+    try {
+      const result = await trackReviewSubmissionServer({
+        db,
+        userId: uid,
+        reviewData,
+        pitchData,
+        isEdit,
+        previousReview,
+      });
+      return result;
+    } catch (err) {
+      console.error(`trackReview failed for ${reviewId}:`, err);
+      throw new HttpsError("internal", err.message || "trackReview failed");
+    }
   },
 );

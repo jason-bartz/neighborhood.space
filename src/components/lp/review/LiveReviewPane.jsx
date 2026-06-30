@@ -26,16 +26,29 @@ function LiveReviewPane({
   filtersProps,
 }) {
 
-  // Snap focus to the first pitch when the focused id is missing or no
-  // longer in the filtered list. Runs whenever the list or focus changes.
+  // Track whether the user has actively chosen a pitch (click/keyboard).
+  // Until they do, we keep snapping focus to the current pitches[0] so that
+  // late-arriving Firestore updates and re-sorts can't leave focus locked
+  // onto a pitch that's now buried 40+ rows down (which would force the
+  // queue to auto-scroll past the top of the list on entry).
+  const userPickedFocusRef = useRef(false);
+  const pickFocus = (id) => {
+    userPickedFocusRef.current = true;
+    setFocusedPitchId(id);
+  };
+
+  // Snap focus to the first pitch when the focused id is missing, no longer
+  // in the filtered list, or the user hasn't picked one yet.
   useEffect(() => {
     if (pitches.length === 0) {
       if (focusedPitchId !== null) setFocusedPitchId(null);
       return;
     }
     const stillVisible = pitches.some((p) => p.id === focusedPitchId);
-    if (!stillVisible) {
-      setFocusedPitchId(pitches[0].id);
+    if (!stillVisible || !userPickedFocusRef.current) {
+      if (focusedPitchId !== pitches[0].id) {
+        setFocusedPitchId(pitches[0].id);
+      }
     }
   }, [pitches, focusedPitchId, setFocusedPitchId]);
 
@@ -49,11 +62,11 @@ function LiveReviewPane({
   const notesTextareaRef = useRef(null);
 
   const handlePrev = () => {
-    if (focusedIndex > 0) setFocusedPitchId(pitches[focusedIndex - 1].id);
+    if (focusedIndex > 0) pickFocus(pitches[focusedIndex - 1].id);
   };
   const handleNext = () => {
     if (focusedIndex >= 0 && focusedIndex < pitches.length - 1) {
-      setFocusedPitchId(pitches[focusedIndex + 1].id);
+      pickFocus(pitches[focusedIndex + 1].id);
     }
   };
 
@@ -136,7 +149,7 @@ function LiveReviewPane({
         <LiveReviewQueue
           pitches={pitches}
           focusedPitchId={focusedPitchId}
-          onFocus={setFocusedPitchId}
+          onFocus={pickFocus}
           getGroupedReviewsForAdmin={getGroupedReviewsForAdmin}
         />
         <LiveReviewDetail

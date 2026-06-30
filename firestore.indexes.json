@@ -103,6 +103,34 @@
       ]
     },
     {
+      "collectionGroup": "reviews",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "chapter",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "submittedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "adminNotes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "chapter",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "formLibrarySubmissions",
       "queryScope": "COLLECTION",
       "fields": [

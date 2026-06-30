@@ -1,7 +1,14 @@
 // Stats Tracking Service for LP Gamification
 import { doc, updateDoc, increment, getDoc, setDoc, collection, query, where, getDocs, orderBy } from "firebase/firestore";
-import { db } from "../firebaseConfig";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "../firebaseConfig";
 import { getNewBadges, BADGES } from "../data/badgeDefinitions";
+
+// Server-side callable: bumps the LP's stats and runs the badge cascade with
+// admin privileges. Replaces the previous in-process update path, which the
+// /users self-update Firestore rule blocks for LPs (the allowlist excludes
+// `stats` and `badges` so an LP can't grant themselves badges via devtools).
+const trackReviewCallable = httpsCallable(functions, "trackReview");
 
 // Initialize user stats if they don't exist
 export const initializeUserStats = async (userId) => {
@@ -90,198 +97,26 @@ const getDayOfWeek = (date) => {
   return days[date.getDay()];
 };
 
-// Track review submission
-// previousReview (optional) lets us detect rating changes and track edit count;
-// pass the review currently in state before this submission (null on first submit).
-export const trackReviewSubmission = async (userId, reviewData, pitchData, isEdit = false, previousReview = null) => {
-  const userRef = doc(db, "users", userId);
-  const now = new Date();
-  const quarter = getCurrentQuarter();
-  const timeOfDay = getTimeOfDay(now);
-  const dayOfWeek = getDayOfWeek(now);
-  const isWeekend = dayOfWeek === 'sat' || dayOfWeek === 'sun';
-  const hour = now.getHours();
-  
-  // Get current user data
-  const userDoc = await getDoc(userRef);
-  const userData = userDoc.data();
-  const stats = userData.stats || await initializeUserStats(userId);
-  
-  // Calculate updates
-  const updates = {
-    [`stats.quarterlyReviews.${quarter}`]: increment(isEdit ? 0 : 1),
-    [`stats.reviewsByTimeOfDay.${timeOfDay}`]: increment(isEdit ? 0 : 1),
-    [`stats.reviewsByDayOfWeek.${dayOfWeek}`]: increment(isEdit ? 0 : 1),
-    [`stats.ratingDistribution.${reviewData.overallLpRating}`]: increment(isEdit ? 0 : 1),
-    'stats.lastReviewDate': now
-  };
-  
-  // Track if not an edit
-  if (!isEdit) {
-    updates['stats.totalReviews'] = increment(1);
-    
-    // Check if review is within 48 hours of pitch creation
-    if (pitchData.createdAt) {
-      const pitchDate = pitchData.createdAt.toDate ? pitchData.createdAt.toDate() : new Date(pitchData.createdAt);
-      const hoursSincePitch = (now - pitchDate) / (1000 * 60 * 60);
-      if (hoursSincePitch <= 48) {
-        updates['stats.earlyReviews'] = increment(1);
-      }
-    }
-    
-    // Track night reviews
-    if (hour >= 22 || hour < 5) {
-      updates['stats.nightReviews'] = increment(1);
-    }
-    
-    // Track late night reviews (2-4 AM)
-    if (hour >= 2 && hour < 4) {
-      updates['stats.lateNightReviews'] = increment(1);
-    }
-    
-    // Track weekend reviews
-    if (isWeekend) {
-      updates['stats.weekendReviews'] = increment(1);
-    }
-    
-    // Track reviews per day
-    const today = now.toDateString();
-    const lastReviewDay = stats.lastReviewDay;
-    if (lastReviewDay === today) {
-      updates['stats.reviewsToday'] = increment(1);
-      const newTotal = (stats.reviewsToday || 0) + 1;
-      if (newTotal > (stats.maxReviewsInDay || 0)) {
-        updates['stats.maxReviewsInDay'] = newTotal;
-      }
-    } else {
-      updates['stats.reviewsToday'] = 1;
-      updates['stats.lastReviewDay'] = today;
-    }
-    
-    // Track prediction
-    if (reviewData.overallLpRating === 'Favorite' || reviewData.overallLpRating === 'Consideration') {
-      updates['stats.totalPredictions'] = increment(1);
-      if (reviewData.overallLpRating === 'Favorite') {
-        updates['stats.totalFavorites'] = increment(1);
-      }
-    }
-  }
-  
-  // Track comments
-  if (reviewData.lpComments && reviewData.lpComments.trim().length > 0) {
-    const comment = reviewData.lpComments.trim();
-    updates['stats.totalComments'] = increment(1);
-    
-    // Track long comments
-    if (comment.length > 100) {
-      updates['stats.longComments'] = increment(1);
-    }
-    
-    // Track detailed reviews (300+ characters)
-    if (comment.length >= 300) {
-      updates['stats.detailedReviews'] = increment(1);
-    }
-    
-    // Track exactly 50 word comments
-    const wordCount = comment.split(/\s+/).filter(word => word.length > 0).length;
-    if (wordCount === 50) {
-      updates['stats.exactly50WordComments'] = increment(1);
-    }
-    
-    // Track pass with detailed comments (50+ characters) — backs Tough Love badge
-    if (reviewData.overallLpRating === 'Pass' && comment.length >= 50) {
-      updates['stats.passWithDetailedComments'] = increment(1);
-    }
-    
-    // Track "neighbor" word count
-    const neighborCount = (comment.toLowerCase().match(/neighbor/g) || []).length;
-    if (neighborCount > 0) {
-      updates['stats.neighborWordCount'] = increment(neighborCount);
-    }
-    
-    // Track "as a mom" phrase
-    if (comment.toLowerCase().includes('as a mom')) {
-      updates['stats.asAMomComment'] = increment(1);
-    }
-  }
-  
-  // Track 4:20 review
-  if (hour === 16 && now.getMinutes() === 20) {
-    updates['stats.fourTwentyReview'] = increment(1);
-  }
-  
-  // Track Christmas review
-  if (now.getMonth() === 11 && now.getDate() === 25) {
-    updates['stats.christmasReview'] = increment(1);
-  }
-  
-  // Track anniversary review
-  if (userData.anniversary) {
-    const anniversaryDate = userData.anniversary.toDate ? userData.anniversary.toDate() : new Date(userData.anniversary);
-    if (now.getMonth() === anniversaryDate.getMonth() && now.getDate() === anniversaryDate.getDate()) {
-      updates['stats.anniversaryReview'] = increment(1);
-    }
-  }
-  
-  // Track business with website
-  if (pitchData.website && pitchData.website.trim().length > 0) {
-    updates['stats.businessesWithWebsites'] = increment(1);
-  }
-  
-  // Track community/event businesses (simple keyword check)
-  const businessName = (pitchData.businessName || '').toLowerCase();
-  const businessDescription = (pitchData.businessDescription || '').toLowerCase();
-  const communityKeywords = ['event', 'community', 'nonprofit', 'charity', 'festival', 'gathering', 'workshop', 'class', 'social'];
-  
-  if (communityKeywords.some(keyword => businessName.includes(keyword) || businessDescription.includes(keyword))) {
-    updates['stats.communityBusinessReviews'] = increment(1);
-  }
-  
-  // Track transportation businesses
-  const transportKeywords = ['auto', 'car', 'vehicle', 'transport', 'logistics', 'delivery', 'trucking', 'automotive', 'mechanic', 'dealership', 'ride', 'taxi', 'uber', 'lyft'];
-  
-  if (transportKeywords.some(keyword => businessName.includes(keyword) || businessDescription.includes(keyword))) {
-    updates['stats.transportationBusinessReviews'] = increment(1);
-  }
-
-  // Rating change tracking (edit where the overall rating actually changed) — backs Pivot Master
-  if (isEdit && previousReview && previousReview.overallLpRating && previousReview.overallLpRating !== reviewData.overallLpRating) {
-    updates['stats.changedRatings'] = increment(1);
-  }
-
-  // Track max edits on a single review — backs Perfectionist
-  if (isEdit && typeof reviewData.editCount === 'number' && reviewData.editCount > (stats.maxReviewEdits || 0)) {
-    updates['stats.maxReviewEdits'] = reviewData.editCount;
-  }
-
-  // Apply updates
-  await updateDoc(userRef, updates);
-
-  // Aggregate-stat helpers run only on non-edit submissions (these read Firestore, not the review we just wrote)
-  if (!isEdit) {
-    try { await checkFirstToReview(userId, pitchData.id || reviewData.pitchId); }
-    catch (e) { console.warn("trackReviewSubmission: checkFirstToReview failed:", e); }
-    try { await calculateQuarterlyCompletion(userId); }
-    catch (e) { console.warn("trackReviewSubmission: calculateQuarterlyCompletion failed:", e); }
-  }
-
-  // Cascade badge checks so Elite tiers (Bronze/Silver/Gold/Diamond) unlock in the same session
-  // when crossing the badges-count threshold. Cap at 3 passes as a safety bound.
-  const allNewBadges = [];
-  for (let pass = 0; pass < 3; pass++) {
-    const snap = await getDoc(userRef);
-    const data = snap.data();
-    const currentBadges = data.badges || [];
-    const newBadges = getNewBadges(currentBadges, data.stats, data);
-    if (newBadges.length === 0) break;
-    await updateDoc(userRef, {
-      badges: [...currentBadges, ...newBadges]
-    });
-    allNewBadges.push(...newBadges);
-  }
-
-  const finalSnap = await getDoc(userRef);
-  return { newBadges: allNewBadges, stats: finalSnap.data().stats };
+// Track review submission. Thin wrapper around the trackReview Cloud Function
+// — see functions/statsTracking.js for the actual stat math and badge cascade.
+// The client writes the /reviews doc first (allowed by rules); this call then
+// asks the server to bump the LP's stats and badges with admin privileges.
+//
+// previousReview (optional) lets the server detect rating changes and edit
+// count; pass the review currently in state before this submission (null on
+// first submit). The userId / reviewData / pitchData args are kept for source
+// compatibility but the server re-reads the canonical review + pitch from
+// Firestore so it can't be lied to from the client.
+export const trackReviewSubmission = async (userId, reviewData, _pitchData, isEdit = false, previousReview = null) => {
+  const reviewId = `${userId}_${reviewData.pitchId}`;
+  const result = await trackReviewCallable({
+    reviewId,
+    isEdit,
+    previousReview: previousReview ? {
+      overallLpRating: previousReview.overallLpRating || null,
+    } : null,
+  });
+  return result.data || { newBadges: [], stats: null };
 };
 
 // Track rating change

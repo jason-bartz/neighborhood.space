@@ -54,7 +54,7 @@ export default function BarRow({
       className="stats-bar-row"
       style={{
         display: "grid",
-        gridTemplateColumns: "200px 1fr 220px",
+        gridTemplateColumns: "minmax(140px, 200px) minmax(120px, 1fr) max-content",
         gap: 12,
         alignItems: "center",
         padding: "6px 0",
@@ -125,16 +125,17 @@ export default function BarRow({
           fontSize: 12,
           color: "var(--mb-ink)",
           fontFamily: "var(--font-numeral, inherit)",
-          whiteSpace: "nowrap",
           textAlign: "right",
-          minWidth: 0,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: 2,
+          lineHeight: 1.25,
         }}
       >
-        {valueLabel || value}
+        <span style={{ whiteSpace: "nowrap" }}>{valueLabel || value}</span>
         {secondaryLabel && (
-          <span style={{ marginLeft: 8, color: "var(--mb-ink-60, #666)" }}>
+          <span style={{ whiteSpace: "nowrap", color: "var(--mb-ink-60, #666)" }}>
             {secondaryLabel}
           </span>
         )}

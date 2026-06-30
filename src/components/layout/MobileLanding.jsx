@@ -307,6 +307,11 @@ export default function MobileLanding({ initialBootDone = false }) {
       title: "Colorado Sun",
       url: "https://coloradosun.com/2023/08/05/denver-venture-capital-impact-investment/",
       logo: "/assets/press/colorado-sun.webp"
+    },
+    {
+      title: "WIVB",
+      url: "https://www.youtube.com/watch?v=7Q0joMyXrbA",
+      logo: "/assets/press/wivb.png"
     }
   ];
 
@@ -1039,7 +1044,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                           className="mb-btn mb-btn-ink mb-btn-full"
                           style={{ fontSize: 12, padding: "12px 14px" }}
                         >
-                          Donate via Stripe
+                          Donate
                           <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
                         </button>
                       )}
@@ -1096,7 +1101,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                       href="https://buy.stripe.com/dR68wO3yCgiVaUo6oq"
                       target="_blank"
                       rel="noreferrer"
-                      className="mb-btn mb-btn-grape mb-btn-full"
+                      className="mb-btn mb-btn-ink mb-btn-full"
                       style={{ fontSize: 12, padding: "12px 14px" }}
                     >
                       Join the Club
@@ -1138,9 +1143,9 @@ export default function MobileLanding({ initialBootDone = false }) {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 22 }}>
                 {[
-                  { tier: "Good Neighbor", amount: "$1,000", summary: "Funds one full micro-grant. Name & logo on the awardee's grant announcement." },
-                  { tier: "Community Partner", amount: "$5,000", summary: "Funds a full chapter quarter. Event co-branding + logo on chapter page for the year." },
-                  { tier: "Chapter Champion", amount: "$10,000+", summary: "Funds a full chapter year. Premier logo placement, named grant round, speaking slot at a chapter dinner." },
+                  { tier: "Neighbor", amount: "$1,000", summary: "Funds one full micro-grant. Name & logo on the awardee's grant announcement." },
+                  { tier: "Partner", amount: "$5,000", summary: "Funds a full chapter quarter. Event co-branding + logo on chapter page for the year." },
+                  { tier: "Community Champion", amount: "$10,000+", summary: "Funds a full chapter year. Premier logo placement, named grant round, speaking slot at a chapter dinner." },
                 ].map((tier, i) => (
                   <article key={tier.tier} className="mb-card" style={{ padding: 16, display: "flex", flexDirection: "column", gap: 6 }}>
                     <span className="mb-numeral" style={{ fontSize: 10, color: "var(--mb-magenta)", fontWeight: 700, letterSpacing: "0.08em" }}>
@@ -1502,7 +1507,7 @@ export default function MobileLanding({ initialBootDone = false }) {
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M12 0C5.376 0 0 5.376 0 12C0 18.624 5.376 24 12 24C18.624 24 24 18.624 24 12C24 5.376 18.624 0 12 0ZM5.04 14.832C4.464 14.832 3.96 14.328 3.96 13.728C3.96 13.128 4.464 12.624 5.04 12.624H9.72C10.32 12.624 10.8 13.128 10.8 13.728C10.8 14.328 10.32 14.832 9.72 14.832H5.04ZM19.2 10.08C19.2 10.68 18.72 11.16 18.12 11.16H4.08C3.48 11.16 3 10.68 3 10.08C3 9.48 3.48 9 4.08 9H18.12C18.72 9 19.2 9.48 19.2 10.08ZM19.68 7.44C19.68 8.04 19.2 8.52 18.6 8.52H7.92C7.32 8.52 6.84 8.04 6.84 7.44C6.84 6.84 7.32 6.36 7.92 6.36H18.6C19.2 6.36 19.68 6.84 19.68 7.44Z" fill="white"/>
                       </svg>
-                      Donate via Stripe
+                      Donate
                     </button>
                   )}
                 />

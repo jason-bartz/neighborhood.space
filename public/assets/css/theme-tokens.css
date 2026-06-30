@@ -2245,21 +2245,21 @@ body::after {
 .lp-login__input {
   display: block;
   width: 100%;
-  padding: 12px 14px;
-  font-family: var(--font-content);
-  font-size: 15px;
-  color: var(--mb-ink);
-  background: var(--mb-chalk);
-  border: 1.5px solid var(--mb-ink);
-  box-shadow: var(--shadow-hard-sm);
+  padding: 12px 14px !important;
+  font-family: var(--font-content) !important;
+  font-size: 15px !important;
+  color: var(--mb-ink) !important;
+  background: var(--mb-chalk) !important;
+  border: 1.5px solid var(--mb-ink) !important;
+  box-shadow: var(--shadow-hard-sm) !important;
   outline: none;
   box-sizing: border-box;
   transition: box-shadow 80ms ease-out;
 }
 .lp-login__input:focus,
 .lp-login__input:focus-visible {
-  outline: 2px solid var(--mb-magenta);
-  outline-offset: 2px;
+  outline: 2px solid var(--mb-magenta) !important;
+  outline-offset: 2px !important;
 }
 
 .lp-login__submit {

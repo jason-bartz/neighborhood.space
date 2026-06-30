@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../firebaseConfig";
 import Marquee from "react-fast-marquee";
@@ -11,8 +11,15 @@ export default function BrowserWindow({ onClose, onPitchClick, onLpApplicationCl
   const [history, setHistory] = useState(["home"]);
   const [historyIndex, setHistoryIndex] = useState(0);
   const [currentMarqueeIndex, setCurrentMarqueeIndex] = useState(0);
+  const scrollContainerRef = useRef(null);
 
   const currentPage = history[historyIndex];
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [currentPage]);
   const marqueeImages = [];
 
 
@@ -47,6 +54,11 @@ export default function BrowserWindow({ onClose, onPitchClick, onLpApplicationCl
       title: "Colorado Sun",
       url: "https://coloradosun.com/2023/08/05/denver-venture-capital-impact-investment/",
       logo: "/assets/press/colorado-sun.webp"
+    },
+    {
+      title: "WIVB",
+      url: "https://www.youtube.com/watch?v=7Q0joMyXrbA",
+      logo: "/assets/press/wivb.png"
     }
   ];
 
@@ -182,7 +194,7 @@ export default function BrowserWindow({ onClose, onPitchClick, onLpApplicationCl
         })}
       </nav>
       {/* Main Content — flush-edge; each page composes its own .mb-block sections */}
-      <div style={{
+      <div ref={scrollContainerRef} style={{
         overflowY: currentPage === "resources" ? "hidden" : "auto",
         padding: 0,
         background: "var(--mb-paper)",
@@ -453,8 +465,8 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        gap: 48,
-        flexWrap: "wrap"
+        gap: 24,
+        flexWrap: "nowrap"
       }}>
         {pressLinks.map((press, index) => (
           <a
@@ -469,7 +481,10 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
               filter: "grayscale(100%)",
               height: "56px",
               display: "flex",
-              alignItems: "center"
+              alignItems: "center",
+              justifyContent: "center",
+              flex: "1 1 0",
+              minWidth: 0
             }}
             onMouseOver={(e) => { e.currentTarget.style.opacity = "1"; e.currentTarget.style.filter = "grayscale(0%)"; }}
             onMouseOut={(e) => { e.currentTarget.style.opacity = "0.7"; e.currentTarget.style.filter = "grayscale(100%)"; }}
@@ -482,7 +497,7 @@ const HomePage = ({ onPitchClick, pressLinks, marqueeImages, currentMarqueeIndex
                 height="56"
                 loading="lazy"
                 decoding="async"
-                style={{ height: "100%", width: "auto", maxWidth: "220px", objectFit: "contain" }}
+                style={{ height: "100%", width: "100%", maxWidth: "180px", objectFit: "contain" }}
               />
             ) : (
               <span className="mb-numeral" style={{ fontSize: 14, color: "var(--mb-ink)" }}>{press.title}</span>
@@ -1114,7 +1129,7 @@ const DonatePage = ({ onPitchClick }) => (
                     onClick={onClick}
                     className="mb-btn mb-btn-ink mb-btn-full"
                   >
-                    Donate via Stripe
+                    Donate
                     <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
                   </button>
                 )}
@@ -1192,7 +1207,7 @@ const DonatePage = ({ onPitchClick }) => (
               href="https://buy.stripe.com/dR68wO3yCgiVaUo6oq"
               target="_blank"
               rel="noreferrer"
-              className="mb-btn mb-btn-grape mb-btn-full"
+              className="mb-btn mb-btn-ink mb-btn-full"
               style={{ marginTop: "auto" }}
             >
               Join the Club
@@ -1237,9 +1252,9 @@ const DonatePage = ({ onPitchClick }) => (
 
       <div className="mb-grid mb-grid-3" style={{ gap: 16, marginBottom: 32 }}>
         {[
-          { tier: "Good Neighbor", amount: "$1,000", summary: "Funds one full micro-grant. Name & logo on the awardee's grant announcement." },
-          { tier: "Community Partner", amount: "$5,000", summary: "Funds a full chapter quarter. Event co-branding + logo on chapter page for the year." },
-          { tier: "Chapter Champion", amount: "$10,000+", summary: "Funds a full chapter year. Premier logo placement, named grant round, speaking slot at a chapter dinner." },
+          { tier: "Neighbor", amount: "$1,000", summary: "Funds one full micro-grant. Name & logo on the awardee's grant announcement." },
+          { tier: "Partner", amount: "$5,000", summary: "Funds a full chapter quarter. Event co-branding + logo on chapter page for the year." },
+          { tier: "Community Champion", amount: "$10,000+", summary: "Funds a full chapter year. Premier logo placement, named grant round, speaking slot at a chapter dinner." },
         ].map((tier, i) => (
           <article key={tier.tier} className="mb-card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 10 }}>
             <span className="mb-numeral" style={{ fontSize: 11, color: "var(--mb-magenta)", fontWeight: 700, letterSpacing: "0.08em" }}>

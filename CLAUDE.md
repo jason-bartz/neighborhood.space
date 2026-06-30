@@ -15,6 +15,7 @@ cd functions && npm run start-emulator   # Firebase emulator (functions + firest
 cd functions && npm run deploy     # Deploy functions only
 firebase deploy --only hosting     # Deploy built SPA + static HTML
 firebase deploy --only firestore:rules,storage
+gsutil cors set cors.json gs://gnf-app-9d7e3.firebasestorage.app   # Apply Storage CORS — required for the LP social-card canvas exports to draw uploaded photoUrl portraits (see cors.json)
 ```
 
 No test runner, no ESLint, no Prettier are configured. If you add one, update this file.

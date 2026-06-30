@@ -9,6 +9,13 @@ export default function LPPortal() {
   const [currentTime, setCurrentTime] = useState("");
   const [currentDate, setCurrentDate] = useState("");
 
+  // Force window scroll to top on mount. The portal interior uses position:fixed
+  // so this is normally a no-op, but child effects (e.g. scrollIntoView) can
+  // bubble to the document and leave the page scrolled past the titlebar.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   collection, query, where, getDocs, doc, setDoc, updateDoc, deleteDoc,
-  orderBy, addDoc, getDoc, Timestamp, serverTimestamp, deleteField
+  orderBy, addDoc, getDoc, Timestamp, serverTimestamp, deleteField, writeBatch
 } from "firebase/firestore";
 import {
   onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut,
@@ -14,7 +14,6 @@ import { httpsCallable } from "firebase/functions";
 import Papa from "papaparse";
 import { saveAs } from "file-saver";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import Confetti from "react-confetti";
 import StatsBar from "../pitch/StatsBar";
 import { BadgeNotification, TrophyCase } from "../badges/BadgeDisplay";
 import { BADGES } from "../../data/badgeDefinitions";
@@ -53,11 +52,13 @@ import {
 } from "../../helpers/awardAmount";
 import { isLMIZip, LMI_THRESHOLD, LMI_ACS_YEAR } from "../../helpers/lmiZips";
 import ResourceLibrary from "./resources/ResourceLibrary";
+import { buildResourceCsvTemplate, parseResourceCsv } from "./resources/resourceCsv";
 import FormsLibrary from "./forms-library/FormsLibrary";
 import AssetsLibrary from "./assets-library/AssetsLibrary";
 import StatisticsTab from "./statistics/StatisticsTab";
 import LiveReviewPane from "./review/LiveReviewPane";
 import "./review/live-review.css";
+import { ToastContainer, notify } from "../ui/Toast";
 
 // --- Constants ---
 const provider = new GoogleAuthProvider();
@@ -84,8 +85,8 @@ const EMAIL_FOR_SIGN_IN_KEY = "lpPortal:emailForSignIn";
 
 
 // --- Helper Functions for Alerts/Confirmations ---
-const showAppAlert = (message) => {
-  alert(message); 
+const showAppAlert = (message, options) => {
+  notify(message, options);
 };
 
 const showAppConfirm = (message) => {
@@ -195,7 +196,6 @@ const [activeAdminTab, setActiveAdminTab] = useState("pitchesAndReviews");
 
 // Helper to check if viewport is mobile
 const isMobile = () => window.innerWidth < 768;
-const [showConfetti, setShowConfetti] = useState(false);
 const [expandedPitchId, setExpandedPitchId] = useState(null);
 const [lpPitches, setLpPitches] = useState([]);
 const [lpPitchesLoaded, setLpPitchesLoaded] = useState(false);
@@ -326,6 +326,9 @@ const [resourceSearchTerm, setResourceSearchTerm] = useState('');
 const [resourceTypeFilter, setResourceTypeFilter] = useState('');
 const [resourceStageFilter, setResourceStageFilter] = useState('');
 const [resourceChapterFilter, setResourceChapterFilter] = useState('');
+// CSV bulk-import preview state. Status walks: idle → preview → committing → idle.
+const [resourceCsvImport, setResourceCsvImport] = useState({ valid: [], errors: [], status: 'idle' });
+const resourceCsvFileInputRef = useRef(null);
 
 // Calculate new message count
 const newMessageCount = useMemo(() => {
@@ -354,10 +357,10 @@ useEffect(() => {
 const isSuperAdmin = user?.role === "superAdmin";
 const isChapterDirector = user?.role === "chapter_director";
 const isLP = user?.role === "lp";
-// isAdmin means "has elevated portal access" — any validated role. After the admin
-// role was collapsed into lp, every validated user reaches the admin panel; superAdmin
-// and chapter_director are further-scoped tiers within it.
-const isAdmin = isLP || isChapterDirector || isSuperAdmin;
+// isAdmin gates the Admin Panel and admin-only actions (shortlist, admin notes,
+// user/chapter management). Plain LPs review pitches but do not run the meeting,
+// so they are excluded.
+const isAdmin = isChapterDirector || isSuperAdmin;
 const userChapter = user?.chapter;
 
 // Chapter directors can only invite into their own chapter — keep it pinned
@@ -986,12 +989,15 @@ useEffect(() => {
   }
 }, [user, activeTab]);
 
-// Load resources when admin panel is active
+// Load resources when admin panel is active. Chapter directors manage
+// their own chapter's resources from the same tab, so the load needs to
+// fire for them too — the UI scopes the table client-side and firestore
+// rules enforce write boundaries by chapter.
 useEffect(() => {
-  if (user && activeTab === 'adminPanel' && activeAdminTab === 'resourcesManagement' && isSuperAdmin) {
+  if (user && activeTab === 'adminPanel' && activeAdminTab === 'resourcesManagement' && (isSuperAdmin || isChapterDirector)) {
     loadManagedResources();
   }
-}, [user, activeTab, activeAdminTab, isSuperAdmin]);
+}, [user, activeTab, activeAdminTab, isSuperAdmin, isChapterDirector]);
 
 useEffect(() => {
   if (selectedPitch && selectedPitch.id) {
@@ -1284,6 +1290,20 @@ const waitForCardFonts = async () => {
 const lpSlug = (name) =>
   name ? name.toLowerCase().replace(/\s+/g, '-').replace(/'/g, '') : null;
 
+// Resolve the signed-in user's portrait for the canvas social cards. Prefers
+// the admin-uploaded photo (users/{uid}.photoUrl) — matching the members
+// directory, edit-panel preview, and chapter pages — then falls back to the
+// legacy bundled /assets/lps/<slug>.png, then null so drawPortrait renders the
+// initials placeholder. NOTE: photoUrl is a cross-origin Firebase Storage URL;
+// loadImage requests it with crossOrigin='anonymous' so the canvas stays
+// untainted for toBlob export, which requires CORS on the Storage bucket
+// (see cors.json). Without that grant the fetch fails and we fall through to
+// the bundled asset / initials, never to a tainted-canvas export error.
+const loadUserPortrait = (u) =>
+  u?.photoUrl
+    ? loadImage(u.photoUrl)
+    : (lpSlug(u?.name) ? loadImage(`/assets/lps/${lpSlug(u.name)}.png`) : Promise.resolve(null));
+
 // Draw the ink top band shared across all four cards: black bar with the
 // brand wordmark + tagline in pixel font, centered.
 const drawMasthead = (ctx, subtitle) => {
@@ -1401,7 +1421,7 @@ const drawWelcomeCard = async (canvas) => {
 
   // Pre-load photo + logo in parallel so drawing is deterministic.
   const [photoImg, logoImg] = await Promise.all([
-    lpSlug(user?.name) ? loadImage(`/assets/lps/${lpSlug(user.name)}.png`) : Promise.resolve(null),
+    loadUserPortrait(user),
     loadImage('/assets/gnf-logo.png'),
   ]);
 
@@ -1465,7 +1485,7 @@ const drawBadgeCard = async (canvas) => {
   drawMasthead(ctx, `${(user?.chapter || 'Chapter')} · Badges`);
 
   const [photoImg, logoImg] = await Promise.all([
-    lpSlug(user?.name) ? loadImage(`/assets/lps/${lpSlug(user.name)}.png`) : Promise.resolve(null),
+    loadUserPortrait(user),
     loadImage('/assets/gnf-logo.png'),
   ]);
 
@@ -1676,7 +1696,7 @@ const drawRecruitmentCard = async (canvas) => {
   drawMasthead(ctx, 'Join the LP Network');
 
   const [photoImg, logoImg] = await Promise.all([
-    lpSlug(user?.name) ? loadImage(`/assets/lps/${lpSlug(user.name)}.png`) : Promise.resolve(null),
+    loadUserPortrait(user),
     loadImage('/assets/gnf-logo.png'),
   ]);
 
@@ -1768,7 +1788,7 @@ const drawApprovalDialogCard = async (canvas) => {
   drawMasthead(ctx, 'Belief, in writing');
 
   const [photoImg, logoImg] = await Promise.all([
-    lpSlug(user?.name) ? loadImage(`/assets/lps/${lpSlug(user.name)}.png`) : Promise.resolve(null),
+    loadUserPortrait(user),
     loadImage('/assets/gnf-logo.png'),
   ]);
 
@@ -1862,7 +1882,7 @@ const drawApplicationFormCard = async (canvas) => {
   drawMasthead(ctx, 'Apply in one sentence');
 
   const [photoImg, logoImg] = await Promise.all([
-    lpSlug(user?.name) ? loadImage(`/assets/lps/${lpSlug(user.name)}.png`) : Promise.resolve(null),
+    loadUserPortrait(user),
     loadImage('/assets/gnf-logo.png'),
   ]);
 
@@ -2469,6 +2489,74 @@ const handleEditResource = (resource) => {
   setIsAddingResource(true);
 };
 
+// Download a CSV template scoped to the current user's chapter (when
+// they're a chapter director) so the example rows already point at
+// the right place. Super admins get the default chapter in examples.
+const handleDownloadResourceTemplate = () => {
+  const chapterForExamples = isChapterDirector && userChapter ? userChapter : '';
+  const csv = buildResourceCsvTemplate(chapterForExamples);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const filename = chapterForExamples
+    ? `resources-template-${chapterForExamples.toLowerCase().replace(/\s+/g, '-')}.csv`
+    : 'resources-template.csv';
+  saveAs(blob, filename);
+};
+
+const handleResourceCsvFile = (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    const text = evt.target.result;
+    const allowedChapters = isChapterDirector && userChapter ? [userChapter] : activeChapterNames;
+    const result = parseResourceCsv(text, {
+      forcedChapter: isChapterDirector ? userChapter : null,
+      allowedChapters,
+    });
+    setResourceCsvImport({ ...result, status: 'preview' });
+  };
+  reader.readAsText(file);
+  // Reset the input so re-uploading the same file fires onChange.
+  e.target.value = '';
+};
+
+const handleCancelResourceImport = () => {
+  setResourceCsvImport({ valid: [], errors: [], status: 'idle' });
+};
+
+const handleCommitResourceImport = async () => {
+  if (!resourceCsvImport.valid.length) return;
+  setResourceCsvImport((prev) => ({ ...prev, status: 'committing' }));
+  try {
+    // Firestore writeBatch caps at 500 ops. We chunk so a 600-row CSV
+    // doesn't silently drop rows past the cap.
+    const chunks = [];
+    for (let i = 0; i < resourceCsvImport.valid.length; i += 400) {
+      chunks.push(resourceCsvImport.valid.slice(i, i + 400));
+    }
+    for (const chunk of chunks) {
+      const batch = writeBatch(db);
+      const resourcesRef = collection(db, 'resources');
+      chunk.forEach((row) => {
+        const ref = doc(resourcesRef);
+        batch.set(ref, {
+          ...row,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      });
+      await batch.commit();
+    }
+    showAppAlert(`Imported ${resourceCsvImport.valid.length} resources.`);
+    setResourceCsvImport({ valid: [], errors: [], status: 'idle' });
+    loadManagedResources();
+  } catch (error) {
+    console.error('LPPortal: Bulk resource import failed:', error);
+    showAppAlert('Bulk import failed. Some rows may not have been saved.');
+    setResourceCsvImport((prev) => ({ ...prev, status: 'preview' }));
+  }
+};
+
 // Navigation items component (shared between desktop and mobile)
 const navButtonStyle = (tabName) => {
   const isActive = activeTab === tabName;
@@ -2912,7 +3000,7 @@ const handleReviewSubmit = async (e) => {
   e.preventDefault();
   if (!user || !selectedPitch) {
     console.error("Review submit cancelled: Missing user or selected pitch.");
-    alert("Cannot submit review: User or Pitch data missing. Please select a pitch first."); 
+    showAppAlert("Cannot submit review: User or Pitch data missing. Please select a pitch first.", { variant: "error" });
     return;
   }
 
@@ -2923,7 +3011,7 @@ const handleReviewSubmit = async (e) => {
   console.log(`LPPortal: Attempting to submit/update review with ID: ${reviewId} by user ${user.uid} (Role: ${user.role}) for pitch ${selectedPitch.id}`);
   if (!reviewId || reviewId.includes('<span') || !selectedPitch.id || !user.uid) { 
     console.error("LPPortal: Invalid reviewId generated!", reviewId);
-    alert("Failed submit. Critical error generating review ID.");
+    showAppAlert("Failed submit. Critical error generating review ID.", { variant: "error" });
     return; 
   }
 
@@ -2965,10 +3053,8 @@ const handleReviewSubmit = async (e) => {
     
     setUserStats(trackingResult.stats);
     
-    alert("Review submitted successfully! 🥳"); // Use showAppAlert if implemented
+    showAppAlert(isEdit ? "Review updated." : "Review submitted!", { variant: "success" });
 
-    setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 5000); // Confetti lasts for 3 seconds
 
     setReviews(currentReviews => {
         const updatedReviews = {
@@ -3007,13 +3093,7 @@ const handleReviewSubmit = async (e) => {
 
   } catch (error) {
     console.error(`LPPortal: Error submitting review ${reviewId}:`, error.code, error.message);
-    // Provide more specific feedback based on potential Firestore rule errors
-    if (error.code === 'permission-denied' || error.message.includes('permission-denied')) {
-      alert(`Failed submit: Permission Denied. Please check Firestore rules allow role '${user.role}' to write to /reviews/${reviewId}`); // Use showAppAlert
-      console.error(`LPPortal: PERMISSION DENIED writing to /reviews/${reviewId} for user ${user.uid}`);
-    } else {
-      alert(`Failed submit. Error: ${error.message}. Please try again.`); // Use showAppAlert
-    }
+    showAppAlert(`Failed submit. ${error.message}. Please try again.`, { variant: "error" });
   }
 };
 
@@ -5075,14 +5155,7 @@ return (
       }
     `}</style>
 
-    {showConfetti && (
-      <Confetti
-        width={window.innerWidth}
-        height={window.innerHeight}
-        numberOfPieces={300}
-        recycle={false}
-      />
-    )}
+    <ToastContainer />
     
     {/* Badge Notification */}
     {showBadgeNotification && (
@@ -6404,7 +6477,10 @@ return (
           })()}
 
           {activeAdminTab === 'grantWinners' && (() => {
-            const winnerPitches = adminFilteredSortedPitches.filter(p => p.isWinner);
+            // Source from the raw admin list, not adminFilteredSortedPitches.
+            // The Pitches & Reviews tab's filters/sort must not leak in here —
+            // Grant Winners has its own chapter + search controls below.
+            const winnerPitches = adminPitches.filter(p => p.isWinner);
 
             const handleFieldChange = (pitchId, field, value) => {
               if (field === "about") {
@@ -8457,9 +8533,24 @@ return (
                         : 'Every funding org, incubator, and community resource your chapters point founders toward.'}
                     </p>
                   </div>
-                  <RetroButton onClick={openAddForm} variant="primary" size="lg">
-                    + Add Resource
-                  </RetroButton>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <RetroButton onClick={handleDownloadResourceTemplate}>
+                      Download Template
+                    </RetroButton>
+                    <RetroButton onClick={() => resourceCsvFileInputRef.current && resourceCsvFileInputRef.current.click()}>
+                      Upload CSV
+                    </RetroButton>
+                    <input
+                      ref={resourceCsvFileInputRef}
+                      type="file"
+                      accept=".csv,text/csv"
+                      onChange={handleResourceCsvFile}
+                      style={{ display: 'none' }}
+                    />
+                    <RetroButton onClick={openAddForm} variant="primary" size="lg">
+                      + Add Resource
+                    </RetroButton>
+                  </div>
                 </div>
                 <div className="admin-hero-stats">
                   <div className="admin-hero-stat">
@@ -8483,7 +8574,7 @@ return (
 
               <section className="admin-section admin-section--chalk">
               {/* Toolbar: search + filters */}
-              <div className="filter-bar">
+              <div className="filter-bar filter-bar--one-row">
                 <input
                   type="search"
                   aria-label="Search resources"
@@ -8522,6 +8613,99 @@ return (
                 </RetroButton>
               </div>
 
+              {/* CSV import preview — appears after a parse, before commit. */}
+              {resourceCsvImport.status !== 'idle' && (
+                <div className="mb-form-shell" style={{
+                  background: 'var(--mb-chalk)',
+                  border: '2px solid var(--mb-ink)',
+                  boxShadow: 'var(--shadow-hard)',
+                  padding: '20px',
+                  marginBottom: '20px',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
+                    <h5 style={{ margin: 0 }}>
+                      Bulk import preview
+                    </h5>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <RetroButton onClick={handleCancelResourceImport} disabled={resourceCsvImport.status === 'committing'}>
+                        Cancel
+                      </RetroButton>
+                      <RetroButton
+                        variant="primary"
+                        onClick={handleCommitResourceImport}
+                        disabled={!resourceCsvImport.valid.length || resourceCsvImport.status === 'committing'}
+                      >
+                        {resourceCsvImport.status === 'committing'
+                          ? 'Importing…'
+                          : `Import ${resourceCsvImport.valid.length} resource${resourceCsvImport.valid.length === 1 ? '' : 's'}`}
+                      </RetroButton>
+                    </div>
+                  </div>
+
+                  <p style={{ margin: '0 0 14px 0', fontSize: 13, color: 'var(--mb-ink-60)' }}>
+                    {resourceCsvImport.valid.length} valid · {resourceCsvImport.errors.length} with issues
+                    {isChapterDirector && userChapter ? ` · all rows pinned to ${userChapter}.` : '.'}
+                    {' '}Review below, then click Import to write to Firestore.
+                  </p>
+
+                  {resourceCsvImport.errors.length > 0 && (
+                    <div style={{
+                      background: 'var(--mb-paper)',
+                      border: '2px solid var(--mb-magenta)',
+                      padding: 12,
+                      marginBottom: 14,
+                      maxHeight: 200,
+                      overflowY: 'auto',
+                    }}>
+                      <strong style={{ color: 'var(--mb-magenta)', fontSize: 13 }}>
+                        {resourceCsvImport.errors.length} row{resourceCsvImport.errors.length === 1 ? '' : 's'} skipped:
+                      </strong>
+                      <ul style={{ margin: '8px 0 0 0', paddingLeft: 20, fontSize: 12, color: 'var(--mb-ink)' }}>
+                        {resourceCsvImport.errors.map((err, i) => (
+                          <li key={i}>
+                            <strong>Row {err.rowIndex}{err.name ? ` — ${err.name}` : ''}:</strong>{' '}
+                            {Array.isArray(err.messages) ? err.messages.join('; ') : err.message}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {resourceCsvImport.valid.length > 0 && (
+                    <div style={{
+                      maxHeight: 260,
+                      overflowY: 'auto',
+                      border: '1px solid var(--mb-ink-15)',
+                    }}>
+                      <table className="retro-table" style={{ marginBottom: 0 }}>
+                        <thead>
+                          <tr>
+                            <th>Resource</th>
+                            <th>Type</th>
+                            <th>Stage</th>
+                            <th>Chapter</th>
+                            <th>Focus</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {resourceCsvImport.valid.map((row, i) => (
+                            <tr key={i}>
+                              <td style={{ fontWeight: 700 }}>{row.Resource}</td>
+                              <td>{row.Type}</td>
+                              <td>{row['Business Stage']}</td>
+                              <td>{row.Chapter}</td>
+                              <td style={{ fontSize: 12, color: 'var(--mb-ink-60)' }}>
+                                {row['Focus Area'] || '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Resource Form (Add/Edit) */}
               {isAddingResource && (
                 <div className="mb-form-shell" style={{
@@ -8555,7 +8739,11 @@ return (
                           onChange={(e) => setResourceFormData({ ...resourceFormData, Resource: e.target.value })}
                           style={inputStyle}
                           placeholder="e.g., 43North Accelerator"
+                          maxLength={80}
                         />
+                        <small style={{ display: 'block', fontSize: 11, color: 'var(--mb-ink-60)', marginTop: 4 }}>
+                          2-80 characters. Org or program name as a founder would search for it.
+                        </small>
                       </div>
                       <div>
                         <label style={labelStyle}>Chapter *</label>
@@ -8676,16 +8864,47 @@ return (
                         style={inputStyle}
                         placeholder="https://..."
                       />
+                      <small style={{ display: 'block', fontSize: 11, color: 'var(--mb-ink-60)', marginTop: 4 }}>
+                        Full URL with the https:// prefix.
+                      </small>
                     </div>
-                    <div style={{ marginTop: '12px' }}>
-                      <label style={labelStyle}>Expanded Details</label>
-                      <textarea
-                        value={resourceFormData['Expanded Details']}
-                        onChange={(e) => setResourceFormData({ ...resourceFormData, 'Expanded Details': e.target.value })}
-                        style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }}
-                        placeholder="Detailed description of the resource..."
-                      />
-                    </div>
+                    {(() => {
+                      const detailLen = (resourceFormData['Expanded Details'] || '').length;
+                      const inSweetSpot = detailLen >= 200 && detailLen <= 500;
+                      const overCap = detailLen > 800;
+                      const counterColor = overCap
+                        ? 'var(--mb-magenta)'
+                        : inSweetSpot
+                        ? 'var(--mb-aqua)'
+                        : 'var(--mb-ink-60)';
+                      return (
+                        <div style={{ marginTop: '12px' }}>
+                          <label style={labelStyle}>Expanded Details</label>
+                          <textarea
+                            value={resourceFormData['Expanded Details']}
+                            onChange={(e) => setResourceFormData({ ...resourceFormData, 'Expanded Details': e.target.value })}
+                            style={{ ...inputStyle, minHeight: '100px', resize: 'vertical' }}
+                            placeholder="What does the founder actually get? Who is this for? E.g., 'Annual competition awarding $1M each to 5 startups. Companies relocate to Buffalo for 12 months and receive workspace, mentorship, and investor access. Best fit for traction-stage tech founders.'"
+                            maxLength={800}
+                          />
+                          <small style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            gap: 12,
+                            fontSize: 11,
+                            color: 'var(--mb-ink-60)',
+                            marginTop: 4,
+                          }}>
+                            <span>
+                              1-3 sentences. ~200-500 chars hits the sweet spot. Avoid marketing language ("innovative", "cutting-edge").
+                            </span>
+                            <span style={{ color: counterColor, fontWeight: 600, whiteSpace: 'nowrap' }}>
+                              {detailLen} / 800
+                            </span>
+                          </small>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div className="retro-action-row">
@@ -8731,11 +8950,16 @@ return (
                                 href={url}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                style={{ marginLeft: 6, fontSize: '0.85em' }}
+                                style={{
+                                  marginLeft: 8,
+                                  fontSize: 12,
+                                  fontWeight: 500,
+                                  color: 'var(--mb-ink-60)',
+                                }}
                                 title={url}
                                 aria-label={`Open ${resource.Resource || resource.resource || 'resource'} in new tab`}
                               >
-                                🔗
+                                Visit ↗
                               </a>
                             )}
                           </td>
@@ -8754,9 +8978,10 @@ return (
                           <td style={{ fontSize: 13 }}>
                             {resource.CountiesServed || resource['Counties Served'] || resource.countiesServed || '—'}
                           </td>
-                          <td className="actions" style={{ textAlign: 'center' }}>
+                          <td className="actions actions--spaced">
                             <RetroButton
                               size="sm"
+                              className="win95-btn--flat"
                               onClick={() => handleEditResource(resource)}
                             >
                               Edit
@@ -8764,6 +8989,7 @@ return (
                             <RetroButton
                               size="sm"
                               variant="danger"
+                              className="win95-btn--flat"
                               onClick={() => handleDeleteResource(resource.id)}
                             >
                               Delete

@@ -5,6 +5,7 @@ import ReviewingPitches from './documents/ReviewingPitches';
 import PortalTour from './documents/PortalTour';
 import ChapterDirectorPlaybook from './documents/ChapterDirectorPlaybook';
 import ChapterCommittees from './documents/ChapterCommittees';
+import ManagingResources from './documents/ManagingResources';
 
 // PDF components are loaded on-demand. They pull in @react-pdf/renderer
 // and the font subsets, which together add ~500KB gzipped. Only the doc
@@ -16,6 +17,7 @@ const loadReviewingPitchesPDF = () => import('./pdf/ReviewingPitchesPDF');
 const loadPortalTourPDF = () => import('./pdf/PortalTourPDF');
 const loadChapterDirectorPlaybookPDF = () => import('./pdf/ChapterDirectorPlaybookPDF');
 const loadChapterCommitteesPDF = () => import('./pdf/ChapterCommitteesPDF');
+const loadManagingResourcesPDF = () => import('./pdf/ManagingResourcesPDF');
 
 export const RESOURCE_DOCUMENTS = [
   {
@@ -108,6 +110,19 @@ export const RESOURCE_DOCUMENTS = [
     Component: ChapterCommittees,
     loadPDF: loadChapterCommitteesPDF,
     pdfFilename: 'GNF-Chapter-Committees.pdf',
+  },
+  {
+    id: 'managing-resources',
+    title: 'Managing Chapter Resources',
+    summary:
+      'Adding, editing, and bulk-importing the funding orgs, incubators, and community resources your chapter points founders toward. The data behind the AI Concierge.',
+    category: 'Admin',
+    number: '08',
+    accent: 'tangerine',
+    readingTime: '8 min read',
+    Component: ManagingResources,
+    loadPDF: loadManagingResourcesPDF,
+    pdfFilename: 'GNF-Managing-Chapter-Resources.pdf',
   },
 ];
 

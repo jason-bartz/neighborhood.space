@@ -25,6 +25,41 @@ const GALLERY_MARQUEE_THRESHOLD = 5;
 const photoUrlFor = (name) =>
   name ? `/assets/lps/${name.toLowerCase().replace(/\s+/g, "-").replace(/[‘’`]/g, "'")}.png` : null;
 
+// Renders one LP card. Prefers the admin-uploaded photo on the user doc
+// (lp.photoUrl), then falls back to the legacy /assets/lps/<slug>.png
+// convention. On image-load failure we swap to a same-dimensions placeholder
+// so the absolutely-positioned Chapter Director tag never sits on top of the
+// name when no photo exists (which was the case for newer chapters where
+// photos live in Storage rather than the bundled assets folder).
+function LpCard({ lp }) {
+  const effectiveRole = lp.role === 'superAdmin' ? (lp.chapterRole || lp.role) : lp.role;
+  const initialSrc = lp.photoUrl || photoUrlFor(lp.name);
+  const [photoFailed, setPhotoFailed] = useState(!initialSrc);
+  return (
+    <div className="win95-lp-card">
+      {effectiveRole === 'chapter_director' && (
+        <span className="win95-lp-director-tag">Chapter Director</span>
+      )}
+      {photoFailed ? (
+        <div className="win95-lp-photo-placeholder" aria-hidden="true" />
+      ) : (
+        <img
+          src={initialSrc}
+          alt={`${lp.name}${lp.professionalRole ? ` - ${lp.professionalRole}` : ""} - Good Neighbor Fund Limited Partner`}
+          onError={() => setPhotoFailed(true)}
+        />
+      )}
+      <h3>
+        {lp.linkedinUrl
+          ? <a href={lp.linkedinUrl} target="_blank" rel="noreferrer">{lp.name}</a>
+          : lp.name}
+      </h3>
+      {lp.professionalRole && <p className="win95-lp-role">{lp.professionalRole}</p>}
+      {lp.bio && <p className="win95-lp-bio">{lp.bio}</p>}
+    </div>
+  );
+}
+
 export default function ChapterPage() {
   const { chapterSlug } = useParams();
   const navigate = useNavigate();
@@ -338,32 +373,9 @@ export default function ChapterPage() {
           <section className="win95-section" id="lps">
             <h1 style={{ textAlign: "center" }}>{name} Chapter LPs</h1>
             <div className="win95-lp-grid">
-              {lps.map(lp => {
-                // Effective presentation role: superAdmins opt into display
-                // via chapterRole; everyone else uses their actual role.
-                const effectiveRole = lp.role === 'superAdmin' ? (lp.chapterRole || lp.role) : lp.role;
-                return (
-                <div key={lp.id} className="win95-lp-card">
-                  {effectiveRole === 'chapter_director' && (
-                    <span className="win95-lp-director-tag">Chapter Director</span>
-                  )}
-                  {photoUrlFor(lp.name) && (
-                    <img
-                      src={photoUrlFor(lp.name)}
-                      alt={`${lp.name}${lp.professionalRole ? ` - ${lp.professionalRole}` : ""} - Good Neighbor Fund Limited Partner`}
-                      onError={(e) => { e.target.style.display = "none"; }}
-                    />
-                  )}
-                  <h3>
-                    {lp.linkedinUrl
-                      ? <a href={lp.linkedinUrl} target="_blank" rel="noreferrer">{lp.name}</a>
-                      : lp.name}
-                  </h3>
-                  {lp.professionalRole && <p className="win95-lp-role">{lp.professionalRole}</p>}
-                  {lp.bio && <p className="win95-lp-bio">{lp.bio}</p>}
-                </div>
-                );
-              })}
+              {lps.map(lp => (
+                <LpCard key={lp.id} lp={lp} />
+              ))}
             </div>
           </section>
         )}

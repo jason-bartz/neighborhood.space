@@ -419,7 +419,7 @@ export default function PitchPage({ onClose }) {
               placeholder="Paste hosted video URL here"
             />
             <small>
-              If you have a hosted pitch video to share (YouTube, Vimeo, Google Drive, Dropbox), paste the URL here. Ensure sharing permissions are enabled.
+              Instead of uploading, you can paste a link to a pitch video you've already hosted (YouTube, Vimeo, Google Drive, Dropbox). <strong>Make sure sharing permissions are enabled</strong> so reviewers can view it.
             </small>
           </div>
 

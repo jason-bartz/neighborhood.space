@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { httpsCallable } from "firebase/functions";
 import { functions } from "../../../firebaseConfig";
+import { zipToChapter } from "../shared/zipToChapter";
 import ResourceCard from "../shared/ResourceCard";
 
 const recommendCallable = httpsCallable(functions, "recommendResources");
@@ -15,9 +16,10 @@ const STAGE_ALIASES = {
 
 // Stable key for caching recommendations in localStorage. Slug-friendly,
 // avoids ; / : that some keys complain about.
-function cacheKey({ chapter, stage, chips, needText }) {
+function cacheKey({ chapter, stage, chips, identities, needText }) {
   const safe = (s) => String(s || "").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-  return `rn-rec:${safe(chapter)}|${safe(stage)}|${chips.slice().sort().join(",")}|${safe(needText).slice(0, 80)}`;
+  const ids = Array.isArray(identities) ? identities.slice().sort().join(",") : "";
+  return `rn-rec:${safe(chapter)}|${safe(stage)}|${chips.slice().sort().join(",")}|${ids}|${safe(needText).slice(0, 80)}`;
 }
 
 function loadCached(key) {
@@ -26,7 +28,6 @@ function loadCached(key) {
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || !parsed.ts || !parsed.data) return null;
-    // Cache for 24h — corpus changes slowly, founder's needs not at all.
     if (Date.now() - parsed.ts > 24 * 60 * 60 * 1000) return null;
     return parsed.data;
   } catch {
@@ -42,8 +43,6 @@ function saveCached(key, data) {
   }
 }
 
-// Used while the AI call is in flight, and as the fallback if it fails. Keeps
-// the user from staring at a spinner with nothing useful behind it.
 function deterministicShortlist({ resources, chapter, stage, chips, needText }) {
   const stageList = stage ? STAGE_ALIASES[stage] || [stage] : null;
   const filtered = resources.filter((r) => {
@@ -92,11 +91,21 @@ function deterministicShortlist({ resources, chapter, stage, chips, needText }) 
     }));
 }
 
+function deterministicSummaryClient({ chapter, stage, chips }) {
+  const parts = [];
+  if (stage) parts.push(stage.toLowerCase());
+  if (chips && chips.length) parts.push(chips.join(" + "));
+  const focus = parts.length ? ` for ${parts.join(" / ")}` : "";
+  const where = chapter ? ` in ${chapter}` : "";
+  return `Top resources${where}${focus}, ranked by relevance to your filters.`;
+}
+
 export default function ConciergeResults({ answers, resources, onReset, onBrowseAll, modeToggle }) {
   const [recommendations, setRecommendations] = useState(null);
+  const [summary, setSummary] = useState("");
+  const [resolvedChapter, setResolvedChapter] = useState(answers.chapter || "");
   const [source, setSource] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   const resourceById = useMemo(() => {
     const m = new Map();
@@ -104,58 +113,83 @@ export default function ConciergeResults({ answers, resources, onReset, onBrowse
     return m;
   }, [resources]);
 
+  // Resolve client-side first so the chip in the hero shows immediately.
+  const initialChapter = answers.chapter || zipToChapter(answers.zip) || "";
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setError(null);
     setRecommendations(null);
+    setSummary("");
+    setResolvedChapter(initialChapter);
 
-    const key = cacheKey(answers);
+    const cacheChapter = answers.chapter || zipToChapter(answers.zip) || "";
+    const key = cacheKey({ ...answers, chapter: cacheChapter });
     const cached = loadCached(key);
     if (cached) {
       setRecommendations(cached.recommendations);
+      setSummary(cached.summary || "");
+      setResolvedChapter(cached.resolvedChapter || cacheChapter);
       setSource(cached.source);
       setLoading(false);
       return () => {};
     }
 
     recommendCallable({
-      chapter: answers.chapter,
+      chapter: answers.chapter || undefined,
+      zip: answers.zip || undefined,
       stage: answers.stage,
       chips: answers.chips,
+      identities: answers.identities || [],
       needText: answers.needText,
     })
       .then((result) => {
         if (cancelled) return;
         const data = result.data || {};
         const recs = Array.isArray(data.recommendations) ? data.recommendations : [];
+        const serverChapter = data.resolvedChapter || cacheChapter;
         if (recs.length === 0) {
-          // Empty AI result — fall back so user always sees something.
-          const fallback = deterministicShortlist({ resources, ...answers });
+          const fallback = deterministicShortlist({ resources, ...answers, chapter: serverChapter });
+          const fallbackSummary = deterministicSummaryClient({ ...answers, chapter: serverChapter });
           setRecommendations(fallback);
+          setSummary(fallbackSummary);
+          setResolvedChapter(serverChapter);
           setSource("deterministic");
-          saveCached(key, { recommendations: fallback, source: "deterministic" });
+          saveCached(key, {
+            recommendations: fallback,
+            summary: fallbackSummary,
+            resolvedChapter: serverChapter,
+            source: "deterministic",
+          });
         } else {
           setRecommendations(recs);
+          setSummary(typeof data.summary === "string" ? data.summary : "");
+          setResolvedChapter(serverChapter);
           setSource(data.source || "ai");
-          saveCached(key, { recommendations: recs, source: data.source || "ai" });
+          saveCached(key, {
+            recommendations: recs,
+            summary: typeof data.summary === "string" ? data.summary : "",
+            resolvedChapter: serverChapter,
+            source: data.source || "ai",
+          });
         }
         setLoading(false);
       })
       .catch((err) => {
         if (cancelled) return;
         console.error("recommendResources call failed:", err);
-        const fallback = deterministicShortlist({ resources, ...answers });
+        const fallback = deterministicShortlist({ resources, ...answers, chapter: cacheChapter });
         setRecommendations(fallback);
+        setSummary(deterministicSummaryClient({ ...answers, chapter: cacheChapter }));
+        setResolvedChapter(cacheChapter);
         setSource("deterministic");
-        setError(null); // Soft fail — show fallback, no error UI
         setLoading(false);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [answers, resources]);
+  }, [answers, resources, initialChapter]);
 
   const cards = useMemo(() => {
     if (!recommendations) return [];
@@ -168,9 +202,10 @@ export default function ConciergeResults({ answers, resources, onReset, onBrowse
   }, [recommendations, resourceById]);
 
   const filterSummary = [
-    answers.chapter,
+    resolvedChapter,
     answers.stage,
     answers.chips.length ? answers.chips.join(", ") : null,
+    answers.identities && answers.identities.length ? answers.identities.join(", ") : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -179,7 +214,7 @@ export default function ConciergeResults({ answers, resources, onReset, onBrowse
     <>
       <section className="rn-hero">
         <div className="rn-hero-text">
-          <span className="rn-hero-eyebrow">Your shortlist</span>
+          <span className="rn-hero-eyebrow">AI Concierge · Your shortlist</span>
           <h2 className="rn-hero-title">
             {loading ? "Looking for matches…" : `${cards.length} resources to start with.`}
           </h2>
@@ -207,7 +242,9 @@ export default function ConciergeResults({ answers, resources, onReset, onBrowse
         {!loading && cards.length === 0 ? (
           <div className="rn-results-empty">
             <p className="mb-body">
-              No close matches in {answers.chapter} for that combination yet. Try browsing the full directory or loosening your filters.
+              {summary
+                ? summary
+                : `No close matches in ${resolvedChapter || "that area"} for that combination yet. Try browsing the full directory or loosening your filters.`}
             </p>
             <button type="button" className="mb-btn" onClick={onBrowseAll}>
               Browse the full directory
@@ -218,6 +255,13 @@ export default function ConciergeResults({ answers, resources, onReset, onBrowse
 
         {!loading && cards.length > 0 ? (
           <>
+            {summary ? (
+              <div className="rn-summary">
+                <span className="rn-summary-eyebrow">Why these</span>
+                <p className="rn-summary-text">{summary}</p>
+              </div>
+            ) : null}
+
             <div className="rn-results-grid">
               {cards.map(({ resource, reason }) => (
                 <ResourceCard key={resource.id} resource={resource} reason={reason} />
@@ -226,7 +270,7 @@ export default function ConciergeResults({ answers, resources, onReset, onBrowse
 
             <div className="rn-results-footer">
               <button type="button" className="mb-btn mb-btn-chalk rn-btn-compact" onClick={onBrowseAll}>
-                Browse all resources in {answers.chapter}
+                Browse all resources in {resolvedChapter || "the directory"}
                 <span className="mb-btn-arrow" aria-hidden="true">&rarr;</span>
               </button>
               {source === "ai" ? (

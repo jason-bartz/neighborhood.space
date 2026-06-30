@@ -37,11 +37,22 @@ function LiveReviewQueue({
     ? "0 pitches"
     : `${focusedIndex >= 0 ? focusedIndex + 1 : "—"} of ${pitches.length}`;
 
-  // Keep the active row visible when focus moves via keyboard.
+  // Keep the active row visible when focus moves. scrollIntoView({block:"nearest"})
+  // walks up every scrollable ancestor — including document — so on initial
+  // focus snap it could scroll the whole page, hiding the portal titlebar.
+  // Scroll only the queue's own list container instead.
   const activeRowRef = useRef(null);
+  const listRef = useRef(null);
   useEffect(() => {
-    if (activeRowRef.current) {
-      activeRowRef.current.scrollIntoView({ block: "nearest" });
+    const row = activeRowRef.current;
+    const container = listRef.current;
+    if (!row || !container) return;
+    const rowTop = row.offsetTop - container.offsetTop;
+    const rowBottom = rowTop + row.offsetHeight;
+    if (rowTop < container.scrollTop) {
+      container.scrollTop = rowTop;
+    } else if (rowBottom > container.scrollTop + container.clientHeight) {
+      container.scrollTop = rowBottom - container.clientHeight;
     }
   }, [focusedPitchId]);
 
@@ -61,7 +72,7 @@ function LiveReviewQueue({
           ))}
         </div>
       </div>
-      <div className="win95-live-review-queue__list" role="listbox" aria-label="Pitches">
+      <div ref={listRef} className="win95-live-review-queue__list" role="listbox" aria-label="Pitches">
         {pitches.length === 0 ? (
           <div className="win95-live-review-queue__empty">
             No pitches match your filters.

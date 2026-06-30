@@ -2261,6 +2261,34 @@ html { scroll-behavior: smooth; }
   color: var(--mb-chalk);
 }
 
+/* ── Flat modifier: kills the bevel/shadow + uppercase so a button can
+   sit calmly inside a table row or alongside flat inputs. Used for the
+   in-row Edit/Delete actions on the resources admin table. ── */
+.win95-btn--flat {
+  border: 2px solid var(--mb-ink) !important;
+  border-color: var(--mb-ink) !important;
+  box-shadow: none !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 600 !important;
+  border-radius: 0 !important;
+}
+
+.win95-btn--flat:active {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+/* Resources admin: spaced action column. Edit/Delete sit side-by-side
+   with breathing room; padding-left pushes them away from the row text. */
+.retro-table .actions--spaced {
+  white-space: nowrap;
+  padding-left: 16px;
+}
+.retro-table .actions--spaced > * + * {
+  margin-left: 12px;
+}
+
 /* ── Global focus-ring upgrade for every button in admin panel ── */
 .admin-tabpanel button:focus-visible,
 .retro-dialog button:focus-visible {

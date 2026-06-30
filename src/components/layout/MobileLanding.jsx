@@ -316,7 +316,8 @@ export default function MobileLanding({ initialBootDone = false }) {
   ];
 
 
-  // Dock Icons render function - matches desktop Dock.jsx bordered Win95 style
+  // Dock Icons render function — ink-bevel tiles (chalk fill, hard offset) to
+  // match the paper-on-ink Navigator dock bar, not the Win95 pink bevel.
   const renderDockIcon = (type, label, onClick, size = 30) => (
     <div
       className="mobile-dock-item"
@@ -345,10 +346,9 @@ export default function MobileLanding({ initialBootDone = false }) {
           width: size + 10,
           height: size + 10,
           padding: 2,
-          border: "2px solid",
-          borderColor: "var(--bevel-outset)",
-          boxShadow: "var(--shadow-outset)",
-          background: "var(--gnf-bg-silver)",
+          border: "2px solid var(--mb-ink)",
+          boxShadow: "var(--shadow-hard-sm)",
+          background: "var(--mb-chalk)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
